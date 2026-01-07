@@ -1,4 +1,4 @@
-const { Pupil, Teacher, Class, Payment, Attendance, Fees } = require('../models');
+const { Pupil, Teacher, Parent, Class, Payment, Attendance, Fees } = require('../models');
 const { Op } = require('sequelize');
 
 // Dashboard statistics
