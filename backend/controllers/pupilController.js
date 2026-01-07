@@ -110,6 +110,11 @@ const deletePupil = async (req, res) => {
     await pupil.destroy();
     res.json({ message: 'Pupil deleted successfully' });
   } catch (error) {
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({ 
+        error: 'Cannot delete pupil with existing records. Please remove associated payments and attendance first.' 
+      });
+    }
     res.status(500).json({ error: error.message });
   }
 };

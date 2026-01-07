@@ -41,25 +41,7 @@ const Payment = sequelize.define('Payment', {
   }
 }, {
   tableName: 'Payment',
-  timestamps: true,
-  hooks: {
-    beforeCreate: async (payment) => {
-      if (!payment.payID) {
-        const lastPayment = await Payment.findOne({
-          order: [['payID', 'DESC']],
-          attributes: ['payID']
-        });
-        
-        let nextId = 1;
-        if (lastPayment && lastPayment.payID) {
-          const currentId = parseInt(lastPayment.payID.substring(3));
-          nextId = currentId + 1;
-        }
-        
-        payment.payID = `PAY${String(nextId).padStart(3, '0')}`;
-      }
-    }
-  }
+  timestamps: true
 });
 
 module.exports = Payment;

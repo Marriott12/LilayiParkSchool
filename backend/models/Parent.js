@@ -56,25 +56,7 @@ const Parent = sequelize.define('Parent', {
   }
 }, {
   tableName: 'Parent',
-  timestamps: true,
-  hooks: {
-    beforeCreate: async (parent) => {
-      if (!parent.parentID) {
-        const lastParent = await Parent.findOne({
-          order: [['parentID', 'DESC']],
-          attributes: ['parentID']
-        });
-        
-        let nextId = 1;
-        if (lastParent && lastParent.parentID) {
-          const currentId = parseInt(lastParent.parentID.substring(3));
-          nextId = currentId + 1;
-        }
-        
-        parent.parentID = `PAR${String(nextId).padStart(3, '0')}`;
-      }
-    }
-  }
+  timestamps: true
 });
 
 module.exports = Parent;

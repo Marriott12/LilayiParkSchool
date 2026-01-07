@@ -1,5 +1,9 @@
 -- Lilayi Park School Database Schema
 -- MySQL 8.0+
+-- 
+-- Note: This schema uses MySQL triggers to auto-generate custom IDs
+-- (pupilID, teacherID, parentID, classID, payID) in specific formats.
+-- The triggers are defined at the end of this file.
 
 -- Drop existing tables if they exist (in reverse order of dependencies)
 DROP TABLE IF EXISTS Attendance;

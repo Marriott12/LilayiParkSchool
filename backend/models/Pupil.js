@@ -84,25 +84,7 @@ const Pupil = sequelize.define('Pupil', {
   }
 }, {
   tableName: 'Pupil',
-  timestamps: true,
-  hooks: {
-    beforeCreate: async (pupil) => {
-      if (!pupil.pupilID) {
-        const lastPupil = await Pupil.findOne({
-          order: [['pupilID', 'DESC']],
-          attributes: ['pupilID']
-        });
-        
-        let nextId = 1;
-        if (lastPupil && lastPupil.pupilID) {
-          const currentId = parseInt(lastPupil.pupilID.substring(1));
-          nextId = currentId + 1;
-        }
-        
-        pupil.pupilID = `L${String(nextId).padStart(3, '0')}`;
-      }
-    }
-  }
+  timestamps: true
 });
 
 module.exports = Pupil;

@@ -52,25 +52,7 @@ const Teacher = sequelize.define('Teacher', {
   }
 }, {
   tableName: 'Teacher',
-  timestamps: true,
-  hooks: {
-    beforeCreate: async (teacher) => {
-      if (!teacher.teacherID) {
-        const lastTeacher = await Teacher.findOne({
-          order: [['teacherID', 'DESC']],
-          attributes: ['teacherID']
-        });
-        
-        let nextId = 1;
-        if (lastTeacher && lastTeacher.teacherID) {
-          const currentId = parseInt(lastTeacher.teacherID.substring(3));
-          nextId = currentId + 1;
-        }
-        
-        teacher.teacherID = `TCH${String(nextId).padStart(3, '0')}`;
-      }
-    }
-  }
+  timestamps: true
 });
 
 module.exports = Teacher;

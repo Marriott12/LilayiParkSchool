@@ -1,19 +1,20 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-// Mock user for demo - in production, this should be in database
+// Mock user data - In production, this should be stored in a database
+// Default password is 'admin123' for admin and 'teacher123' for teacher
 const users = [
   {
     id: 1,
     username: 'admin',
-    password: '$2a$10$9XqZ3JqZ3JqZ3JqZ3JqZ3u7qZ3JqZ3JqZ3JqZ3JqZ3JqZ3JqZ3JqZ', // 'admin123'
+    password: '$2a$10$rB8C5l5Y5YC5l5Y5YC5l5OJ5YC5l5Y5YC5l5Y5YC5l5Y5YC5l5Y5YK', // admin123
     role: 'admin',
     name: 'Administrator'
   },
   {
     id: 2,
     username: 'teacher',
-    password: '$2a$10$9XqZ3JqZ3JqZ3JqZ3JqZ3u7qZ3JqZ3JqZ3JqZ3JqZ3JqZ3JqZ3JqZ', // 'teacher123'
+    password: '$2a$10$rB8C5l5Y5YC5l5Y5YC5l5OJ5YC5l5Y5YC5l5Y5YC5l5Y5YC5l5Y5YK', // teacher123
     role: 'teacher',
     name: 'Teacher User'
   }
@@ -28,46 +29,36 @@ const login = async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    // For demo purposes, accept default credentials
+    // For demo purposes with hardcoded users, we'll use plain comparison
+    // In production, use proper database with bcrypt.compare()
+    let user = null;
+    
     if (username === 'admin' && password === 'admin123') {
-      const token = jwt.sign(
-        { id: 1, username: 'admin', role: 'admin' },
-        process.env.JWT_SECRET || 'default_secret_key',
-        { expiresIn: process.env.JWT_EXPIRE || '7d' }
-      );
-
-      return res.json({
-        success: true,
-        token,
-        user: {
-          id: 1,
-          username: 'admin',
-          role: 'admin',
-          name: 'Administrator'
-        }
-      });
+      user = users[0];
+    } else if (username === 'teacher' && password === 'teacher123') {
+      user = users[1];
     }
 
-    if (username === 'teacher' && password === 'teacher123') {
-      const token = jwt.sign(
-        { id: 2, username: 'teacher', role: 'teacher' },
-        process.env.JWT_SECRET || 'default_secret_key',
-        { expiresIn: process.env.JWT_EXPIRE || '7d' }
-      );
-
-      return res.json({
-        success: true,
-        token,
-        user: {
-          id: 2,
-          username: 'teacher',
-          role: 'teacher',
-          name: 'Teacher User'
-        }
-      });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    res.status(401).json({ error: 'Invalid credentials' });
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    return res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        name: user.name
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

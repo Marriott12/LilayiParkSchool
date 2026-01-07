@@ -22,25 +22,7 @@ const Class = sequelize.define('Class', {
   }
 }, {
   tableName: 'Class',
-  timestamps: true,
-  hooks: {
-    beforeCreate: async (classObj) => {
-      if (!classObj.classID) {
-        const lastClass = await Class.findOne({
-          order: [['classID', 'DESC']],
-          attributes: ['classID']
-        });
-        
-        let nextId = 1;
-        if (lastClass && lastClass.classID) {
-          const currentId = parseInt(lastClass.classID.substring(3));
-          nextId = currentId + 1;
-        }
-        
-        classObj.classID = `CLS${String(nextId).padStart(3, '0')}`;
-      }
-    }
-  }
+  timestamps: true
 });
 
 module.exports = Class;

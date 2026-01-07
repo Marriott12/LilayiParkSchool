@@ -170,12 +170,15 @@ DB_NAME=lilayi_park_school
 DB_USER=root
 DB_PASSWORD=your_password
 
-JWT_SECRET=your_secret_key_here
+# IMPORTANT: Change this to a strong random string in production
+JWT_SECRET=your_secret_key_here_CHANGE_IN_PRODUCTION
 JWT_EXPIRE=7d
 
 MAX_FILE_SIZE=5242880
 UPLOAD_PATH=./uploads
 ```
+
+**Note:** The `JWT_SECRET` is required and must be set before starting the server. Generate a secure random string for production use.
 
 5. Start the server:
 ```bash
