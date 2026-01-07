@@ -350,6 +350,19 @@ Make sure to set proper environment variables for production:
 - Protected routes requiring authentication
 - SQL injection prevention via Sequelize ORM
 
+### Production Security Recommendations
+
+1. **Rate Limiting**: Add rate limiting middleware (e.g., express-rate-limit) to prevent API abuse
+2. **HTTPS**: Always use HTTPS in production
+3. **JWT Secret**: Use a strong, randomly generated JWT_SECRET (required)
+4. **Database**: Use strong database passwords and limit access
+5. **CORS**: Configure CORS to only allow your frontend domain
+6. **Headers**: Use helmet.js for security headers
+7. **Input Sanitization**: Validate and sanitize all user inputs
+8. **File Uploads**: Store uploaded files outside web root and validate file types
+9. **Session Management**: Implement proper session timeout and rotation
+10. **Logging**: Implement comprehensive logging and monitoring
+
 ## Future Enhancements
 
 - Email notifications for parents
@@ -362,6 +375,9 @@ Make sure to set proper environment variables for production:
 - Exam and grading system
 - Library management
 - Transport management
+- Rate limiting implementation
+- Two-factor authentication
+- Audit logging
 
 ## License
 
