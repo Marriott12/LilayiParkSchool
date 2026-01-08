@@ -46,7 +46,7 @@ if (Utils::isPost()) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -74,12 +74,13 @@ if (Utils::isPost()) {
 <body>
     <div class="login-card">
         <div class="login-header">
-            <i class="bi bi-building fs-1 mb-3 d-block"></i>
+            <img src="<?php echo BASE_URL; ?>/assets/images/logo.jpg" alt="Lilayi Park School" 
+                 style="max-width: 100px; height: auto; border-radius: 50%; margin-bottom: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <h3 class="mb-1">Lilayi Park School</h3>
             <p class="mb-0">Management System</p>
         </div>
         <div class="login-body">
-            <h5 class="text-center mb-4">Sign In to Your Account</h5>
+            <h5 class="text-center mb-4" style="color: #2d5016;">Sign In to Your Account</h5>
             
             <?php if ($error): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -105,7 +106,7 @@ if (Utils::isPost()) {
                 </div>
                 
                 <div class="d-grid">
-                    <button type="submit" class="btn btn-primary btn-lg">
+                    <button type="submit" class="btn btn-lg" style="background-color: #2d5016; color: white; border: none;">
                         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                     </button>
                 </div>

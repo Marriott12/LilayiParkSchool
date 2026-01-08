@@ -5,14 +5,14 @@
  */
 
 // Load configuration
-require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/../config/config.php';
 
 // Load core classes
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/Session.php';
-require_once __DIR__ . '/includes/RBAC.php';
-require_once __DIR__ . '/includes/BaseModel.php';
-require_once __DIR__ . '/includes/Utils.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/Session.php';
+require_once __DIR__ . '/RBAC.php';
+require_once __DIR__ . '/BaseModel.php';
+require_once __DIR__ . '/Utils.php';
 
 // Start session
 Session::start();

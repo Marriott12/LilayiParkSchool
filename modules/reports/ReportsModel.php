@@ -45,7 +45,7 @@ class ReportsModel extends BaseModel {
         $stats['outstandingBalance'] = $stats['totalFees'] - $stats['totalPayments'];
         
         // Recent Pupils
-        $sql = "SELECT pupilID, fName, sName, enrollDate FROM Pupil ORDER BY enrollDate DESC LIMIT 10";
+        $sql = "SELECT pupilID, fName, lName, enrollDate FROM Pupil ORDER BY enrollDate DESC LIMIT 10";
         $stmt = $this->db->query($sql);
         $stats['recentPupils'] = $stmt->fetchAll();
         

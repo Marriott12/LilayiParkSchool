@@ -1,0 +1,121 @@
+<?php
+require_once 'includes/bootstrap.php';
+
+RBAC::requireAuth();
+RBAC::requirePermission('users', 'read');
+
+require_once 'modules/users/UsersModel.php';
+
+$usersModel = new UsersModel();
+
+// Handle search
+$searchTerm = $_GET['search'] ?? '';
+$users = $searchTerm ? $usersModel->search($searchTerm) : $usersModel->getAllWithRoles();
+
+$pageTitle = 'User Management';
+$currentPage = 'users';
+require_once 'includes/header.php';
+?>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people-fill"></i> System Users</h2>
+    <?php if (RBAC::hasPermission(Session::getUserRole(), 'users', 'create')): ?>
+    <a href="users_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
+        <i class="bi bi-plus-circle"></i> Add New User
+    </a>
+    <?php endif; ?>
+</div>
+
+<!-- Search Bar -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-10">
+                <input type="text" class="form-control" name="search" placeholder="Search by username or email..." value="<?= htmlspecialchars($searchTerm) ?>">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn w-100" style="background-color: #2d5016; color: white;">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($users)): ?>
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+                            <p class="text-muted mt-2">No users found</p>
+                        </td>
+                    </tr>
+                    <?php else: ?>
+                    <?php foreach ($users as $user): ?>
+                    <tr>
+                        <td>
+                            <strong><?= htmlspecialchars($user['username']) ?></strong>
+                        </td>
+                        <td><?= htmlspecialchars($user['email']) ?></td>
+                        <td>
+                            <?php 
+                            $roleColors = ['Admin' => '#2d5016', 'Teacher' => '#5cb85c', 'Parent' => '#f0ad4e'];
+                            $roleColor = $roleColors[$user['roleName']] ?? '#6c757d';
+                            ?>
+                            <span class="badge" style="background-color: <?= $roleColor ?>;">
+                                <?= htmlspecialchars($user['roleName']) ?>
+                            </span>
+                        </td>
+                        <td>
+                            <?php if (($user['isActive'] ?? 1) == 1): ?>
+                                <span class="badge bg-success">Active</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary">Inactive</span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= $user['createdAt'] ? date('M d, Y', strtotime($user['createdAt'])) : 'N/A' ?></td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="users_view.php?id=<?= $user['userID'] ?>" class="btn btn-info" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <?php if (RBAC::hasPermission(Session::getUserRole(), 'users', 'update')): ?>
+                                <a href="users_form.php?id=<?= $user['userID'] ?>" class="btn btn-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="users_password.php?id=<?= $user['userID'] ?>" class="btn btn-secondary" title="Reset Password">
+                                    <i class="bi bi-key"></i>
+                                </a>
+                                <?php endif; ?>
+                                <?php if (RBAC::hasPermission(Session::getUserRole(), 'users', 'delete') && $user['userID'] != Session::get('user_id')): ?>
+                                <a href="delete.php?module=users&id=<?= $user['userID'] ?>" class="btn btn-danger" title="Delete" onclick="return confirm('Are you sure?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<?php require_once 'includes/footer.php'; ?>

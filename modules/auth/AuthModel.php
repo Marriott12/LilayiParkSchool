@@ -11,10 +11,9 @@ class AuthModel extends BaseModel {
      * Find user by username or email
      */
     public function findByCredential($credential) {
-        $sql = "SELECT * FROM {$this->table} WHERE username = :credential OR email = :credential LIMIT 1";
+        $sql = "SELECT * FROM {$this->table} WHERE username = ? OR email = ? LIMIT 1";
         $stmt = $this->db->prepare($sql);
-        $stmt->bindParam(':credential', $credential);
-        $stmt->execute();
+        $stmt->execute([$credential, $credential]);
         return $stmt->fetch();
     }
     

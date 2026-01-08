@@ -25,6 +25,13 @@ class BaseModel {
     }
     
     /**
+     * Alias for find() - Get record by ID
+     */
+    public function getById($id) {
+        return $this->find($id);
+    }
+    
+    /**
      * Get all records
      */
     public function all($orderBy = null, $limit = null, $offset = null) {
@@ -43,6 +50,13 @@ class BaseModel {
         
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();
+    }
+    
+    /**
+     * Alias for all() - Get all records
+     */
+    public function getAll($orderBy = null, $limit = null, $offset = null) {
+        return $this->all($orderBy, $limit, $offset);
     }
     
     /**

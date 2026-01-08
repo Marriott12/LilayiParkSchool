@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle ?? 'Dashboard'; ?> - Lilayi Park School</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="<?php echo BASE_URL; ?>/assets/images/logo.ico">
+    
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -21,15 +24,10 @@
                 <h6 class="mb-0 fw-bold">Lilayi Park School</h6>
                 <small class="text-light opacity-75">Management Portal</small>
             </div>
-            <div class="list-group list-group-flush">\n                <a href="<?php echo BASE_URL; ?>/index.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'dashboard' ? 'active' : ''; ?>" style="background: transparent;">
+            <div class="list-group list-group-flush">
+                <a href="<?php echo BASE_URL; ?>/index.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'dashboard' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-speedometer2 me-2"></i> Dashboard
                 </a>
-                
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'pupils', 'read')): ?>
-                <a href="<?php echo BASE_URL; ?>/pupils_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupils' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-person-video3 me-2"></i> Pupils
-                </a>
-                <?php endif; ?>
                 
                 <?php if (RBAC::hasPermission(Session::getUserRole(), 'pupils', 'read')): ?>
                 <a href="<?php echo BASE_URL; ?>/pupils_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupils' ? 'active' : ''; ?>" style="background: transparent;">
@@ -78,6 +76,32 @@
                     <i class="bi bi-bar-chart me-2"></i> Reports
                 </a>
                 <?php endif; ?>
+                
+                <hr class="my-2 border-light opacity-25">
+                
+                <?php if (RBAC::hasPermission(Session::getUserRole(), 'subjects', 'read')): ?>
+                <a href="<?php echo BASE_URL; ?>/subjects_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'subjects' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-book me-2"></i> Subjects
+                </a>
+                <?php endif; ?>
+                
+                <?php if (RBAC::hasPermission(Session::getUserRole(), 'announcements', 'read')): ?>
+                <a href="<?php echo BASE_URL; ?>/announcements_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'announcements' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-megaphone me-2"></i> Announcements
+                </a>
+                <?php endif; ?>
+                
+                <?php if (RBAC::hasPermission(Session::getUserRole(), 'users', 'read')): ?>
+                <a href="<?php echo BASE_URL; ?>/users_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'users' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-person-gear me-2"></i> User Management
+                </a>
+                <?php endif; ?>
+                
+                <?php if (RBAC::hasPermission(Session::getUserRole(), 'settings', 'read')): ?>
+                <a href="<?php echo BASE_URL; ?>/settings.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'settings' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-gear me-2"></i> Settings
+                </a>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -123,15 +147,4 @@
                     </div>
                 <?php endif; ?>
                 
-                <!-- Page Content Goes Here -->
-                <?php echo $content ?? ''; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    <script src="<?php echo BASE_URL; ?>/assets/js/main.js"></script>
-</body>
-</html>
+                <!-- Page Content Starts Here -->

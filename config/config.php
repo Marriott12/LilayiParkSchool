@@ -59,17 +59,23 @@ $GLOBALS['permissions'] = [
         'payments' => ['create', 'read', 'update', 'delete'],
         'attendance' => ['create', 'read', 'update', 'delete'],
         'reports' => ['read', 'export'],
-        'users' => ['create', 'read', 'update', 'delete']
+        'users' => ['create', 'read', 'update', 'delete'],
+        'subjects' => ['create', 'read', 'update', 'delete'],
+        'announcements' => ['create', 'read', 'update', 'delete'],
+        'settings' => ['read', 'update']
     ],
     ROLE_TEACHER => [
         'pupils' => ['read'],
         'classes' => ['read'],
         'attendance' => ['create', 'read', 'update'],
-        'reports' => ['read']
+        'reports' => ['read'],
+        'subjects' => ['read'],
+        'announcements' => ['read']
     ],
     ROLE_PARENT => [
         'pupils' => ['read'], // Only their own children
         'payments' => ['read'], // Only their own payments
-        'reports' => ['read'] // Only their children's reports
+        'reports' => ['read'], // Only their children's reports
+        'announcements' => ['read']
     ]
 ];
