@@ -13,23 +13,31 @@ if ($isEdit) {
 }
 
 require_once 'modules/fees/FeesModel.php';
+require_once 'modules/classes/ClassModel.php';
+
 $feesModel = new FeesModel();
+$classModel = new ClassModel();
+
+// Get all classes for dropdown
+$classes = $classModel->getAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = [
-        'feeName' => trim($_POST['feeName'] ?? ''),
-        'feeAmount' => floatval($_POST['feeAmount'] ?? 0),
+        'classID' => trim($_POST['classID'] ?? ''),
+        'feeAmt' => floatval($_POST['feeAmt'] ?? 0),
         'term' => $_POST['term'] ?? '',
-        'academicYear' => trim($_POST['academicYear'] ?? ''),
-        'dueDate' => !empty($_POST['dueDate']) ? $_POST['dueDate'] : null,
-        'description' => trim($_POST['description'] ?? '')
+        'year' => intval($_POST['year'] ?? date('Y'))
     ];
     
     // Validation
-    if (empty($data['feeName'])) {
-        $error = 'Fee name is required';
-    } elseif ($data['feeAmount'] <= 0) {
+    if (empty($data['classID'])) {
+        $error = 'Class is required';
+    } elseif ($data['feeAmt'] <= 0) {
         $error = 'Fee amount must be greater than zero';
+    } elseif (empty($data['term'])) {
+        $error = 'Term is required';
+    } elseif (empty($data['year'])) {
+        $error = 'Academic year is required';
     }
     
     if (!isset($error)) {
@@ -84,16 +92,22 @@ require_once 'includes/header.php';
             <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Fee Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" name="feeName" 
-                           value="<?= htmlspecialchars($fee['feeName'] ?? '') ?>" 
-                           placeholder="e.g., Tuition Fee, Transport Fee" required>
+                    <label class="form-label">Class <span class="text-danger">*</span></label>
+                    <select class="form-select" name="classID" required>
+                        <option value="">-- Select Class --</option>
+                        <?php foreach ($classes as $class): ?>
+                        <option value="<?= $class['classID'] ?>" 
+                                <?= ($fee['classID'] ?? '') === $class['classID'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($class['className']) ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Amount (K) <span class="text-danger">*</span></label>
-                    <input type="number" step="0.01" class="form-control" name="feeAmount" 
-                           value="<?= htmlspecialchars($fee['feeAmount'] ?? '') ?>" 
+                    <input type="number" step="0.01" class="form-control" name="feeAmt" 
+                           value="<?= htmlspecialchars($fee['feeAmt'] ?? '') ?>" 
                            placeholder="0.00" required>
                 </div>
             </div>
@@ -103,30 +117,18 @@ require_once 'includes/header.php';
                     <label class="form-label">Term <span class="text-danger">*</span></label>
                     <select class="form-select" name="term" required>
                         <option value="">Select Term</option>
-                        <option value="1" <?= ($fee['term'] ?? '') == '1' ? 'selected' : '' ?>>Term 1</option>
-                        <option value="2" <?= ($fee['term'] ?? '') == '2' ? 'selected' : '' ?>>Term 2</option>
-                        <option value="3" <?= ($fee['term'] ?? '') == '3' ? 'selected' : '' ?>>Term 3</option>
+                        <option value="Term 1" <?= ($fee['term'] ?? '') === 'Term 1' ? 'selected' : '' ?>>Term 1</option>
+                        <option value="Term 2" <?= ($fee['term'] ?? '') === 'Term 2' ? 'selected' : '' ?>>Term 2</option>
+                        <option value="Term 3" <?= ($fee['term'] ?? '') === 'Term 3' ? 'selected' : '' ?>>Term 3</option>
                     </select>
                 </div>
                 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Academic Year <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" name="academicYear" 
-                           value="<?= htmlspecialchars($fee['academicYear'] ?? '2025/2026') ?>" 
-                           placeholder="2025/2026" required>
+                    <input type="number" class="form-control" name="year" 
+                           value="<?= htmlspecialchars($fee['year'] ?? date('Y')) ?>" 
+                           placeholder="<?= date('Y') ?>" min="2020" max="2099" required>
                 </div>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Due Date</label>
-                <input type="date" class="form-control" name="dueDate" 
-                       value="<?= htmlspecialchars($fee['dueDate'] ?? '') ?>">
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Description</label>
-                <textarea class="form-control" name="description" rows="3" 
-                          placeholder="Additional details about this fee..."><?= htmlspecialchars($fee['description'] ?? '') ?></textarea>
             </div>
             
             <div class="d-flex gap-2">
