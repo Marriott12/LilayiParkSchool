@@ -14,9 +14,17 @@ class Session {
             if (!isset($_SESSION['created'])) {
                 $_SESSION['created'] = time();
             } else if (time() - $_SESSION['created'] > 1800) {
+                // Preserve CSRF token during regeneration
+                $csrfToken = $_SESSION['csrf_token'] ?? null;
+                
                 // Regenerate session every 30 minutes
                 session_regenerate_id(true);
                 $_SESSION['created'] = time();
+                
+                // Restore CSRF token
+                if ($csrfToken !== null) {
+                    $_SESSION['csrf_token'] = $csrfToken;
+                }
             }
             
             // Validate IP address
