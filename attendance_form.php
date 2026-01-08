@@ -28,8 +28,6 @@ $selectedClassID = $_GET['classID'] ?? $_POST['classID'] ?? null;
 $pupils = $selectedClassID ? $pupilModel->getPupilsByClass($selectedClassID) : [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'pupilID' => intval($_POST['pupilID'] ?? 0),
         'classID' => intval($_POST['classID'] ?? 0),
@@ -41,18 +39,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'markedBy' => Session::get('user_id')
     ];
     
-    try {
-        if ($isEdit) {
-            $attendanceModel->update($attendanceID, $data);
-            Session::setFlash('success', 'Attendance updated successfully');
-        } else {
-            $attendanceModel->create($data);
-            Session::setFlash('success', 'Attendance marked successfully');
+    // Validation
+    if ($data['pupilID'] <= 0) {
+        $error = 'Please select a pupil';
+    } elseif ($data['classID'] <= 0) {
+        $error = 'Please select a class';
+    }
+    
+    if (!isset($error)) {
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $attendanceModel->update($attendanceID, $data);
+                Session::setFlash('success', 'Attendance updated successfully');
+            } else {
+                $attendanceModel->create($data);
+                Session::setFlash('success', 'Attendance marked successfully');
+            }
+            
+            CSRF::regenerateToken();
+            header('Location: attendance_list.php');
+            exit;
+        } catch (Exception $e) {
+            $error = $e->getMessage();
         }
-        header('Location: attendance_list.php');
-        exit;
-    } catch (Exception $e) {
-        $error = $e->getMessage();
     }
 }
 

@@ -16,8 +16,6 @@ require_once 'modules/fees/FeesModel.php';
 $feesModel = new FeesModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'feeName' => trim($_POST['feeName'] ?? ''),
         'feeAmount' => floatval($_POST['feeAmount'] ?? 0),
@@ -27,15 +25,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'description' => trim($_POST['description'] ?? '')
     ];
     
-    try {
-        if ($isEdit) {
-            $feesModel->update($feeID, $data);
-            Session::setFlash('success', 'Fee updated successfully');
-        } else {
-            $feesModel->create($data);
-            Session::setFlash('success', 'Fee created successfully');
-        }
-        header('Location: fees_list.php');
+    // Validation
+    if (empty($data['feeName'])) {
+        $error = 'Fee name is required';
+    } elseif ($data['feeAmount'] <= 0) {
+        $error = 'Fee amount must be greater than zero';
+    }
+    
+    if (!isset($error)) {
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $feesModel->update($feeID, $data);
+                Session::setFlash('success', 'Fee updated successfully');
+            } else {
+                $feesModel->create($data);
+                Session::setFlash('success', 'Fee created successfully');
+            }
+            
+            CSRF::regenerateToken();
+            header('Location: fees_list.php');
         exit;
     } catch (Exception $e) {
         $error = $e->getMessage();

@@ -22,8 +22,6 @@ $teacherModel = new TeacherModel();
 $teachers = $teacherModel->getAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'className' => trim($_POST['className'] ?? ''),
         'grade' => trim($_POST['grade'] ?? ''),
@@ -33,15 +31,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'room' => trim($_POST['room'] ?? '')
     ];
     
-    try {
-        if ($isEdit) {
-            $classModel->update($classID, $data);
-            Session::setFlash('success', 'Class updated successfully');
-        } else {
-            $classModel->create($data);
-            Session::setFlash('success', 'Class created successfully');
-        }
-        header('Location: classes_list.php');
+    // Validation
+    if (empty($data['className'])) {
+        $error = 'Class name is required';
+    } elseif (empty($data['grade'])) {
+        $error = 'Grade is required';
+    }
+    
+    if (!isset($error)) {
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $classModel->update($classID, $data);
+                Session::setFlash('success', 'Class updated successfully');
+            } else {
+                $classModel->create($data);
+                Session::setFlash('success', 'Class created successfully');
+            }
+            
+            CSRF::regenerateToken();
+            header('Location: classes_list.php');
         exit;
     } catch (Exception $e) {
         $error = $e->getMessage();

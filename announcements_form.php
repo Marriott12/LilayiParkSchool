@@ -18,8 +18,6 @@ $announcementsModel = new AnnouncementsModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'title' => trim($_POST['title'] ?? ''),
         'content' => trim($_POST['content'] ?? ''),
@@ -30,15 +28,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'createdBy' => Session::get('user_id')
     ];
     
-    try {
-        if ($isEdit) {
-            $announcementsModel->update($announcementID, $data);
-            Session::setFlash('success', 'Announcement updated successfully');
-        } else {
-            $announcementsModel->create($data);
-            Session::setFlash('success', 'Announcement created successfully');
-        }
-        header('Location: announcements_list.php');
+    // Validation
+    if (empty($data['title'])) {
+        $error = 'Title is required';
+    } elseif (empty($data['content'])) {
+        $error = 'Content is required';
+    }
+    
+    if (!isset($error)) {
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $announcementsModel->update($announcementID, $data);
+                Session::setFlash('success', 'Announcement updated successfully');
+            } else {
+                $announcementsModel->create($data);
+                Session::setFlash('success', 'Announcement created successfully');
+            }
+            
+            CSRF::regenerateToken();
+            header('Location: announcements_list.php');
         exit;
     } catch (Exception $e) {
         $error = $e->getMessage();

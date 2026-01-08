@@ -25,8 +25,6 @@ $pupils = $pupilModel->getAllWithParents();
 $fees = $feesModel->getAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'pupilID' => intval($_POST['pupilID'] ?? 0),
         'feeID' => !empty($_POST['feeID']) ? intval($_POST['feeID']) : null,
@@ -41,18 +39,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'createdBy' => Session::get('user_id')
     ];
     
-    try {
-        if ($isEdit) {
-            $paymentModel->update($paymentID, $data);
-            Session::setFlash('success', 'Payment updated successfully');
-        } else {
-            $paymentModel->create($data);
-            Session::setFlash('success', 'Payment recorded successfully');
+    // Validation
+    if ($data['pupilID'] <= 0) {
+        $error = 'Please select a pupil';
+    } elseif ($data['amount'] <= 0) {
+        $error = 'Amount must be greater than zero';
+    }
+    
+    if (!isset($error)) {
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $paymentModel->update($paymentID, $data);
+                Session::setFlash('success', 'Payment updated successfully');
+            } else {
+                $paymentModel->create($data);
+                Session::setFlash('success', 'Payment recorded successfully');
+            }
+            
+            CSRF::regenerateToken();
+            header('Location: payments_list.php');
+            exit;
+        } catch (Exception $e) {
+            $error = $e->getMessage();
         }
-        header('Location: payments_list.php');
-        exit;
-    } catch (Exception $e) {
-        $error = $e->getMessage();
     }
 }
 

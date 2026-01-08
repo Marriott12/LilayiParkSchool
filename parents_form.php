@@ -16,8 +16,6 @@ require_once 'modules/parents/ParentModel.php';
 $parentModel = new ParentModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
@@ -28,15 +26,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'emergencyContact' => trim($_POST['emergencyContact'] ?? '')
     ];
     
-    try {
-        if ($isEdit) {
-            $parentModel->update($parentID, $data);
-            Session::setFlash('success', 'Parent updated successfully');
-        } else {
-            $parentModel->create($data);
-            Session::setFlash('success', 'Parent added successfully');
-        }
-        header('Location: parents_list.php');
+    // Validation
+    if (empty($data['fName'])) {
+        $error = 'First name is required';
+    } elseif (empty($data['lName'])) {
+        $error = 'Last name is required';
+    }
+    
+    if (!isset($error)) {
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $parentModel->update($parentID, $data);
+                Session::setFlash('success', 'Parent updated successfully');
+            } else {
+                $parentModel->create($data);
+                Session::setFlash('success', 'Parent added successfully');
+            }
+            
+            CSRF::regenerateToken();
+            header('Location: parents_list.php');
         exit;
     } catch (Exception $e) {
         $error = $e->getMessage();

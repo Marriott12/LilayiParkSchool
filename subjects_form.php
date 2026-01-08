@@ -23,8 +23,6 @@ $teachers = $teacherModel->all();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'subjectName' => trim($_POST['subjectName'] ?? ''),
         'subjectCode' => trim($_POST['subjectCode'] ?? ''),
@@ -33,15 +31,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'credits' => $_POST['credits'] ?? 1
     ];
     
-    try {
-        if ($isEdit) {
-            $subjectsModel->update($subjectID, $data);
-            Session::setFlash('success', 'Subject updated successfully');
-        } else {
-            $subjectsModel->create($data);
-            Session::setFlash('success', 'Subject created successfully');
-        }
-        header('Location: subjects_list.php');
+    // Validation
+    if (empty($data['subjectName'])) {
+        $error = 'Subject name is required';
+    }
+    
+    if (!isset($error)) {
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $subjectsModel->update($subjectID, $data);
+                Session::setFlash('success', 'Subject updated successfully');
+            } else {
+                $subjectsModel->create($data);
+                Session::setFlash('success', 'Subject created successfully');
+            }
+            
+            CSRF::regenerateToken();
+            header('Location: subjects_list.php');
         exit;
     } catch (Exception $e) {
         $error = $e->getMessage();

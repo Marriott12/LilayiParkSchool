@@ -25,9 +25,6 @@ $parents = $parentModel->getAll();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validate CSRF token
-    CSRF::requireToken();
-    
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
@@ -39,15 +36,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'medicalInfo' => trim($_POST['medicalInfo'] ?? '')
     ];
     
-    try {
-        if ($isEdit) {
-            $pupilModel->update($pupilID, $data);
-            Session::setFlash('success', 'Pupil updated successfully');
-        } else {
-            $pupilModel->create($data);
-            Session::setFlash('success', 'Pupil added successfully');
-        }
-        header('Location: pupils_list.php');
+    // Validation
+    if (empty($data['fName'])) {
+        $error = 'First name is required';
+    } elseif (empty($data['lName'])) {
+        $error = 'Last name is required';
+    }
+    
+    if (!isset($error)) {
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $pupilModel->update($pupilID, $data);
+                Session::setFlash('success', 'Pupil updated successfully');
+            } else {
+                $pupilModel->create($data);
+                Session::setFlash('success', 'Pupil added successfully');
+            }
+            
+            CSRF::regenerateToken();
+            header('Location: pupils_list.php');
         exit;
     } catch (Exception $e) {
         $error = $e->getMessage();
