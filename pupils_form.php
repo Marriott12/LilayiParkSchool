@@ -226,19 +226,17 @@ require_once 'includes/header.php';
                         </div>
                         
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Forename <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="parent_fName" id="parent_fName">
                             </div>
                             
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Last Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="parent_lName" id="parent_lName">
                             </div>
-                        </div>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Relationship <span class="text-danger">*</span></label>
                                 <select class="form-select" name="parent_relation" id="parent_relation">
                                     <option value="">Select Relationship</option>
@@ -249,7 +247,7 @@ require_once 'includes/header.php';
                                 </select>
                             </div>
                             
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Gender <span class="text-danger">*</span></label>
                                 <div class="btn-group w-100" role="group">
                                     <input type="radio" class="btn-check" name="parent_gender" id="parent_gender_m" value="M">
@@ -263,42 +261,36 @@ require_once 'includes/header.php';
                                     </label>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">NRC <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="parent_NRC" id="parent_NRC" 
                                        placeholder="e.g., 123456/78/9">
                             </div>
                             
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Phone <span class="text-danger">*</span></label>
                                 <input type="tel" class="form-control" name="parent_phone" id="parent_phone" 
                                        placeholder="e.g., +260 97 1234567">
                             </div>
-                        </div>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Email 1 <span class="text-danger">*</span></label>
                                 <input type="email" class="form-control" name="parent_email1" id="parent_email1">
                             </div>
                             
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Email 2</label>
                                 <input type="email" class="form-control" name="parent_email2" id="parent_email2" 
                                        placeholder="Secondary email (optional)">
                             </div>
-                        </div>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Occupation</label>
                                 <input type="text" class="form-control" name="parent_occupation" id="parent_occupation">
                             </div>
                             
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Workplace</label>
                                 <input type="text" class="form-control" name="parent_workplace" id="parent_workplace" 
                                        placeholder="Employer/Company name">
@@ -428,75 +420,78 @@ require_once 'includes/header.php';
                     <h6 class="mb-0"><i class="bi bi-calendar-check"></i> Enrollment & Services</h6>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Enrollment Date</label>
-                        <input type="date" class="form-control" name="enrollDate" 
-                               value="<?= htmlspecialchars($pupil['enrollDate'] ?? date('Y-m-d')) ?>">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Transport Required <span class="text-danger">*</span></label>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="transport" id="transportYes" value="Y" 
-                                   <?= ($pupil['transport'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
-                            <label class="btn btn-outline-success" for="transportYes">
-                                <i class="bi bi-bus-front"></i> Yes
-                            </label>
-                            
-                            <input type="radio" class="btn-check" name="transport" id="transportNo" value="N" 
-                                   <?= ($pupil['transport'] ?? 'N') === 'N' ? 'checked' : '' ?>>
-                            <label class="btn btn-outline-secondary" for="transportNo">
-                                <i class="bi bi-x-circle"></i> No
-                            </label>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Enrollment Date</label>
+                            <input type="date" class="form-control" name="enrollDate" 
+                                   value="<?= htmlspecialchars($pupil['enrollDate'] ?? date('Y-m-d')) ?>">
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Transport <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="transport" id="transportYes" value="Y" 
+                                       <?= ($pupil['transport'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-success" for="transportYes">
+                                    <i class="bi bi-bus-front"></i> Yes
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="transport" id="transportNo" value="N" 
+                                       <?= ($pupil['transport'] ?? 'N') === 'N' ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-secondary" for="transportNo">
+                                    <i class="bi bi-x-circle"></i> No
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Lunch <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="lunch" id="lunchYes" value="Y" 
+                                       <?= ($pupil['lunch'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-success" for="lunchYes">
+                                    <i class="bi bi-egg-fried"></i> Yes
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="lunch" id="lunchNo" value="N" 
+                                       <?= ($pupil['lunch'] ?? 'N') === 'N' ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-secondary" for="lunchNo">
+                                    <i class="bi bi-x-circle"></i> No
+                                </label>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Lunch Required <span class="text-danger">*</span></label>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="lunch" id="lunchYes" value="Y" 
-                                   <?= ($pupil['lunch'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
-                            <label class="btn btn-outline-success" for="lunchYes">
-                                <i class="bi bi-egg-fried"></i> Yes
-                            </label>
-                            
-                            <input type="radio" class="btn-check" name="lunch" id="lunchNo" value="N" 
-                                   <?= ($pupil['lunch'] ?? 'N') === 'N' ? 'checked' : '' ?>>
-                            <label class="btn btn-outline-secondary" for="lunchNo">
-                                <i class="bi bi-x-circle"></i> No
-                            </label>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Photo Consent <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="photo" id="photoYes" value="Y" 
+                                       <?= ($pupil['photo'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-success" for="photoYes">
+                                    <i class="bi bi-camera"></i> Yes
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="photo" id="photoNo" value="N" 
+                                       <?= ($pupil['photo'] ?? 'N') === 'N' ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-secondary" for="photoNo">
+                                    <i class="bi bi-x-circle"></i> No
+                                </label>
+                            </div>
+                            <div class="form-text">Can use photo on school platforms/adverts</div>
                         </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Photo Consent (for school platforms/adverts) <span class="text-danger">*</span></label>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="photo" id="photoYes" value="Y" 
-                                   <?= ($pupil['photo'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
-                            <label class="btn btn-outline-success" for="photoYes">
-                                <i class="bi bi-camera"></i> Yes
-                            </label>
-                            
-                            <input type="radio" class="btn-check" name="photo" id="photoNo" value="N" 
-                                   <?= ($pupil['photo'] ?? 'N') === 'N' ? 'checked' : '' ?>>
-                            <label class="btn btn-outline-secondary" for="photoNo">
-                                <i class="bi bi-x-circle"></i> No
-                            </label>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Passport Photo</label>
+                            <input type="file" class="form-control" name="passPhotoFile" accept="image/*">
+                            <div class="form-text">JPG/PNG - max 2MB</div>
+                            <?php if (!empty($pupil['passPhoto'])): ?>
+                            <div class="mt-2">
+                                <img src="<?= htmlspecialchars($pupil['passPhoto']) ?>" alt="Current Photo" 
+                                     class="img-thumbnail" style="max-width: 100px;">
+                            </div>
+                            <?php endif; ?>
                         </div>
-                        <div class="form-text">Permission to use pupil's photo on school website and promotional materials</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Passport Size Photo</label>
-                        <input type="file" class="form-control" name="passPhotoFile" accept="image/*">
-                        <div class="form-text">Upload a passport-size photo (JPG, PNG - max 2MB)</div>
-                        <?php if (!empty($pupil['passPhoto'])): ?>
-                        <div class="mt-2">
-                            <img src="<?= htmlspecialchars($pupil['passPhoto']) ?>" alt="Current Photo" 
-                                 class="img-thumbnail" style="max-width: 150px;">
-                            <small class="d-block text-muted">Current photo</small>
-                        </div>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>
