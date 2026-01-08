@@ -101,6 +101,16 @@ class UsersModel extends BaseModel {
     }
     
     /**
+     * Get users by role (alias for compatibility)
+     */
+    public function getByRole($roleID) {
+        $sql = "SELECT * FROM {$this->table} WHERE roleID = ? ORDER BY username";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$roleID]);
+        return $stmt->fetchAll();
+    }
+    
+    /**
      * Toggle user active status
      */
     public function toggleStatus($userID) {
