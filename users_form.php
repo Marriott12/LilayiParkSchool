@@ -64,6 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $usersModel->createUser($data);
                 Session::setFlash('success', 'User created successfully');
             }
+            
+            // Regenerate CSRF token after successful submission
+            CSRF::regenerateToken();
+            
             header('Location: users_list.php');
             exit;
         } catch (Exception $e) {
