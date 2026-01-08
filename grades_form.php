@@ -26,42 +26,46 @@ $settingsModel = new SettingsModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
-    $data = [
-        'pupilID' => $_POST['pupilID'] ?? '',
-        'subjectID' => $_POST['subjectID'] ?? '',
-        'classID' => $_POST['classID'] ?? '',
-        'term' => $_POST['term'] ?? '',
-        'academicYear' => $_POST['academicYear'] ?? '',
-        'examType' => $_POST['examType'] ?? '',
-        'marks' => $_POST['marks'] ?? '',
-        'maxMarks' => $_POST['maxMarks'] ?? 100,
-        'remarks' => trim($_POST['remarks'] ?? '')
-    ];
-    
-    // Validation
-    if (empty($data['pupilID']) || empty($data['subjectID']) || empty($data['classID'])) {
-        $error = 'Please select pupil, subject, and class';
-    } elseif (empty($data['marks']) || !is_numeric($data['marks'])) {
-        $error = 'Please enter valid marks';
-    } elseif ($data['marks'] > $data['maxMarks']) {
-        $error = 'Marks cannot exceed maximum marks';
-    } elseif ($data['marks'] < 0) {
-        $error = 'Marks cannot be negative';
+    // Validate CSRF token first
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        try {
-            if ($isEdit) {
-                $gradesModel->update($gradeID, $data);
-                Session::setFlash('success', 'Grade updated successfully');
-            } else {
-                $gradesModel->saveGrade($data);
-                Session::setFlash('success', 'Grade recorded successfully');
+        $data = [
+            'pupilID' => $_POST['pupilID'] ?? '',
+            'subjectID' => $_POST['subjectID'] ?? '',
+            'classID' => $_POST['classID'] ?? '',
+            'term' => $_POST['term'] ?? '',
+            'academicYear' => $_POST['academicYear'] ?? '',
+            'examType' => $_POST['examType'] ?? '',
+            'marks' => $_POST['marks'] ?? '',
+            'maxMarks' => $_POST['maxMarks'] ?? 100,
+            'remarks' => trim($_POST['remarks'] ?? '')
+        ];
+        
+        // Validation
+        if (empty($data['pupilID']) || empty($data['subjectID']) || empty($data['classID'])) {
+            $error = 'Please select pupil, subject, and class';
+        } elseif (empty($data['marks']) || !is_numeric($data['marks'])) {
+            $error = 'Please enter valid marks';
+        } elseif ($data['marks'] > $data['maxMarks']) {
+            $error = 'Marks cannot exceed maximum marks';
+        } elseif ($data['marks'] < 0) {
+            $error = 'Marks cannot be negative';
+        } else {
+            try {
+                if ($isEdit) {
+                    $gradesModel->update($gradeID, $data);
+                    Session::setFlash('success', 'Grade updated successfully');
+                } else {
+                    $gradesModel->saveGrade($data);
+                    Session::setFlash('success', 'Grade recorded successfully');
+                }
+                CSRF::regenerateToken();
+                header('Location: grades_list.php?class=' . $data['classID']);
+                exit;
+            } catch (Exception $e) {
+                $error = 'Error: ' . $e->getMessage();
             }
-            header('Location: grades_list.php?class=' . $data['classID']);
-            exit;
-        } catch (Exception $e) {
-            $error = 'Error: ' . $e->getMessage();
         }
     }
 }

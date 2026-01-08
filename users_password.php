@@ -23,25 +23,29 @@ if (!$user) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
-    $password = trim($_POST['password'] ?? '');
-    $confirmPassword = trim($_POST['password_confirm'] ?? '');
-    
-    if (empty($password)) {
-        $error = 'Password is required';
-    } elseif (strlen($password) < 6) {
-        $error = 'Password must be at least 6 characters';
-    } elseif ($password !== $confirmPassword) {
-        $error = 'Passwords do not match';
+    // Validate CSRF token first
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        try {
-            $usersModel->updatePassword($userID, $password);
-            Session::setFlash('success', 'Password updated successfully');
-            header('Location: users_view.php?id=' . $userID);
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
+        $password = trim($_POST['password'] ?? '');
+        $confirmPassword = trim($_POST['password_confirm'] ?? '');
+        
+        if (empty($password)) {
+            $error = 'Password is required';
+        } elseif (strlen($password) < 6) {
+            $error = 'Password must be at least 6 characters';
+        } elseif ($password !== $confirmPassword) {
+            $error = 'Passwords do not match';
+        } else {
+            try {
+                $usersModel->updatePassword($userID, $password);
+                Session::setFlash('success', 'Password updated successfully');
+                CSRF::regenerateToken();
+                header('Location: users_view.php?id=' . $userID);
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
         }
     }
 }

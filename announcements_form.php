@@ -18,40 +18,43 @@ $announcementsModel = new AnnouncementsModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = [
-        'title' => trim($_POST['title'] ?? ''),
-        'content' => trim($_POST['content'] ?? ''),
-        'targetAudience' => $_POST['targetAudience'] ?? 'all',
-        'isPinned' => isset($_POST['isPinned']) ? 1 : 0,
-        'status' => $_POST['status'] ?? 'draft',
-        'expiryDate' => !empty($_POST['expiryDate']) ? $_POST['expiryDate'] : null,
-        'createdBy' => Session::get('user_id')
-    ];
-    
-    // Validation
-    if (empty($data['title'])) {
-        $error = 'Title is required';
-    } elseif (empty($data['content'])) {
-        $error = 'Content is required';
-    }
-    
-    if (!isset($error)) {
-        CSRF::requireToken();
+    // Validate CSRF token first
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+    } else {
+        $data = [
+            'title' => trim($_POST['title'] ?? ''),
+            'content' => trim($_POST['content'] ?? ''),
+            'targetAudience' => $_POST['targetAudience'] ?? 'all',
+            'isPinned' => isset($_POST['isPinned']) ? 1 : 0,
+            'status' => $_POST['status'] ?? 'draft',
+            'expiryDate' => !empty($_POST['expiryDate']) ? $_POST['expiryDate'] : null,
+            'createdBy' => Session::get('user_id')
+        ];
         
-        try {
-            if ($isEdit) {
-                $announcementsModel->update($announcementID, $data);
-                Session::setFlash('success', 'Announcement updated successfully');
-            } else {
-                $announcementsModel->create($data);
-                Session::setFlash('success', 'Announcement created successfully');
+        // Validation
+        if (empty($data['title'])) {
+            $error = 'Title is required';
+        } elseif (empty($data['content'])) {
+            $error = 'Content is required';
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    $announcementsModel->update($announcementID, $data);
+                    Session::setFlash('success', 'Announcement updated successfully');
+                } else {
+                    $announcementsModel->create($data);
+                    Session::setFlash('success', 'Announcement created successfully');
+                }
+                
+                CSRF::regenerateToken();
+                header('Location: announcements_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
             }
-            
-            CSRF::regenerateToken();
-            header('Location: announcements_list.php');
-        exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
         }
     }
 }

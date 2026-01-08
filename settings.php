@@ -10,29 +10,33 @@ $settingsModel = new SettingsModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
-    try {
-        // School Information
-        $settingsModel->setSetting('school_name', $_POST['school_name'], 'school');
-        $settingsModel->setSetting('school_address', $_POST['school_address'], 'school');
-        $settingsModel->setSetting('school_phone', $_POST['school_phone'], 'school');
-        $settingsModel->setSetting('school_email', $_POST['school_email'], 'school');
-        
-        // Academic Settings
-        $settingsModel->setSetting('current_term', $_POST['current_term'], 'academic');
-        $settingsModel->setSetting('current_year', $_POST['current_year'], 'academic');
-        $settingsModel->setSetting('attendance_threshold', $_POST['attendance_threshold'], 'academic');
-        
-        // Financial Settings
-        $settingsModel->setSetting('currency', $_POST['currency'], 'financial');
-        $settingsModel->setSetting('late_fee_penalty', $_POST['late_fee_penalty'], 'financial');
-        
-        Session::setFlash('success', 'Settings updated successfully');
-        header('Location: settings.php');
-        exit;
-    } catch (Exception $e) {
-        $error = $e->getMessage();
+    // Validate CSRF token first
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+    } else {
+        try {
+            // School Information
+            $settingsModel->setSetting('school_name', $_POST['school_name'], 'school');
+            $settingsModel->setSetting('school_address', $_POST['school_address'], 'school');
+            $settingsModel->setSetting('school_phone', $_POST['school_phone'], 'school');
+            $settingsModel->setSetting('school_email', $_POST['school_email'], 'school');
+            
+            // Academic Settings
+            $settingsModel->setSetting('current_term', $_POST['current_term'], 'academic');
+            $settingsModel->setSetting('current_year', $_POST['current_year'], 'academic');
+            $settingsModel->setSetting('attendance_threshold', $_POST['attendance_threshold'], 'academic');
+            
+            // Financial Settings
+            $settingsModel->setSetting('currency', $_POST['currency'], 'financial');
+            $settingsModel->setSetting('late_fee_penalty', $_POST['late_fee_penalty'], 'financial');
+            
+            Session::setFlash('success', 'Settings updated successfully');
+            CSRF::regenerateToken();
+            header('Location: settings.php');
+            exit;
+        } catch (Exception $e) {
+            $error = $e->getMessage();
+        }
     }
 }
 

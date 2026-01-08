@@ -29,44 +29,44 @@ $pupils = $selectedClassID ? $pupilModel->getPupilsByClass($selectedClassID) : [
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
-    CSRF::requireToken();
-    
-    $data = [
-        'pupilID' => intval($_POST['pupilID'] ?? 0),
-        'classID' => intval($_POST['classID'] ?? 0),
-        'attendanceDate' => $_POST['attendanceDate'] ?? date('Y-m-d'),
-        'status' => $_POST['status'] ?? 'Present',
-        'timeIn' => !empty($_POST['timeIn']) ? $_POST['timeIn'] : null,
-        'timeOut' => !empty($_POST['timeOut']) ? $_POST['timeOut'] : null,
-        'remarks' => trim($_POST['remarks'] ?? ''),
-        'markedBy' => Session::get('user_id')
-    ];
-    
-    // Validation
-    if ($data['pupilID'] <= 0) {
-        $error = 'Please select a pupil';
-    } elseif ($data['classID'] <= 0) {
-        $error = 'Please select a class';
-    }
-    
-    if (!isset($error)) {
-        try {
-            if ($isEdit) {
-                $attendanceModel->update($attendanceID, $data);
-                Session::setFlash('success', 'Attendance updated successfully');
-            } else {
-                $attendanceModel->create($data);
-                Session::setFlash('success', 'Attendance marked successfully');
-            }
-            
-            CSRF::regenerateToken();
-            header('Location: attendance_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
-        }
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        CSRF::regenerateToken();
+        $data = [
+            'pupilID' => intval($_POST['pupilID'] ?? 0),
+            'classID' => intval($_POST['classID'] ?? 0),
+            'attendanceDate' => $_POST['attendanceDate'] ?? date('Y-m-d'),
+            'status' => $_POST['status'] ?? 'Present',
+            'timeIn' => !empty($_POST['timeIn']) ? $_POST['timeIn'] : null,
+            'timeOut' => !empty($_POST['timeOut']) ? $_POST['timeOut'] : null,
+            'remarks' => trim($_POST['remarks'] ?? ''),
+            'markedBy' => Session::get('user_id')
+        ];
+        
+        // Validation
+        if ($data['pupilID'] <= 0) {
+            $error = 'Please select a pupil';
+        } elseif ($data['classID'] <= 0) {
+            $error = 'Please select a class';
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    $attendanceModel->update($attendanceID, $data);
+                    Session::setFlash('success', 'Attendance updated successfully');
+                } else {
+                    $attendanceModel->create($data);
+                    Session::setFlash('success', 'Attendance marked successfully');
+                }
+                
+                CSRF::regenerateToken();
+                header('Location: attendance_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
+        }
     }
 }
 

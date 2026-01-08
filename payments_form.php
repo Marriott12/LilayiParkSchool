@@ -98,39 +98,39 @@ if (isset($_GET['action']) && $_GET['action'] === 'getPupilDetails' && isset($_G
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
-    CSRF::requireToken();
-    
-    $data = [
-        'pupilID' => trim($_POST['pupilID'] ?? ''),
-        'classID' => trim($_POST['classID'] ?? ''),
-        'pmtAmt' => floatval($_POST['pmtAmt'] ?? 0),
-        'balance' => floatval($_POST['balance'] ?? 0),
-        'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
-        'remark' => trim($_POST['remark'] ?? '')
-    ];
-    
-    // Validation
-    if (empty($data['pupilID'])) {
-        $error = 'Please select a pupil';
-    } elseif (empty($data['classID'])) {
-        $error = 'Class information is required';
-    } elseif ($data['pmtAmt'] <= 0) {
-        $error = 'Amount paid must be greater than zero';
-    }
-    
-    if (!isset($error)) {
-        try {
-            $paymentModel->create($data);
-            Session::setFlash('success', 'Payment recorded successfully');
-            
-            CSRF::regenerateToken();
-            header('Location: payments_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
-        }
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        CSRF::regenerateToken();
+        $data = [
+            'pupilID' => trim($_POST['pupilID'] ?? ''),
+            'classID' => trim($_POST['classID'] ?? ''),
+            'pmtAmt' => floatval($_POST['pmtAmt'] ?? 0),
+            'balance' => floatval($_POST['balance'] ?? 0),
+            'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
+            'remark' => trim($_POST['remark'] ?? '')
+        ];
+        
+        // Validation
+        if (empty($data['pupilID'])) {
+            $error = 'Please select a pupil';
+        } elseif (empty($data['classID'])) {
+            $error = 'Class information is required';
+        } elseif ($data['pmtAmt'] <= 0) {
+            $error = 'Amount paid must be greater than zero';
+        }
+        
+        if (!isset($error)) {
+            try {
+                $paymentModel->create($data);
+                Session::setFlash('success', 'Payment recorded successfully');
+                
+                CSRF::regenerateToken();
+                header('Location: payments_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
+        }
     }
 }
 

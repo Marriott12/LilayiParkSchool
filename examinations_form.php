@@ -14,59 +14,62 @@ $error = null;
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = [
-        'examName' => trim($_POST['examName'] ?? ''),
-        'examType' => $_POST['examType'] ?? '',
-        'term' => $_POST['term'] ?? '',
-        'academicYear' => $_POST['academicYear'] ?? '',
-        'startDate' => $_POST['startDate'] ?? '',
-        'endDate' => $_POST['endDate'] ?? '',
-        'totalMarks' => $_POST['totalMarks'] ?? 100,
-        'passingMarks' => $_POST['passingMarks'] ?? 40,
-        'instructions' => trim($_POST['instructions'] ?? ''),
-        'status' => $_POST['status'] ?? 'Scheduled'
-    ];
-    
-    // Validation
-    if (empty($data['examName'])) {
-        $error = 'Exam name is required';
-    } elseif (empty($data['examType'])) {
-        $error = 'Exam type is required';
-    } elseif (empty($data['term']) || $data['term'] < 1 || $data['term'] > 3) {
-        $error = 'Valid term (1-3) is required';
-    } elseif (empty($data['academicYear'])) {
-        $error = 'Academic year is required';
-    } elseif (empty($data['startDate'])) {
-        $error = 'Start date is required';
-    } elseif (empty($data['endDate'])) {
-        $error = 'End date is required';
-    } elseif (strtotime($data['endDate']) < strtotime($data['startDate'])) {
-        $error = 'End date must be after start date';
-    } elseif ($data['passingMarks'] > $data['totalMarks']) {
-        $error = 'Passing marks cannot exceed total marks';
-    }
-    
-    if (!isset($error)) {
-        CSRF::requireToken();
+    // Validate CSRF token first
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+    } else {
+        $data = [
+            'examName' => trim($_POST['examName'] ?? ''),
+            'examType' => $_POST['examType'] ?? '',
+            'term' => $_POST['term'] ?? '',
+            'academicYear' => $_POST['academicYear'] ?? '',
+            'startDate' => $_POST['startDate'] ?? '',
+            'endDate' => $_POST['endDate'] ?? '',
+            'totalMarks' => $_POST['totalMarks'] ?? 100,
+            'passingMarks' => $_POST['passingMarks'] ?? 40,
+            'instructions' => trim($_POST['instructions'] ?? ''),
+            'status' => $_POST['status'] ?? 'Scheduled'
+        ];
         
-        try {
-            if ($isEdit) {
-                $examinationsModel->update($examID, $data);
-                Session::setFlash('success', 'Examination updated successfully');
-            } else {
-                $newExamID = $examinationsModel->create($data);
-                Session::setFlash('success', 'Examination created successfully');
-                // Redirect to schedule page for new exam
+        // Validation
+        if (empty($data['examName'])) {
+            $error = 'Exam name is required';
+        } elseif (empty($data['examType'])) {
+            $error = 'Exam type is required';
+        } elseif (empty($data['term']) || $data['term'] < 1 || $data['term'] > 3) {
+            $error = 'Valid term (1-3) is required';
+        } elseif (empty($data['academicYear'])) {
+            $error = 'Academic year is required';
+        } elseif (empty($data['startDate'])) {
+            $error = 'Start date is required';
+        } elseif (empty($data['endDate'])) {
+            $error = 'End date is required';
+        } elseif (strtotime($data['endDate']) < strtotime($data['startDate'])) {
+            $error = 'End date must be after start date';
+        } elseif ($data['passingMarks'] > $data['totalMarks']) {
+            $error = 'Passing marks cannot exceed total marks';
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    $examinationsModel->update($examID, $data);
+                    Session::setFlash('success', 'Examination updated successfully');
+                } else {
+                    $newExamID = $examinationsModel->create($data);
+                    Session::setFlash('success', 'Examination created successfully');
+                    // Redirect to schedule page for new exam
+                    CSRF::regenerateToken();
+                    header('Location: examinations_schedule.php?examID=' . $newExamID);
+                    exit;
+                }
+                
                 CSRF::regenerateToken();
-                header('Location: examinations_schedule.php?examID=' . $newExamID);
+                header('Location: examinations_list.php');
                 exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
             }
-            
-            CSRF::regenerateToken();
-            header('Location: examinations_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
         }
     }
 }

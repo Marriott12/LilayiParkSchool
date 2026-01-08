@@ -1,64 +1,43 @@
 <?php
 require_once 'includes/bootstrap.php';
 
-RBAC::requireAuth();
+echo "<h2>CSRF Debug Test</h2>";
 
-$testResult = '';
-$sessionToken = '';
-$postToken = '';
+echo "<h3>Session Info:</h3>";
+echo "Session Status: " . session_status() . " (2 = active)<br>";
+echo "Session ID: " . session_id() . "<br>";
+echo "CSRF Token in Session: " . (isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token']) : 'NOT SET') . "<br>";
 
+echo "<h3>POST Data:</h3>";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $sessionToken = $_SESSION['csrf_token'] ?? 'NOT SET';
-    $postToken = $_POST['csrf_token'] ?? 'NOT SET';
+    echo "POST csrf_token: " . (isset($_POST['csrf_token']) ? htmlspecialchars($_POST['csrf_token']) : 'NOT SENT') . "<br>";
+    echo "All POST: <pre>" . htmlspecialchars(print_r($_POST, true)) . "</pre>";
     
-    try {
-        CSRF::requireToken();
-        $testResult = '✅ SUCCESS! CSRF validation passed!';
-    } catch (Exception $e) {
-        $testResult = '❌ FAILED: ' . $e->getMessage();
+    // Validate token
+    if (!isset($_SESSION['csrf_token'])) {
+        echo "<p style='color:red'>FAIL: No session token</p>";
+    } elseif (empty($_POST['csrf_token'])) {
+        echo "<p style='color:red'>FAIL: No POST token</p>";
+    } elseif (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        echo "<p style='color:red'>FAIL: Token mismatch</p>";
+        echo "Session: " . htmlspecialchars($_SESSION['csrf_token']) . "<br>";
+        echo "POST: " . htmlspecialchars($_POST['csrf_token']) . "<br>";
+    } else {
+        echo "<p style='color:green'>SUCCESS: Token valid!</p>";
     }
+} else {
+    echo "No POST data yet<br>";
 }
 
-$pageTitle = 'CSRF Test';
-require_once 'includes/header.php';
+echo "<h3>Test Form:</h3>";
+$csrfField = CSRF::field();
+echo "Generated Field: " . htmlspecialchars($csrfField) . "<br><br>";
 ?>
+<form method="POST" action="">
+    <?= CSRF::field() ?>
+    <input type="text" name="test_field" value="test value" />
+    <button type="submit">Submit Test</button>
+</form>
 
-<div class="container mt-4">
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <h5>CSRF Token Test Page</h5>
-        </div>
-        <div class="card-body">
-            <?php if ($testResult): ?>
-            <div class="alert alert-<?= strpos($testResult, 'SUCCESS') !== false ? 'success' : 'danger' ?>">
-                <?= $testResult ?>
-                <hr>
-                <small>Session Token: <?= htmlspecialchars($sessionToken) ?></small><br>
-                <small>POST Token: <?= htmlspecialchars($postToken) ?></small>
-            </div>
-            <?php endif; ?>
-            
-            <div class="mb-3">
-                <strong>Current Session Token:</strong><br>
-                <code><?= htmlspecialchars($_SESSION['csrf_token'] ?? 'NOT SET') ?></code>
-            </div>
-            
-            <form method="POST">
-                <?= CSRF::field() ?>
-                <button type="submit" class="btn btn-primary">Test CSRF Token</button>
-            </form>
-            
-            <hr>
-            
-            <h6>Debug Info:</h6>
-            <ul>
-                <li>Session ID: <?= session_id() ?></li>
-                <li>Session Created: <?= $_SESSION['created'] ?? 'NOT SET' ?></li>
-                <li>IP Address: <?= $_SESSION['ip_address'] ?? 'NOT SET' ?></li>
-                <li>User ID: <?= Session::getUserId() ?? 'NOT SET' ?></li>
-            </ul>
-        </div>
-    </div>
-</div>
-
-<?php require_once 'includes/footer.php'; ?>
+<h3>Raw HTML Source of CSRF Field:</h3>
+<textarea rows="3" cols="80"><?= htmlspecialchars(CSRF::field()) ?></textarea>

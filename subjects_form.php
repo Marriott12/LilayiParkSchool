@@ -23,36 +23,39 @@ $teachers = $teacherModel->all();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = [
-        'subjectName' => trim($_POST['subjectName'] ?? ''),
-        'subjectCode' => trim($_POST['subjectCode'] ?? ''),
-        'description' => trim($_POST['description'] ?? ''),
-        'teacherID' => !empty($_POST['teacherID']) ? $_POST['teacherID'] : null,
-        'credits' => $_POST['credits'] ?? 1
-    ];
-    
-    // Validation
-    if (empty($data['subjectName'])) {
-        $error = 'Subject name is required';
-    }
-    
-    if (!isset($error)) {
-        CSRF::requireToken();
+    // Validate CSRF token first
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+    } else {
+        $data = [
+            'subjectName' => trim($_POST['subjectName'] ?? ''),
+            'subjectCode' => trim($_POST['subjectCode'] ?? ''),
+            'description' => trim($_POST['description'] ?? ''),
+            'teacherID' => !empty($_POST['teacherID']) ? $_POST['teacherID'] : null,
+            'credits' => $_POST['credits'] ?? 1
+        ];
         
-        try {
-            if ($isEdit) {
-                $subjectsModel->update($subjectID, $data);
-                Session::setFlash('success', 'Subject updated successfully');
-            } else {
-                $subjectsModel->create($data);
-                Session::setFlash('success', 'Subject created successfully');
+        // Validation
+        if (empty($data['subjectName'])) {
+            $error = 'Subject name is required';
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    $subjectsModel->update($subjectID, $data);
+                    Session::setFlash('success', 'Subject updated successfully');
+                } else {
+                    $subjectsModel->create($data);
+                    Session::setFlash('success', 'Subject created successfully');
+                }
+                
+                CSRF::regenerateToken();
+                header('Location: subjects_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
             }
-            
-            CSRF::regenerateToken();
-            header('Location: subjects_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
         }
     }
 }

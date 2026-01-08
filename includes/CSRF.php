@@ -57,27 +57,29 @@ class CSRF {
     }
     
     /**
-     * Require valid CSRF token or redirect with error
+     * Require valid CSRF token or set error
+     * Returns false if token is invalid (so form can be re-displayed with error)
      */
     public static function requireToken() {
         if (!self::validate()) {
             $debug = '';
             if (!isset($_SESSION['csrf_token'])) {
-                $debug = 'Your session may have expired. Please try again.';
+                $debug = 'Your session may have expired.';
             } elseif (empty($_POST['csrf_token'])) {
-                $debug = 'The form was not submitted properly. Please try again.';
+                $debug = 'The form was not submitted properly.';
             } else {
-                $debug = 'Please try submitting the form again.';
+                $debug = 'Token mismatch.';
             }
             
-            // Set error message in session
-            Session::setFlash('error', 'CSRF token validation failed. ' . $debug);
+            // Regenerate token immediately so the form has a fresh one
+            self::regenerateToken();
             
-            // Redirect back to the referring page to avoid cache issues
-            $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
-            header('Location: ' . $referer);
-            exit;
+            // Set error in global scope for the form to display
+            $GLOBALS['csrf_error'] = 'CSRF token validation failed. ' . $debug . ' Please try again.';
+            
+            return false;
         }
+        return true;
     }
     
     /**

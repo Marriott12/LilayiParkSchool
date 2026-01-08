@@ -26,10 +26,11 @@ $parents = $parentModel->getAll();
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
-    CSRF::requireToken();
-    
-    $parentOption = $_POST['parentOption'] ?? 'existing';
-    $parentID = null;
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+    } else {
+        $parentOption = $_POST['parentOption'] ?? 'existing';
+        $parentID = null;
     
     // Handle parent creation/selection
     if ($parentOption === 'new' && !$isEdit) {
@@ -147,8 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
-    } else {
-        CSRF::regenerateToken();
+        }
     }
 }
 

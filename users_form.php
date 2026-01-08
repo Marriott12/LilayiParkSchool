@@ -18,60 +18,62 @@ $usersModel = new UsersModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = [
-        'username' => trim($_POST['username'] ?? ''),
-        'email' => trim($_POST['email'] ?? ''),
-        'roleID' => $_POST['roleID'] ?? '',
-        'isActive' => isset($_POST['isActive']) ? 1 : 0
-    ];
-    
-    // Validate username uniqueness
-    if ($usersModel->usernameExists($data['username'], $userID)) {
-        $error = 'Username already exists';
-    }
-    // Validate email uniqueness
-    elseif ($usersModel->emailExists($data['email'], $userID)) {
-        $error = 'Email already exists';
-    }
-    // Add password for new users
-    elseif (!$isEdit && empty($_POST['password'])) {
-        $error = 'Password is required for new users';
-    }
-    // Add password if provided
-    elseif (!empty($_POST['password'])) {
-        if ($_POST['password'] !== $_POST['password_confirm']) {
-            $error = 'Passwords do not match';
-        } else {
-            $data['password'] = $_POST['password'];
-        }
-    }
-    
-    if (!isset($error)) {
-        // Validate CSRF token only when all validation passes
-        CSRF::requireToken();
+    // Validate CSRF token first
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+    } else {
+        $data = [
+            'username' => trim($_POST['username'] ?? ''),
+            'email' => trim($_POST['email'] ?? ''),
+            'roleID' => $_POST['roleID'] ?? '',
+            'isActive' => isset($_POST['isActive']) ? 1 : 0
+        ];
         
-        try {
-            if ($isEdit) {
-                // Don't update password unless provided
-                if (empty($data['password'])) {
-                    unset($data['password']);
-                } else {
-                    $data['password'] = password_hash($data['password'], PASSWORD_BCRYPT, ['cost' => 12]);
-                }
-                $usersModel->update($userID, $data);
-                Session::setFlash('success', 'User updated successfully');
+        // Validate username uniqueness
+        if ($usersModel->usernameExists($data['username'], $userID)) {
+            $error = 'Username already exists';
+        }
+        // Validate email uniqueness
+        elseif ($usersModel->emailExists($data['email'], $userID)) {
+            $error = 'Email already exists';
+        }
+        // Add password for new users
+        elseif (!$isEdit && empty($_POST['password'])) {
+            $error = 'Password is required for new users';
+        }
+        // Add password if provided
+        elseif (!empty($_POST['password'])) {
+            if ($_POST['password'] !== $_POST['password_confirm']) {
+                $error = 'Passwords do not match';
             } else {
-                $usersModel->createUser($data);
-                Session::setFlash('success', 'User created successfully');
+                $data['password'] = $_POST['password'];
             }
-            
-            // Regenerate CSRF token after successful submission
-            CSRF::regenerateToken();
-            
-            header('Location: users_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    // Don't update password unless provided
+                    if (empty($data['password'])) {
+                        unset($data['password']);
+                    } else {
+                        $data['password'] = password_hash($data['password'], PASSWORD_BCRYPT, ['cost' => 12]);
+                    }
+                    $usersModel->update($userID, $data);
+                    Session::setFlash('success', 'User updated successfully');
+                } else {
+                    $usersModel->createUser($data);
+                    Session::setFlash('success', 'User created successfully');
+                }
+                
+                // Regenerate CSRF token after successful submission
+                CSRF::regenerateToken();
+                
+                header('Location: users_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
         }
     }
 }

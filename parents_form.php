@@ -17,60 +17,60 @@ $parentModel = new ParentModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
-    CSRF::requireToken();
-    
-    $data = [
-        'fName' => trim($_POST['fName'] ?? ''),
-        'lName' => trim($_POST['lName'] ?? ''),
-        'relation' => trim($_POST['relation'] ?? ''),
-        'gender' => $_POST['gender'] ?? '',
-        'NRC' => trim($_POST['NRC'] ?? ''),
-        'phone' => trim($_POST['phone'] ?? ''),
-        'email1' => trim($_POST['email1'] ?? ''),
-        'email2' => trim($_POST['email2'] ?? ''),
-        'occupation' => trim($_POST['occupation'] ?? ''),
-        'workplace' => trim($_POST['workplace'] ?? '')
-    ];
-    
-    // Validation
-    if (empty($data['fName'])) {
-        $error = 'First name is required';
-    } elseif (empty($data['lName'])) {
-        $error = 'Last name is required';
-    } elseif (empty($data['relation'])) {
-        $error = 'Relationship is required';
-    } elseif (empty($data['gender'])) {
-        $error = 'Gender is required';
-    } elseif (empty($data['NRC'])) {
-        $error = 'NRC is required';
-    } elseif (empty($data['phone'])) {
-        $error = 'Phone number is required';
-    } elseif (empty($data['email1'])) {
-        $error = 'Email is required';
-    } elseif (!filter_var($data['email1'], FILTER_VALIDATE_EMAIL)) {
-        $error = 'Invalid email format';
-    } elseif (!empty($data['email2']) && !filter_var($data['email2'], FILTER_VALIDATE_EMAIL)) {
-        $error = 'Invalid secondary email format';
-    }
-    
-    if (!isset($error)) {
-        try {
-            if ($isEdit) {
-                $parentModel->update($parentID, $data);
-                Session::setFlash('success', 'Parent updated successfully');
-            } else {
-                $parentModel->create($data);
-                Session::setFlash('success', 'Parent added successfully');
-            }
-            
-            CSRF::regenerateToken();
-            header('Location: parents_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
-        }
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        CSRF::regenerateToken();
+        $data = [
+            'fName' => trim($_POST['fName'] ?? ''),
+            'lName' => trim($_POST['lName'] ?? ''),
+            'relation' => trim($_POST['relation'] ?? ''),
+            'gender' => $_POST['gender'] ?? '',
+            'NRC' => trim($_POST['NRC'] ?? ''),
+            'phone' => trim($_POST['phone'] ?? ''),
+            'email1' => trim($_POST['email1'] ?? ''),
+            'email2' => trim($_POST['email2'] ?? ''),
+            'occupation' => trim($_POST['occupation'] ?? ''),
+            'workplace' => trim($_POST['workplace'] ?? '')
+        ];
+        
+        // Validation
+        if (empty($data['fName'])) {
+            $error = 'First name is required';
+        } elseif (empty($data['lName'])) {
+            $error = 'Last name is required';
+        } elseif (empty($data['relation'])) {
+            $error = 'Relationship is required';
+        } elseif (empty($data['gender'])) {
+            $error = 'Gender is required';
+        } elseif (empty($data['NRC'])) {
+            $error = 'NRC is required';
+        } elseif (empty($data['phone'])) {
+            $error = 'Phone number is required';
+        } elseif (empty($data['email1'])) {
+            $error = 'Email is required';
+        } elseif (!filter_var($data['email1'], FILTER_VALIDATE_EMAIL)) {
+            $error = 'Invalid email format';
+        } elseif (!empty($data['email2']) && !filter_var($data['email2'], FILTER_VALIDATE_EMAIL)) {
+            $error = 'Invalid secondary email format';
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    $parentModel->update($parentID, $data);
+                    Session::setFlash('success', 'Parent updated successfully');
+                } else {
+                    $parentModel->create($data);
+                    Session::setFlash('success', 'Parent added successfully');
+                }
+                
+                CSRF::regenerateToken();
+                header('Location: parents_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
+        }
     }
 }
 

@@ -18,47 +18,51 @@ $settingsModel = new SettingsModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
-    $classID = $_POST['classID'] ?? '';
-    $subjectID = $_POST['subjectID'] ?? '';
-    $term = $_POST['term'] ?? '';
-    $academicYear = $_POST['academicYear'] ?? '';
-    $examType = $_POST['examType'] ?? '';
-    $maxMarks = $_POST['maxMarks'] ?? 100;
-    
-    $grades = [];
-    $pupils = $_POST['pupils'] ?? [];
-    
-    foreach ($pupils as $pupilID => $marks) {
-        if (!empty($marks) && is_numeric($marks)) {
-            $grades[] = [
-                'pupilID' => $pupilID,
-                'subjectID' => $subjectID,
-                'classID' => $classID,
-                'term' => $term,
-                'academicYear' => $academicYear,
-                'examType' => $examType,
-                'marks' => $marks,
-                'maxMarks' => $maxMarks
-            ];
-        }
-    }
-    
-    if (empty($grades)) {
-        $error = 'Please enter marks for at least one student';
+    // Validate CSRF token first
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        $result = $gradesModel->bulkSaveGrades($grades);
-        if ($result['saved'] > 0) {
-            $message = $result['saved'] . ' grades saved successfully';
-            if (count($result['errors']) > 0) {
-                $message .= ', ' . count($result['errors']) . ' errors occurred';
+        $classID = $_POST['classID'] ?? '';
+        $subjectID = $_POST['subjectID'] ?? '';
+        $term = $_POST['term'] ?? '';
+        $academicYear = $_POST['academicYear'] ?? '';
+        $examType = $_POST['examType'] ?? '';
+        $maxMarks = $_POST['maxMarks'] ?? 100;
+        
+        $grades = [];
+        $pupils = $_POST['pupils'] ?? [];
+        
+        foreach ($pupils as $pupilID => $marks) {
+            if (!empty($marks) && is_numeric($marks)) {
+                $grades[] = [
+                    'pupilID' => $pupilID,
+                    'subjectID' => $subjectID,
+                    'classID' => $classID,
+                    'term' => $term,
+                    'academicYear' => $academicYear,
+                    'examType' => $examType,
+                    'marks' => $marks,
+                    'maxMarks' => $maxMarks
+                ];
             }
-            Session::setFlash('success', $message);
-            header('Location: grades_list.php?class=' . $classID);
-            exit;
+        }
+        
+        if (empty($grades)) {
+            $error = 'Please enter marks for at least one student';
         } else {
-            $error = 'Failed to save grades. ' . implode(', ', array_column($result['errors'], 'error'));
+            $result = $gradesModel->bulkSaveGrades($grades);
+            if ($result['saved'] > 0) {
+                $message = $result['saved'] . ' grades saved successfully';
+                if (count($result['errors']) > 0) {
+                    $message .= ', ' . count($result['errors']) . ' errors occurred';
+                }
+                Session::setFlash('success', $message);
+                CSRF::regenerateToken();
+                header('Location: grades_list.php?class=' . $classID);
+                exit;
+            } else {
+                $error = 'Failed to save grades. ' . implode(', ', array_column($result['errors'], 'error'));
+            }
         }
     }
 }

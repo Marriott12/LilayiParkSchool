@@ -17,61 +17,61 @@ $teacherModel = new TeacherModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
-    CSRF::requireToken();
-    
-    $data = [
-        'fName' => trim($_POST['fName'] ?? ''),
-        'lName' => trim($_POST['lName'] ?? ''),
-        'NRC' => trim($_POST['NRC'] ?? ''),
-        'SSN' => trim($_POST['SSN'] ?? ''),
-        'Tpin' => trim($_POST['Tpin'] ?? ''),
-        'phone' => trim($_POST['phone'] ?? ''),
-        'email' => trim($_POST['email'] ?? ''),
-        'gender' => $_POST['gender'] ?? '',
-        'tczNo' => trim($_POST['tczNo'] ?? '')
-    ];
-    
-    // Validation
-    if (empty($data['fName'])) {
-        $error = 'First name is required';
-    } elseif (empty($data['lName'])) {
-        $error = 'Last name is required';
-    } elseif (empty($data['NRC'])) {
-        $error = 'NRC is required';
-    } elseif (empty($data['SSN'])) {
-        $error = 'Social Security Number is required';
-    } elseif (empty($data['Tpin'])) {
-        $error = 'TPIN is required';
-    } elseif (empty($data['phone'])) {
-        $error = 'Phone number is required';
-    } elseif (empty($data['email'])) {
-        $error = 'Email is required';
-    } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-        $error = 'Invalid email format';
-    } elseif (empty($data['gender'])) {
-        $error = 'Gender is required';
-    }
-    
-    if (!isset($error)) {
-        try {
-            if ($isEdit) {
-                $teacherModel->update($teacherID, $data);
-                Session::setFlash('success', 'Teacher updated successfully');
-            } else {
-                $teacherModel->create($data);
-                Session::setFlash('success', 'Teacher added successfully');
-            }
-            
-            // Regenerate CSRF token after successful submission
-            CSRF::regenerateToken();
-            
-            header('Location: teachers_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
-        }
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        CSRF::regenerateToken();
+        $data = [
+            'fName' => trim($_POST['fName'] ?? ''),
+            'lName' => trim($_POST['lName'] ?? ''),
+            'NRC' => trim($_POST['NRC'] ?? ''),
+            'SSN' => trim($_POST['SSN'] ?? ''),
+            'Tpin' => trim($_POST['Tpin'] ?? ''),
+            'phone' => trim($_POST['phone'] ?? ''),
+            'email' => trim($_POST['email'] ?? ''),
+            'gender' => $_POST['gender'] ?? '',
+            'tczNo' => trim($_POST['tczNo'] ?? '')
+        ];
+        
+        // Validation
+        if (empty($data['fName'])) {
+            $error = 'First name is required';
+        } elseif (empty($data['lName'])) {
+            $error = 'Last name is required';
+        } elseif (empty($data['NRC'])) {
+            $error = 'NRC is required';
+        } elseif (empty($data['SSN'])) {
+            $error = 'Social Security Number is required';
+        } elseif (empty($data['Tpin'])) {
+            $error = 'TPIN is required';
+        } elseif (empty($data['phone'])) {
+            $error = 'Phone number is required';
+        } elseif (empty($data['email'])) {
+            $error = 'Email is required';
+        } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+            $error = 'Invalid email format';
+        } elseif (empty($data['gender'])) {
+            $error = 'Gender is required';
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    $teacherModel->update($teacherID, $data);
+                    Session::setFlash('success', 'Teacher updated successfully');
+                } else {
+                    $teacherModel->create($data);
+                    Session::setFlash('success', 'Teacher added successfully');
+                }
+                
+                // Regenerate CSRF token after successful submission
+                CSRF::regenerateToken();
+                
+                header('Location: teachers_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
+        }
     }
 }
 

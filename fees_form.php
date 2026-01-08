@@ -23,44 +23,44 @@ $classes = $classModel->getAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
-    CSRF::requireToken();
-    
-    $data = [
-        'classID' => trim($_POST['classID'] ?? ''),
-        'feeAmt' => floatval($_POST['feeAmt'] ?? 0),
-        'term' => $_POST['term'] ?? '',
-        'year' => intval($_POST['year'] ?? date('Y'))
-    ];
-    
-    // Validation
-    if (empty($data['classID'])) {
-        $error = 'Class is required';
-    } elseif ($data['feeAmt'] <= 0) {
-        $error = 'Fee amount must be greater than zero';
-    } elseif (empty($data['term'])) {
-        $error = 'Term is required';
-    } elseif (empty($data['year'])) {
-        $error = 'Academic year is required';
-    }
-    
-    if (!isset($error)) {
-        try {
-            if ($isEdit) {
-                $feesModel->update($feeID, $data);
-                Session::setFlash('success', 'Fee updated successfully');
-            } else {
-                $feesModel->create($data);
-                Session::setFlash('success', 'Fee created successfully');
-            }
-            
-            CSRF::regenerateToken();
-            header('Location: fees_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
-        }
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        CSRF::regenerateToken();
+        $data = [
+            'classID' => trim($_POST['classID'] ?? ''),
+            'feeAmt' => floatval($_POST['feeAmt'] ?? 0),
+            'term' => $_POST['term'] ?? '',
+            'year' => intval($_POST['year'] ?? date('Y'))
+        ];
+        
+        // Validation
+        if (empty($data['classID'])) {
+            $error = 'Class is required';
+        } elseif ($data['feeAmt'] <= 0) {
+            $error = 'Fee amount must be greater than zero';
+        } elseif (empty($data['term'])) {
+            $error = 'Term is required';
+        } elseif (empty($data['year'])) {
+            $error = 'Academic year is required';
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    $feesModel->update($feeID, $data);
+                    Session::setFlash('success', 'Fee updated successfully');
+                } else {
+                    $feesModel->create($data);
+                    Session::setFlash('success', 'Fee created successfully');
+                }
+                
+                CSRF::regenerateToken();
+                header('Location: fees_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
+        }
     }
 }
 

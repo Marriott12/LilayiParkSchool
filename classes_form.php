@@ -23,42 +23,42 @@ $teachers = $teacherModel->getAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
-    CSRF::requireToken();
-    
-    $data = [
-        'className' => trim($_POST['className'] ?? ''),
-        'grade' => trim($_POST['grade'] ?? ''),
-        'academicYear' => trim($_POST['academicYear'] ?? ''),
-        'teacherID' => !empty($_POST['teacherID']) ? $_POST['teacherID'] : null,
-        'capacity' => !empty($_POST['capacity']) ? intval($_POST['capacity']) : null,
-        'room' => trim($_POST['room'] ?? '')
-    ];
-    
-    // Validation
-    if (empty($data['className'])) {
-        $error = 'Class name is required';
-    } elseif (empty($data['grade'])) {
-        $error = 'Grade is required';
-    }
-    
-    if (!isset($error)) {
-        try {
-            if ($isEdit) {
-                $classModel->update($classID, $data);
-                Session::setFlash('success', 'Class updated successfully');
-            } else {
-                $classModel->create($data);
-                Session::setFlash('success', 'Class created successfully');
-            }
-            
-            CSRF::regenerateToken();
-            header('Location: classes_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
-        }
+    if (!CSRF::requireToken()) {
+        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        CSRF::regenerateToken();
+        $data = [
+            'className' => trim($_POST['className'] ?? ''),
+            'grade' => trim($_POST['grade'] ?? ''),
+            'academicYear' => trim($_POST['academicYear'] ?? ''),
+            'teacherID' => !empty($_POST['teacherID']) ? $_POST['teacherID'] : null,
+            'capacity' => !empty($_POST['capacity']) ? intval($_POST['capacity']) : null,
+            'room' => trim($_POST['room'] ?? '')
+        ];
+        
+        // Validation
+        if (empty($data['className'])) {
+            $error = 'Class name is required';
+        } elseif (empty($data['grade'])) {
+            $error = 'Grade is required';
+        }
+        
+        if (!isset($error)) {
+            try {
+                if ($isEdit) {
+                    $classModel->update($classID, $data);
+                    Session::setFlash('success', 'Class updated successfully');
+                } else {
+                    $classModel->create($data);
+                    Session::setFlash('success', 'Class created successfully');
+                }
+                
+                CSRF::regenerateToken();
+                header('Location: classes_list.php');
+                exit;
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
+        }
     }
 }
 
