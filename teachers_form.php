@@ -156,11 +156,19 @@ require_once 'includes/header.php';
                 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Gender <span class="text-danger">*</span></label>
-                    <select class="form-select" name="gender" required>
-                        <option value="">Select Gender</option>
-                        <option value="M" <?= ($teacher['gender'] ?? '') === 'M' ? 'selected' : '' ?>>Male</option>
-                        <option value="F" <?= ($teacher['gender'] ?? '') === 'F' ? 'selected' : '' ?>>Female</option>
-                    </select>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="gender" id="gender_m" value="M" 
+                               <?= ($teacher['gender'] ?? '') === 'M' ? 'checked' : '' ?> required>
+                        <label class="btn btn-outline-primary" for="gender_m">
+                            <i class="bi bi-gender-male"></i> Male
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="gender" id="gender_f" value="F" 
+                               <?= ($teacher['gender'] ?? '') === 'F' ? 'checked' : '' ?> required>
+                        <label class="btn btn-outline-primary" for="gender_f">
+                            <i class="bi bi-gender-female"></i> Female
+                        </label>
+                    </div>
                 </div>
             </div>
             

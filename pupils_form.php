@@ -251,11 +251,17 @@ require_once 'includes/header.php';
                             
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Gender <span class="text-danger">*</span></label>
-                                <select class="form-select" name="parent_gender" id="parent_gender">
-                                    <option value="">Select Gender</option>
-                                    <option value="M">Male</option>
-                                    <option value="F">Female</option>
-                                </select>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="parent_gender" id="parent_gender_m" value="M">
+                                    <label class="btn btn-outline-primary" for="parent_gender_m">
+                                        <i class="bi bi-gender-male"></i> Male
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="parent_gender" id="parent_gender_f" value="F">
+                                    <label class="btn btn-outline-primary" for="parent_gender_f">
+                                        <i class="bi bi-gender-female"></i> Female
+                                    </label>
+                                </div>
                             </div>
                         </div>
                         
@@ -317,45 +323,49 @@ require_once 'includes/header.php';
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Forename <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="fName" 
                                    value="<?= htmlspecialchars($pupil['fName'] ?? '') ?>" required>
                         </div>
                         
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Last Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="sName" 
                                    value="<?= htmlspecialchars($pupil['sName'] ?? '') ?>" required>
                         </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
+
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Gender <span class="text-danger">*</span></label>
-                            <select class="form-select" name="gender" required>
-                                <option value="">Select Gender</option>
-                                <option value="M" <?= ($pupil['gender'] ?? '') === 'M' ? 'selected' : '' ?>>Male</option>
-                                <option value="F" <?= ($pupil['gender'] ?? '') === 'F' ? 'selected' : '' ?>>Female</option>
-                            </select>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="gender" id="gender_m" value="M" 
+                                       <?= ($pupil['gender'] ?? '') === 'M' ? 'checked' : '' ?> required>
+                                <label class="btn btn-outline-primary" for="gender_m">
+                                    <i class="bi bi-gender-male"></i> Male
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="gender" id="gender_f" value="F" 
+                                       <?= ($pupil['gender'] ?? '') === 'F' ? 'checked' : '' ?> required>
+                                <label class="btn btn-outline-primary" for="gender_f">
+                                    <i class="bi bi-gender-female"></i> Female
+                                </label>
+                            </div>
                         </div>
                         
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" name="DoB" 
                                    value="<?= htmlspecialchars($pupil['DoB'] ?? '') ?>" required>
                         </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
+
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Home Address <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="homeAddress" 
                                    value="<?= htmlspecialchars($pupil['homeAddress'] ?? '') ?>" 
                                    placeholder="Street address" required>
                         </div>
                         
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Home Area <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="homeArea" 
                                    value="<?= htmlspecialchars($pupil['homeArea'] ?? '') ?>" 
