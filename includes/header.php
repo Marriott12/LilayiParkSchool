@@ -72,6 +72,22 @@
                 </a>
                 <?php endif; ?>
                 
+                <!-- Academic Section -->
+                <?php if (RBAC::hasPermission(Session::getUserRole(), 'grades', 'read')): ?>
+                <div class="mt-3 mb-2 px-3">
+                    <small class="text-white-50 text-uppercase fw-bold">Academic</small>
+                </div>
+                <a href="<?php echo BASE_URL; ?>/grades_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'grades' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-award me-2"></i> Grades & Marks
+                </a>
+                <a href="<?php echo BASE_URL; ?>/report_cards.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'report_cards' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-file-earmark-text me-2"></i> Report Cards
+                </a>
+                <div class="mt-3 mb-2 px-3">
+                    <small class="text-white-50 text-uppercase fw-bold">System</small>
+                </div>
+                <?php endif; ?>
+                
                 <?php if (RBAC::hasPermission(Session::getUserRole(), 'reports', 'read')): ?>
                 <a href="<?php echo BASE_URL; ?>/reports.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'reports' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-bar-chart me-2"></i> Reports
