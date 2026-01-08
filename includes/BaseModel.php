@@ -78,7 +78,35 @@ class BaseModel {
         }
         
         $stmt->execute();
-        return $this->db->lastInsertId();
+        
+        // Try to get last insert ID (works for auto-increment)
+        $lastId = $this->db->lastInsertId();
+        
+        // If lastInsertId returns 0, it means we're using triggers for ID generation
+        // Try to get the ID from the inserted record using unique field
+        if ($lastId == 0) {
+            // Find a unique field to query by (prefer email, then other unique fields)
+            $uniqueField = null;
+            if (isset($data['email'])) {
+                $uniqueField = 'email';
+            } elseif (isset($data['NRC'])) {
+                $uniqueField = 'NRC';
+            } elseif (isset($data['SSN'])) {
+                $uniqueField = 'SSN';
+            }
+            
+            if ($uniqueField && isset($data[$uniqueField])) {
+                $sql = "SELECT {$this->primaryKey} FROM {$this->table} WHERE {$uniqueField} = ? LIMIT 1";
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([$data[$uniqueField]]);
+                $result = $stmt->fetch();
+                if ($result) {
+                    return $result[$this->primaryKey];
+                }
+            }
+        }
+        
+        return $lastId;
     }
     
     /**

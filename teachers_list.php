@@ -64,7 +64,7 @@ require_once 'includes/header.php';
                         <th>Name</th>
                         <th>Email</th>
                         <th>Phone</th>
-                        <th>Specialization</th>
+                        <th>TCZ Number</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -81,17 +81,13 @@ require_once 'includes/header.php';
                     <?php foreach ($teachers as $teacher): ?>
                     <tr>
                         <td>
-                            <strong><?= htmlspecialchars($teacher['firstName'] . ' ' . $teacher['lastName']) ?></strong>
+                            <strong><?= htmlspecialchars($teacher['fName'] . ' ' . $teacher['lName']) ?></strong>
                         </td>
                         <td><?= htmlspecialchars($teacher['email']) ?></td>
-                        <td><?= htmlspecialchars($teacher['phoneNumber'] ?? 'N/A') ?></td>
-                        <td><?= htmlspecialchars($teacher['specialization'] ?? 'N/A') ?></td>
+                        <td><?= htmlspecialchars($teacher['phone'] ?? 'N/A') ?></td>
+                        <td><?= htmlspecialchars($teacher['tczNo'] ?? 'N/A') ?></td>
                         <td>
-                            <?php if (($teacher['status'] ?? 'Active') === 'Active'): ?>
-                                <span class="badge" style="background-color: #5cb85c;">Active</span>
-                            <?php else: ?>
-                                <span class="badge bg-secondary">Inactive</span>
-                            <?php endif; ?>
+                            <span class="badge" style="background-color: #5cb85c;">Active</span>
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">

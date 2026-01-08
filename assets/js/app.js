@@ -112,6 +112,11 @@ const FormValidator = {
             feedback.remove();
         }
         
+        // Skip validation for empty optional fields
+        if (!required && !value) {
+            return true;
+        }
+        
         // Required validation
         if (required && !value) {
             isValid = false;
@@ -275,8 +280,9 @@ function exportTableToCSV(tableId, filename = 'export.csv') {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize form validation
-    FormValidator.init();
+    // Initialize form validation only for forms with .custom-validation class
+    // Disabled by default as it was blocking form submissions
+    // FormValidator.init('.custom-validation');
     
     // Convert server-side flash messages to toasts
     const alertSuccess = document.querySelector('.alert-success');
@@ -297,12 +303,15 @@ document.addEventListener('DOMContentLoaded', function() {
         alertWarning.remove();
     }
     
-    // Add loading state to forms
+    // Disabled: Add loading state to forms
+    // This was causing form fields to be disabled before submission, preventing POST data
+    /*
     document.querySelectorAll('form').forEach(form => {
         form.addEventListener('submit', function() {
             setFormLoading(form, true);
         });
     });
+    */
     
     // Add export buttons to tables
     const tables = document.querySelectorAll('table');

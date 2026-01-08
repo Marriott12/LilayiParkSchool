@@ -6,6 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
     <script src="<?php echo BASE_URL; ?>/assets/js/main.js"></script>
-    <script src="<?php echo BASE_URL; ?>/assets/js/app.js"></script>
+    <!-- app.js disabled - setFormLoading was disabling form fields before POST submission -->
+    <!-- <script src="<?php echo BASE_URL; ?>/assets/js/app.js"></script> -->
 </body>
 </html>

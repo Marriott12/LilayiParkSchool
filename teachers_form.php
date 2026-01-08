@@ -59,8 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $teacherModel->update($teacherID, $data);
                     Session::setFlash('success', 'Teacher updated successfully');
                 } else {
-                    $teacherModel->create($data);
-                    Session::setFlash('success', 'Teacher added successfully');
+                    $newId = $teacherModel->create($data);
+                    Session::setFlash('success', 'Teacher added successfully (ID: ' . $newId . ')');
                 }
                 
                 // Regenerate CSRF token after successful submission
@@ -68,6 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 header('Location: teachers_list.php');
                 exit;
+            } catch (PDOException $e) {
+                $error = 'Database error: ' . $e->getMessage();
             } catch (Exception $e) {
                 $error = $e->getMessage();
             }
