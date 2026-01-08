@@ -91,4 +91,23 @@ class AttendanceModel extends BaseModel {
         $stmt->execute([$date, $classID]);
         return $stmt->fetch();
     }
+    
+    /**
+     * Get pupil attendance stats for term
+     */
+    public function getPupilAttendanceStats($pupilID, $term = null, $academicYear = null) {
+        // Get term dates from settings
+        require_once __DIR__ . '/../settings/SettingsModel.php';
+        $settingsModel = new SettingsModel();
+        
+        if (!$term) {
+            $term = $settingsModel->getSetting('current_term', '1');
+        }
+        
+        $startDate = $settingsModel->getSetting("term_{$term}_start", date('Y-m-01'));
+        $endDate = $settingsModel->getSetting("term_{$term}_end", date('Y-m-t'));
+        
+        return $this->getPupilSummary($pupilID, $startDate, $endDate);
+    }
 }
+

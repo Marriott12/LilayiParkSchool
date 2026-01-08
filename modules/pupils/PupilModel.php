@@ -12,9 +12,12 @@ class PupilModel extends BaseModel {
      */
     public function getPupilWithParent($pupilID) {
         $sql = "SELECT p.*, pr.fName as parentFirstName, pr.lName as parentLastName, 
-                       pr.phoneNumber as parentPhone, pr.email as parentEmail
+                       pr.phoneNumber as parentPhone, pr.email as parentEmail,
+                       c.className, c.classID
                 FROM {$this->table} p
                 LEFT JOIN Parent pr ON p.parentID = pr.parentID
+                LEFT JOIN PupilClass pc ON p.pupilID = pc.pupilID
+                LEFT JOIN Class c ON pc.classID = c.classID
                 WHERE p.pupilID = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$pupilID]);
