@@ -43,6 +43,74 @@ class TeacherModel extends BaseModel {
     }
     
     /**
+     * Check if TPIN already exists
+     */
+    public function tpinExists($tpin, $excludeTeacherID = null) {
+        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE Tpin = ?";
+        $params = [$tpin];
+        
+        if ($excludeTeacherID) {
+            $sql .= " AND teacherID != ?";
+            $params[] = $excludeTeacherID;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
+     * Check if SSN already exists
+     */
+    public function ssnExists($ssn, $excludeTeacherID = null) {
+        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE SSN = ?";
+        $params = [$ssn];
+        
+        if ($excludeTeacherID) {
+            $sql .= " AND teacherID != ?";
+            $params[] = $excludeTeacherID;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
+     * Check if NRC already exists
+     */
+    public function nrcExists($nrc, $excludeTeacherID = null) {
+        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE NRC = ?";
+        $params = [$nrc];
+        
+        if ($excludeTeacherID) {
+            $sql .= " AND teacherID != ?";
+            $params[] = $excludeTeacherID;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
+     * Check if email already exists
+     */
+    public function emailExists($email, $excludeTeacherID = null) {
+        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE email = ?";
+        $params = [$email];
+        
+        if ($excludeTeacherID) {
+            $sql .= " AND teacherID != ?";
+            $params[] = $excludeTeacherID;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
      * Search teachers
      */
     public function search($term) {

@@ -61,4 +61,55 @@ class ParentModel extends BaseModel {
         $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
         return $stmt->fetchAll();
     }
+    
+    /**
+     * Check if email already exists
+     */
+    public function emailExists($email, $excludeParentID = null) {
+        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE email1 = ? OR email2 = ?";
+        $params = [$email, $email];
+        
+        if ($excludeParentID) {
+            $sql .= " AND parentID != ?";
+            $params[] = $excludeParentID;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
+     * Check if phone already exists
+     */
+    public function phoneExists($phone, $excludeParentID = null) {
+        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE phone = ?";
+        $params = [$phone];
+        
+        if ($excludeParentID) {
+            $sql .= " AND parentID != ?";
+            $params[] = $excludeParentID;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
+     * Check if NRC already exists
+     */
+    public function nrcExists($nrc, $excludeParentID = null) {
+        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE NRC = ?";
+        $params = [$nrc];
+        
+        if ($excludeParentID) {
+            $sql .= " AND parentID != ?";
+            $params[] = $excludeParentID;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn() > 0;
+    }
 }

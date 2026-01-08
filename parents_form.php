@@ -42,16 +42,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Relationship is required';
         } elseif (empty($data['gender'])) {
             $error = 'Gender is required';
-        } elseif (empty($data['NRC'])) {
+        }
+        // NRC validation: Must be format XXXXXX/XX/X
+        elseif (empty($data['NRC'])) {
             $error = 'NRC is required';
-        } elseif (empty($data['phone'])) {
+        } elseif (!preg_match('/^\d{6}\/\d{2}\/\d{1}$/', $data['NRC'])) {
+            $error = 'NRC must be in format XXXXXX/XX/X (e.g., 123456/78/1)';
+        } elseif ($parentModel->nrcExists($data['NRC'], $isEdit ? $parentID : null)) {
+            $error = 'A parent with this NRC already exists';
+        }
+        // Phone validation: 10-13 characters, + only at start
+        elseif (empty($data['phone'])) {
             $error = 'Phone number is required';
-        } elseif (empty($data['email1'])) {
+        } elseif (strlen($data['phone']) < 10) {
+            $error = 'Phone number must be at least 10 digits';
+        } elseif (strlen($data['phone']) > 13) {
+            $error = 'Phone number cannot exceed 13 characters';
+        } elseif (!preg_match('/^\+?\d+$/', $data['phone'])) {
+            $error = 'Phone number can only contain digits and + at the beginning';
+        } elseif (strpos($data['phone'], '+') === 0 && !preg_match('/^\+260\d{9}$/', $data['phone'])) {
+            $error = 'Phone number starting with + must be in format +260XXXXXXXXX';
+        } elseif ($parentModel->phoneExists($data['phone'], $isEdit ? $parentID : null)) {
+            $error = 'A parent with this phone number already exists';
+        }
+        // Email validation
+        elseif (empty($data['email1'])) {
             $error = 'Email is required';
         } elseif (!filter_var($data['email1'], FILTER_VALIDATE_EMAIL)) {
             $error = 'Invalid email format';
+        } elseif ($parentModel->emailExists($data['email1'], $isEdit ? $parentID : null)) {
+            $error = 'A parent with this email already exists';
         } elseif (!empty($data['email2']) && !filter_var($data['email2'], FILTER_VALIDATE_EMAIL)) {
             $error = 'Invalid secondary email format';
+        } elseif (!empty($data['email2']) && $parentModel->emailExists($data['email2'], $isEdit ? $parentID : null)) {
+            $error = 'A parent with this secondary email already exists';
         }
         
         if (!isset($error)) {
@@ -148,12 +172,25 @@ require_once 'includes/header.php';
                     <label class="form-label">NRC <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="NRC" 
                            value="<?= htmlspecialchars($parent['NRC'] ?? '') ?>" 
-                           placeholder="e.g., 123456/78/9" required>
+                           pattern="\d{6}/\d{2}/\d{1}"
+                           placeholder="123456/78/1"
+                           title="Format: 6 digits/2 digits/1 digit (e.g., 123456/78/1)"
+                           required>
+                    <small class="text-muted">Format: XXXXXX/XX/X</small>
                 </div>
                 
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Phone <span class="text-danger">*</span></label>
                     <input type="tel" class="form-control" name="phone" 
+                           value="<?= htmlspecialchars($parent['phone'] ?? '') ?>" 
+                           pattern="(\+260\d{9}|\d{10,13})"
+                           placeholder="0977123456 or +260977123456"
+                           title="10-13 digits, or +260 followed by 9 digits"
+                           minlength="10"
+                           maxlength="13"
+                           required>
+                    <small class="text-muted">10-13 digits, or +260XXXXXXXXX</small>
+                </div>
                            value="<?= htmlspecialchars($parent['phone'] ?? '') ?>" 
                            placeholder="e.g., +260 97 1234567" required>
                 </div>

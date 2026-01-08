@@ -37,19 +37,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'First name is required';
         } elseif (empty($data['lName'])) {
             $error = 'Last name is required';
-        } elseif (empty($data['NRC'])) {
+        } 
+        // NRC validation: Must be format XXXXXX/XX/X (6 digits/2 digits/1 digit)
+        elseif (empty($data['NRC'])) {
             $error = 'NRC is required';
-        } elseif (empty($data['SSN'])) {
+        } elseif (!preg_match('/^\d{6}\/\d{2}\/\d{1}$/', $data['NRC'])) {
+            $error = 'NRC must be in format XXXXXX/XX/X (e.g., 123456/78/1)';
+        } elseif ($teacherModel->nrcExists($data['NRC'], $isEdit ? $teacherID : null)) {
+            $error = 'A teacher with this NRC already exists';
+        }
+        // SSN validation: Must be exactly 9 digits
+        elseif (empty($data['SSN'])) {
             $error = 'Social Security Number is required';
-        } elseif (empty($data['Tpin'])) {
+        } elseif (!preg_match('/^\d{9}$/', $data['SSN'])) {
+            $error = 'SSN must be exactly 9 digits with no special characters';
+        } elseif ($teacherModel->ssnExists($data['SSN'], $isEdit ? $teacherID : null)) {
+            $error = 'A teacher with this SSN already exists';
+        }
+        // TPIN validation: Must be exactly 10 digits
+        elseif (empty($data['Tpin'])) {
             $error = 'TPIN is required';
-        } elseif (empty($data['phone'])) {
+        } elseif (!preg_match('/^\d{10}$/', $data['Tpin'])) {
+            $error = 'TPIN must be exactly 10 digits with no special characters';
+        } elseif ($teacherModel->tpinExists($data['Tpin'], $isEdit ? $teacherID : null)) {
+            $error = 'A teacher with this TPIN already exists';
+        }
+        // Phone validation: 10-13 characters, + only at start, if starts with + must be +260
+        elseif (empty($data['phone'])) {
             $error = 'Phone number is required';
-        } elseif (empty($data['email'])) {
+        } elseif (strlen($data['phone']) < 10) {
+            $error = 'Phone number must be at least 10 digits';
+        } elseif (strlen($data['phone']) > 13) {
+            $error = 'Phone number cannot exceed 13 characters';
+        } elseif (!preg_match('/^\+?\d+$/', $data['phone'])) {
+            $error = 'Phone number can only contain digits and + at the beginning';
+        } elseif (strpos($data['phone'], '+') === 0 && !preg_match('/^\+260\d{9}$/', $data['phone'])) {
+            $error = 'Phone number starting with + must be in format +260XXXXXXXXX';
+        }
+        // Email validation
+        elseif (empty($data['email'])) {
             $error = 'Email is required';
         } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             $error = 'Invalid email format';
-        } elseif (empty($data['gender'])) {
+        } elseif ($teacherModel->emailExists($data['email'], $isEdit ? $teacherID : null)) {
+            $error = 'A teacher with this email already exists';
+        }
+        // Gender validation
+        elseif (empty($data['gender'])) {
             $error = 'Gender is required';
         }
         
@@ -123,27 +157,48 @@ require_once 'includes/header.php';
                     <label class="form-label">NRC <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="NRC" 
                            value="<?= htmlspecialchars($teacher['NRC'] ?? '') ?>" 
-                           placeholder="e.g., 123456/78/9" required>
+                           pattern="\d{6}/\d{2}/\d{1}"
+                           placeholder="123456/78/1" 
+                           title="Format: 6 digits/2 digits/1 digit (e.g., 123456/78/1)"
+                           required>
+                    <small class="text-muted">Format: XXXXXX/XX/X</small>
                 </div>
                 
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Social Security Number (SSN) <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="SSN" 
-                           value="<?= htmlspecialchars($teacher['SSN'] ?? '') ?>" required>
+                           value="<?= htmlspecialchars($teacher['SSN'] ?? '') ?>" 
+                           pattern="\d{9}"
+                           placeholder="123456789"
+                           title="Must be exactly 9 digits"
+                           maxlength="9"
+                           required>
+                    <small class="text-muted">9 digits only</small>
                 </div>
             
                 <div class="col-md-4 mb-3">
                     <label class="form-label">TPIN <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="Tpin" 
                            value="<?= htmlspecialchars($teacher['Tpin'] ?? '') ?>" 
-                           placeholder="Taxpayer Identification Number" required>
+                           pattern="\d{10}"
+                           placeholder="1234567890"
+                           title="Must be exactly 10 digits"
+                           maxlength="10"
+                           required>
+                    <small class="text-muted">10 digits only</small>
                 </div>
                 
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Phone <span class="text-danger">*</span></label>
                     <input type="tel" class="form-control" name="phone" 
                            value="<?= htmlspecialchars($teacher['phone'] ?? '') ?>" 
-                           placeholder="e.g., +260 97 1234567" required>
+                           pattern="(\+260\d{9}|\d{10,13})"
+                           placeholder="0977123456 or +260977123456"
+                           title="10-13 digits, or +260 followed by 9 digits"
+                           minlength="10"
+                           maxlength="13"
+                           required>
+                    <small class="text-muted">10-13 digits, or +260XXXXXXXXX</small>
                 </div>
             
                 <div class="col-md-4 mb-3">
