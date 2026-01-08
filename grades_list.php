@@ -65,7 +65,7 @@ require_once 'includes/header.php';
             <i class="bi bi-award"></i> Grades & Marks
         </h5>
         <div>
-            <?php if (RBAC::hasPermission('grades', 'create')): ?>
+            <?php if (RBAC::hasPermission(Session::getUserRole(), 'grades', 'create')): ?>
             <a href="grades_form.php" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-circle"></i> Enter Grades
             </a>
@@ -177,7 +177,7 @@ require_once 'includes/header.php';
                         <?php endif; ?>
                         <th>Recorded By</th>
                         <th>Date</th>
-                        <?php if (RBAC::hasPermission('grades', 'update')): ?>
+                        <?php if (RBAC::hasPermission(Session::getUserRole(), 'grades', 'update')): ?>
                         <th>Actions</th>
                         <?php endif; ?>
                     </tr>
@@ -211,7 +211,7 @@ require_once 'includes/header.php';
                         <?php endif; ?>
                         <td><small><?= htmlspecialchars($grade['recordedByName'] ?? 'N/A') ?></small></td>
                         <td><small><?= date('M d, Y', strtotime($grade['recordedAt'])) ?></small></td>
-                        <?php if (RBAC::hasPermission('grades', 'update')): ?>
+                        <?php if (RBAC::hasPermission(Session::getUserRole(), 'grades', 'update')): ?>
                         <td>
                             <a href="grades_form.php?id=<?= $grade['gradeID'] ?>" 
                                class="btn btn-warning btn-sm" title="Edit">
