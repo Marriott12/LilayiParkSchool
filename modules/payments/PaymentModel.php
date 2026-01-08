@@ -37,11 +37,8 @@ class PaymentModel extends BaseModel {
                 LEFT JOIN Fees f ON p.feeID = f.feeID
                 ORDER BY p.paymentDate DESC";
         
-        if ($limit) {
-            $sql .= " LIMIT " . (int)$limit;
-            if ($offset) {
-                $sql .= " OFFSET " . (int)$offset;
-            }
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
         }
         
         $stmt = $this->db->prepare($sql);

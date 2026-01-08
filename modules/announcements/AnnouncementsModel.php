@@ -30,11 +30,8 @@ class AnnouncementsModel extends BaseModel {
                 LEFT JOIN Users u ON a.createdBy = u.userID
                 ORDER BY a.isPinned DESC, a.createdAt DESC";
         
-        if ($limit) {
-            $sql .= " LIMIT " . (int)$limit;
-            if ($offset) {
-                $sql .= " OFFSET " . (int)$offset;
-            }
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
         }
         
         $stmt = $this->db->prepare($sql);

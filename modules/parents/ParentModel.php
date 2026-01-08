@@ -40,11 +40,8 @@ class ParentModel extends BaseModel {
                 GROUP BY p.parentID
                 ORDER BY p.fName, p.lName";
         
-        if ($limit) {
-            $sql .= " LIMIT " . (int)$limit;
-            if ($offset) {
-                $sql .= " OFFSET " . (int)$offset;
-            }
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
         }
         
         $stmt = $this->db->prepare($sql);

@@ -30,11 +30,8 @@ class SubjectsModel extends BaseModel {
                 LEFT JOIN Teacher t ON s.teacherID = t.teacherID
                 ORDER BY s.subjectName";
         
-        if ($limit) {
-            $sql .= " LIMIT " . (int)$limit;
-            if ($offset) {
-                $sql .= " OFFSET " . (int)$offset;
-            }
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
         }
         
         $stmt = $this->db->prepare($sql);

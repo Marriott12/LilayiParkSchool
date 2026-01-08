@@ -28,11 +28,8 @@ class UsersModel extends BaseModel {
                 FROM {$this->table} u
                 ORDER BY u.username";
         
-        if ($limit) {
-            $sql .= " LIMIT " . (int)$limit;
-            if ($offset) {
-                $sql .= " OFFSET " . (int)$offset;
-            }
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
         }
         
         $stmt = $this->db->prepare($sql);
