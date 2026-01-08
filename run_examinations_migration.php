@@ -6,7 +6,13 @@
 
 require_once __DIR__ . '/includes/bootstrap.php';
 RBAC::requireAuth();
-RBAC::requireRole('Admin');
+
+// Check if user is admin (roleID = 1)
+if (Session::get('roleID') != 1) {
+    Session::setFlash('error', 'Only administrators can run migrations');
+    header('Location: index.php');
+    exit;
+}
 
 $db = Database::getInstance()->getConnection();
 
