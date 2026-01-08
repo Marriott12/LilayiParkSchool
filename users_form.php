@@ -18,8 +18,6 @@ $usersModel = new UsersModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'username' => trim($_POST['username'] ?? ''),
         'email' => trim($_POST['email'] ?? ''),
@@ -49,6 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (!isset($error)) {
+        // Validate CSRF token only when all validation passes
+        CSRF::requireToken();
+        
         try {
             if ($isEdit) {
                 // Don't update password unless provided
