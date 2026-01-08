@@ -4,9 +4,27 @@
  */
 
 class Session {
+    private static $settingsCache = null;
+    
     public static function start() {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
+            
+            // Regenerate session ID periodically for security
+            if (!isset($_SESSION['created'])) {
+                $_SESSION['created'] = time();
+            } else if (time() - $_SESSION['created'] > 1800) {
+                // Regenerate session every 30 minutes
+                session_regenerate_id(true);
+                $_SESSION['created'] = time();
+            }
+            
+            // Validate IP address
+            if (isset($_SESSION['ip_address']) && $_SESSION['ip_address'] !== $_SERVER['REMOTE_ADDR']) {
+                self::destroy();
+                return false;
+            }
+            $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'];
         }
         
         // Check session timeout
@@ -79,5 +97,38 @@ class Session {
             return $message;
         }
         return null;
+    }
+    
+    /**
+     * Settings Cache - reduce database queries
+     */
+    public static function cacheSettings($settings) {
+        $_SESSION['settings_cache'] = $settings;
+        $_SESSION['settings_cache_time'] = time();
+    }
+    
+    public static function getCachedSettings() {
+        // Cache for 5 minutes
+        if (isset($_SESSION['settings_cache']) && 
+            isset($_SESSION['settings_cache_time']) && 
+            (time() - $_SESSION['settings_cache_time'] < 300)) {
+            return $_SESSION['settings_cache'];
+        }
+        return null;
+    }
+    
+    public static function clearSettingsCache() {
+        unset($_SESSION['settings_cache']);
+        unset($_SESSION['settings_cache_time']);
+    }
+    
+    /**
+     * Get time remaining before session timeout (in seconds)
+     */
+    public static function getTimeRemaining() {
+        if (isset($_SESSION['last_activity'])) {
+            return SESSION_TIMEOUT - (time() - $_SESSION['last_activity']);
+        }
+        return SESSION_TIMEOUT;
     }
 }

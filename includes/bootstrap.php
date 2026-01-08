@@ -13,6 +13,8 @@ require_once __DIR__ . '/Session.php';
 require_once __DIR__ . '/RBAC.php';
 require_once __DIR__ . '/BaseModel.php';
 require_once __DIR__ . '/Utils.php';
+require_once __DIR__ . '/CSRF.php';
+require_once __DIR__ . '/Pagination.php';
 
 // Start session
 Session::start();
@@ -22,10 +24,8 @@ header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('X-XSS-Protection: 1; mode=block');
 
-// CSRF Token generation
-if (!Session::has('csrf_token')) {
-    Session::set('csrf_token', Utils::generateToken());
-}
+// CSRF Token generation via CSRF class
+CSRF::generateToken();
 
 /**
  * Auto-load models

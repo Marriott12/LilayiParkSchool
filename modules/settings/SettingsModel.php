@@ -29,21 +29,31 @@ class SettingsModel extends BaseModel {
             // Update existing
             $sql = "UPDATE {$this->table} SET settingValue = ?, updatedAt = NOW() WHERE settingKey = ?";
             $stmt = $this->db->prepare($sql);
-            return $stmt->execute([$value, $key]);
+            $result = $stmt->execute([$value, $key]);
         } else {
             // Create new
-            return $this->create([
+            $result = $this->create([
                 'settingKey' => $key,
                 'settingValue' => $value,
                 'category' => $category
             ]);
         }
+        
+        // Clear cache when settings change
+        Session::clearSettingsCache();
+        return $result;
     }
     
     /**
      * Get all settings as key-value array
      */
     public function getAllSettings() {
+        // Check cache first
+        $cached = Session::getCachedSettings();
+        if ($cached !== null) {
+            return $cached;
+        }
+        
         $sql = "SELECT settingKey, settingValue FROM {$this->table}";
         $stmt = $this->db->query($sql);
         $results = $stmt->fetchAll();
@@ -52,6 +62,10 @@ class SettingsModel extends BaseModel {
         foreach ($results as $row) {
             $settings[$row['settingKey']] = $row['settingValue'];
         }
+        
+        // Cache for future requests
+        Session::cacheSettings($settings);
+        
         return $settings;
     }
     
