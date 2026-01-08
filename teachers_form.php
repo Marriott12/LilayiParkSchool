@@ -19,14 +19,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
+        'NRC' => trim($_POST['NRC'] ?? ''),
+        'SSN' => trim($_POST['SSN'] ?? ''),
+        'Tpin' => trim($_POST['Tpin'] ?? ''),
+        'phone' => trim($_POST['phone'] ?? ''),
         'email' => trim($_POST['email'] ?? ''),
-        'phoneNumber' => trim($_POST['phoneNumber'] ?? ''),
-        'subject' => trim($_POST['subject'] ?? ''),
-        'dateOfBirth' => $_POST['dateOfBirth'] ?? '',
         'gender' => $_POST['gender'] ?? '',
-        'address' => trim($_POST['address'] ?? ''),
-        'qualifications' => trim($_POST['qualifications'] ?? ''),
-        'hireDate' => $_POST['hireDate'] ?? date('Y-m-d')
+        'tczNo' => trim($_POST['tczNo'] ?? '')
     ];
     
     // Validation
@@ -34,10 +33,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'First name is required';
     } elseif (empty($data['lName'])) {
         $error = 'Last name is required';
+    } elseif (empty($data['NRC'])) {
+        $error = 'NRC is required';
+    } elseif (empty($data['SSN'])) {
+        $error = 'Social Security Number is required';
+    } elseif (empty($data['Tpin'])) {
+        $error = 'TPIN is required';
+    } elseif (empty($data['phone'])) {
+        $error = 'Phone number is required';
     } elseif (empty($data['email'])) {
         $error = 'Email is required';
     } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'Invalid email format';
+    } elseif (empty($data['gender'])) {
+        $error = 'Gender is required';
     }
     
     if (!isset($error)) {
@@ -95,7 +104,7 @@ require_once 'includes/header.php';
             <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">First Name <span class="text-danger">*</span></label>
+                    <label class="form-label">Forename <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="fName" 
                            value="<?= htmlspecialchars($teacher['fName'] ?? '') ?>" required>
                 </div>
@@ -109,59 +118,57 @@ require_once 'includes/header.php';
             
             <div class="row">
                 <div class="col-md-6 mb-3">
+                    <label class="form-label">NRC <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="NRC" 
+                           value="<?= htmlspecialchars($teacher['NRC'] ?? '') ?>" 
+                           placeholder="e.g., 123456/78/9" required>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Social Security Number (SSN) <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="SSN" 
+                           value="<?= htmlspecialchars($teacher['SSN'] ?? '') ?>" required>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">TPIN <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="Tpin" 
+                           value="<?= htmlspecialchars($teacher['Tpin'] ?? '') ?>" 
+                           placeholder="Taxpayer Identification Number" required>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Phone <span class="text-danger">*</span></label>
+                    <input type="tel" class="form-control" name="phone" 
+                           value="<?= htmlspecialchars($teacher['phone'] ?? '') ?>" 
+                           placeholder="e.g., +260 97 1234567" required>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
                     <label class="form-label">Email <span class="text-danger">*</span></label>
                     <input type="email" class="form-control" name="email" 
                            value="<?= htmlspecialchars($teacher['email'] ?? '') ?>" required>
                 </div>
                 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Phone Number <span class="text-danger">*</span></label>
-                    <input type="tel" class="form-control" name="phoneNumber" 
-                           value="<?= htmlspecialchars($teacher['phoneNumber'] ?? '') ?>" required>
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Subject/Specialization <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" name="subject" 
-                           value="<?= htmlspecialchars($teacher['subject'] ?? '') ?>" 
-                           placeholder="e.g., Mathematics, English, Science" required>
-                </div>
-                
-                <div class="col-md-6 mb-3">
                     <label class="form-label">Gender <span class="text-danger">*</span></label>
                     <select class="form-select" name="gender" required>
                         <option value="">Select Gender</option>
-                        <option value="Male" <?= ($teacher['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
-                        <option value="Female" <?= ($teacher['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                        <option value="M" <?= ($teacher['gender'] ?? '') === 'M' ? 'selected' : '' ?>>Male</option>
+                        <option value="F" <?= ($teacher['gender'] ?? '') === 'F' ? 'selected' : '' ?>>Female</option>
                     </select>
                 </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Date of Birth</label>
-                    <input type="date" class="form-control" name="dateOfBirth" 
-                           value="<?= htmlspecialchars($teacher['dateOfBirth'] ?? '') ?>">
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Hire Date</label>
-                    <input type="date" class="form-control" name="hireDate" 
-                           value="<?= htmlspecialchars($teacher['hireDate'] ?? date('Y-m-d')) ?>">
-                </div>
-            </div>
-            
             <div class="mb-3">
-                <label class="form-label">Address</label>
-                <textarea class="form-control" name="address" rows="2"><?= htmlspecialchars($teacher['address'] ?? '') ?></textarea>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Qualifications</label>
-                <textarea class="form-control" name="qualifications" rows="3" 
-                          placeholder="Educational background, certifications, etc."><?= htmlspecialchars($teacher['qualifications'] ?? '') ?></textarea>
+                <label class="form-label">TCZ Number</label>
+                <input type="text" class="form-control" name="tczNo" 
+                       value="<?= htmlspecialchars($teacher['tczNo'] ?? '') ?>" 
+                       placeholder="Teachers Council of Zambia Number">
             </div>
             
             <div class="d-flex gap-2">
