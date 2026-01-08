@@ -47,9 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             CSRF::regenerateToken();
             header('Location: parents_list.php');
-        exit;
-    } catch (Exception $e) {
-        $error = $e->getMessage();
+            exit;
+        } catch (Exception $e) {
+            $error = $e->getMessage();
+        }
     }
 }
 
