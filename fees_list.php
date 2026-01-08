@@ -7,7 +7,13 @@ RBAC::requirePermission('fees', 'read');
 require_once 'modules/fees/FeesModel.php';
 
 $feesModel = new FeesModel();
-$fees = $feesModel->getAllWithClass();
+
+// Pagination
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+$totalRecords = $feesModel->count();
+$pagination = new Pagination($totalRecords, $perPage, $page);
+$fees = $feesModel->getAllWithClass($pagination->getLimit(), $pagination->getOffset());
 
 $pageTitle = 'Fees Management';
 $currentPage = 'fees';
@@ -86,6 +92,11 @@ require_once 'includes/header.php';
             </table>
         </div>
     </div>
+    <?php if ($pagination->hasPages()): ?>
+    <div class="card-footer">
+        <?= $pagination->render() ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>

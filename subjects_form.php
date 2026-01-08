@@ -23,6 +23,8 @@ $teachers = $teacherModel->all();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $data = [
         'subjectName' => trim($_POST['subjectName'] ?? ''),
         'subjectCode' => trim($_POST['subjectCode'] ?? ''),
@@ -75,6 +77,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="">
+            <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Subject Name <span class="text-danger">*</span></label>

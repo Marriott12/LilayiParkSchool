@@ -8,12 +8,21 @@ require_once 'modules/announcements/AnnouncementsModel.php';
 
 $announcementsModel = new AnnouncementsModel();
 
+// Pagination
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+
 // Get announcements based on user role
 $userRole = Session::getUserRole();
 if ($userRole === 'admin' || RBAC::hasPermission($userRole, 'announcements', 'create')) {
-    $announcements = $announcementsModel->getAllWithAuthors();
+    $totalRecords = $announcementsModel->count();
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $announcements = $announcementsModel->getAllWithAuthors($pagination->getLimit(), $pagination->getOffset());
 } else {
-    $announcements = $announcementsModel->getByAudience($userRole);
+    $allAnnouncements = $announcementsModel->getByAudience($userRole);
+    $totalRecords = count($allAnnouncements);
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $announcements = array_slice($allAnnouncements, $pagination->getOffset(), $pagination->getLimit());
 }
 
 $pageTitle = 'Announcements';
@@ -93,6 +102,14 @@ require_once 'includes/header.php';
     </div>
 </div>
 <?php endforeach; ?>
+<?php endif; ?>
+
+<?php if ($pagination->hasPages()): ?>
+<div class="card">
+    <div class="card-footer">
+        <?= $pagination->render() ?>
+    </div>
+</div>
 <?php endif; ?>
 
 <?php require_once 'includes/footer.php'; ?>

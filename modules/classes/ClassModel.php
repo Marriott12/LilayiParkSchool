@@ -23,7 +23,7 @@ class ClassModel extends BaseModel {
     /**
      * Get all classes with teacher and pupil count
      */
-    public function getAllWithDetails() {
+    public function getAllWithDetails($limit = null, $offset = null) {
         $sql = "SELECT c.*, t.fName as teacherFirstName, t.lName as teacherLastName,
                        COUNT(DISTINCT pc.pupilID) as pupilCount
                 FROM {$this->table} c
@@ -31,6 +31,14 @@ class ClassModel extends BaseModel {
                 LEFT JOIN pupil_Class pc ON c.classID = pc.classID
                 GROUP BY c.classID
                 ORDER BY c.className";
+        
+        if ($limit) {
+            $sql .= " LIMIT " . (int)$limit;
+            if ($offset) {
+                $sql .= " OFFSET " . (int)$offset;
+            }
+        }
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();

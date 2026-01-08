@@ -17,11 +17,19 @@ class FeesModel extends BaseModel {
     /**
      * Get all fees with class info
      */
-    public function getAllWithClass() {
+    public function getAllWithClass($limit = null, $offset = null) {
         $sql = "SELECT f.*, c.className
                 FROM {$this->table} f
                 LEFT JOIN Class c ON f.classID = c.classID
                 ORDER BY f.term, c.className";
+        
+        if ($limit) {
+            $sql .= " LIMIT " . (int)$limit;
+            if ($offset) {
+                $sql .= " OFFSET " . (int)$offset;
+            }
+        }
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();

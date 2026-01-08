@@ -23,6 +23,8 @@ if (!$user) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $password = trim($_POST['password'] ?? '');
     $confirmPassword = trim($_POST['password_confirm'] ?? '');
     
@@ -76,6 +78,7 @@ require_once 'includes/header.php';
                 <?php endif; ?>
                 
                 <form method="POST" action="">
+                    <?= CSRF::field() ?>
                     <div class="mb-3">
                         <label class="form-label">New Password <span class="text-danger">*</span></label>
                         <input type="password" class="form-control" name="password" required minlength="6" autofocus>

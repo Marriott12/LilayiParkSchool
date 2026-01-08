@@ -25,6 +25,8 @@ $pupils = $pupilModel->getAllWithParents();
 $fees = $feesModel->getAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $data = [
         'pupilID' => intval($_POST['pupilID'] ?? 0),
         'feeID' => !empty($_POST['feeID']) ? intval($_POST['feeID']) : null,
@@ -42,10 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($isEdit) {
             $paymentModel->update($paymentID, $data);
-            $_SESSION['success_message'] = 'Payment updated successfully';
+            Session::setFlash('success', 'Payment updated successfully');
         } else {
             $paymentModel->create($data);
-            $_SESSION['success_message'] = 'Payment recorded successfully';
+            Session::setFlash('success', 'Payment recorded successfully');
         }
         header('Location: payments_list.php');
         exit;
@@ -82,6 +84,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="">
+            <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Pupil <span class="text-danger">*</span></label>

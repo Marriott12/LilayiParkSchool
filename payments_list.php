@@ -8,13 +8,22 @@ require_once 'modules/payments/PaymentModel.php';
 
 $paymentModel = new PaymentModel();
 
+// Pagination
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+
 // Filter by parent for parent role
 if (Session::getUserRole() === 'parent') {
     // Assuming parent has parentID linked to user
     $parentID = Session::get('parent_id');
-    $payments = $paymentModel->getPaymentsByParent($parentID);
+    $allPayments = $paymentModel->getPaymentsByParent($parentID);
+    $totalRecords = count($allPayments);
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $payments = array_slice($allPayments, $pagination->getOffset(), $pagination->getLimit());
 } else {
-    $payments = $paymentModel->getAllWithDetails();
+    $totalRecords = $paymentModel->count();
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $payments = $paymentModel->getAllWithDetails($pagination->getLimit(), $pagination->getOffset());
 }
 
 $pageTitle = 'Payments Management';
@@ -92,6 +101,11 @@ require_once 'includes/header.php';
             </table>
         </div>
     </div>
+    <?php if ($pagination->hasPages()): ?>
+    <div class="card-footer">
+        <?= $pagination->render() ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>

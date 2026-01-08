@@ -24,7 +24,7 @@ class AnnouncementsModel extends BaseModel {
     /**
      * Get all announcements with author info
      */
-    public function getAllWithAuthors($limit = null) {
+    public function getAllWithAuthors($limit = null, $offset = null) {
         $sql = "SELECT a.*, u.username as authorName
                 FROM {$this->table} a
                 LEFT JOIN Users u ON a.createdBy = u.userID
@@ -32,6 +32,9 @@ class AnnouncementsModel extends BaseModel {
         
         if ($limit) {
             $sql .= " LIMIT " . (int)$limit;
+            if ($offset) {
+                $sql .= " OFFSET " . (int)$offset;
+            }
         }
         
         $stmt = $this->db->prepare($sql);

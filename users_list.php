@@ -8,9 +8,21 @@ require_once 'modules/users/UsersModel.php';
 
 $usersModel = new UsersModel();
 
-// Handle search
+// Handle search and pagination
 $searchTerm = $_GET['search'] ?? '';
-$users = $searchTerm ? $usersModel->search($searchTerm) : $usersModel->getAllWithRoles();
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+
+if ($searchTerm) {
+    $allUsers = $usersModel->search($searchTerm);
+    $totalRecords = count($allUsers);
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $users = array_slice($allUsers, $pagination->getOffset(), $pagination->getLimit());
+} else {
+    $totalRecords = $usersModel->count();
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $users = $usersModel->getAllWithRoles($pagination->getLimit(), $pagination->getOffset());
+}
 
 $pageTitle = 'User Management';
 $currentPage = 'users';
@@ -116,6 +128,11 @@ require_once 'includes/header.php';
             </table>
         </div>
     </div>
+    <?php if ($pagination->hasPages()): ?>
+    <div class="card-footer">
+        <?= $pagination->render() ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>

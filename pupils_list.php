@@ -10,9 +10,21 @@ require_once 'modules/parents/ParentModel.php';
 $pupilModel = new PupilModel();
 $parentModel = new ParentModel();
 
-// Handle search
+// Handle search and pagination
 $searchTerm = $_GET['search'] ?? '';
-$pupils = $searchTerm ? $pupilModel->search($searchTerm) : $pupilModel->getAllWithParents();
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+
+if ($searchTerm) {
+    $allPupils = $pupilModel->search($searchTerm);
+    $totalRecords = count($allPupils);
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $pupils = array_slice($allPupils, $pagination->getOffset(), $pagination->getLimit());
+} else {
+    $totalRecords = $pupilModel->count();
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $pupils = $pupilModel->getAllWithParents($pagination->getLimit(), $pagination->getOffset());
+}
 
 $pageTitle = 'Pupils Management';
 $currentPage = 'pupils';
@@ -104,6 +116,13 @@ require_once 'includes/header.php';
                 </tbody>
             </table>
         </div>
+        
+        <!-- Pagination -->
+        <?php if ($pagination->hasPages()): ?>
+        <div class="card-footer">
+            <?= $pagination->render() ?>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 

@@ -16,6 +16,8 @@ require_once 'modules/fees/FeesModel.php';
 $feesModel = new FeesModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $data = [
         'feeName' => trim($_POST['feeName'] ?? ''),
         'feeAmount' => floatval($_POST['feeAmount'] ?? 0),
@@ -28,10 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($isEdit) {
             $feesModel->update($feeID, $data);
-            $_SESSION['success_message'] = 'Fee updated successfully';
+            Session::setFlash('success', 'Fee updated successfully');
         } else {
             $feesModel->create($data);
-            $_SESSION['success_message'] = 'Fee created successfully';
+            Session::setFlash('success', 'Fee created successfully');
         }
         header('Location: fees_list.php');
         exit;
@@ -68,6 +70,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="">
+            <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Fee Name <span class="text-danger">*</span></label>

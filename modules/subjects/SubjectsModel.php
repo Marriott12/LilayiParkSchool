@@ -24,11 +24,19 @@ class SubjectsModel extends BaseModel {
     /**
      * Get all subjects with teacher names
      */
-    public function getAllWithTeachers() {
+    public function getAllWithTeachers($limit = null, $offset = null) {
         $sql = "SELECT s.*, t.fName as teacherFirstName, t.lName as teacherLastName
                 FROM {$this->table} s
                 LEFT JOIN Teacher t ON s.teacherID = t.teacherID
                 ORDER BY s.subjectName";
+        
+        if ($limit) {
+            $sql .= " LIMIT " . (int)$limit;
+            if ($offset) {
+                $sql .= " OFFSET " . (int)$offset;
+            }
+        }
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();

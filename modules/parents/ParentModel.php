@@ -33,12 +33,20 @@ class ParentModel extends BaseModel {
     /**
      * Get parent with children count
      */
-    public function getAllWithChildrenCount() {
+    public function getAllWithChildrenCount($limit = null, $offset = null) {
         $sql = "SELECT p.*, COUNT(pu.pupilID) as childrenCount
                 FROM {$this->table} p
                 LEFT JOIN Pupil pu ON p.parentID = pu.parentID
                 GROUP BY p.parentID
                 ORDER BY p.fName, p.lName";
+        
+        if ($limit) {
+            $sql .= " LIMIT " . (int)$limit;
+            if ($offset) {
+                $sql .= " OFFSET " . (int)$offset;
+            }
+        }
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();

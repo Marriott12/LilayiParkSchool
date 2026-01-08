@@ -16,6 +16,8 @@ require_once 'modules/parents/ParentModel.php';
 $parentModel = new ParentModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
@@ -29,10 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($isEdit) {
             $parentModel->update($parentID, $data);
-            $_SESSION['success_message'] = 'Parent updated successfully';
+            Session::setFlash('success', 'Parent updated successfully');
         } else {
             $parentModel->create($data);
-            $_SESSION['success_message'] = 'Parent added successfully';
+            Session::setFlash('success', 'Parent added successfully');
         }
         header('Location: parents_list.php');
         exit;
@@ -69,6 +71,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="">
+            <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">First Name <span class="text-danger">*</span></label>

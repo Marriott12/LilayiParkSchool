@@ -24,11 +24,16 @@ class PupilModel extends BaseModel {
     /**
      * Get all pupils with parent info
      */
-    public function getAllWithParents() {
+    public function getAllWithParents($limit = null, $offset = null) {
         $sql = "SELECT p.*, pr.fName as parentFirstName, pr.lName as parentLastName
                 FROM {$this->table} p
                 LEFT JOIN Parent pr ON p.parentID = pr.parentID
                 ORDER BY p.fName, p.lName";
+        
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
+        }
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();

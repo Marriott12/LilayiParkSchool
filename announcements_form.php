@@ -18,6 +18,8 @@ $announcementsModel = new AnnouncementsModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $data = [
         'title' => trim($_POST['title'] ?? ''),
         'content' => trim($_POST['content'] ?? ''),
@@ -72,6 +74,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="">
+            <?= CSRF::field() ?>
             <div class="mb-3">
                 <label class="form-label">Title <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" name="title" 

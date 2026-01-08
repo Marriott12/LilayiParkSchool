@@ -8,9 +8,21 @@ require_once 'modules/parents/ParentModel.php';
 
 $parentModel = new ParentModel();
 
-// Handle search
+// Handle search and pagination
 $searchTerm = $_GET['search'] ?? '';
-$parents = $searchTerm ? $parentModel->search($searchTerm) : $parentModel->getAllWithChildrenCount();
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+
+if ($searchTerm) {
+    $allParents = $parentModel->search($searchTerm);
+    $totalRecords = count($allParents);
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $parents = array_slice($allParents, $pagination->getOffset(), $pagination->getLimit());
+} else {
+    $totalRecords = $parentModel->count();
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $parents = $parentModel->getAllWithChildrenCount($pagination->getLimit(), $pagination->getOffset());
+}
 
 $pageTitle = 'Parents Management';
 $currentPage = 'parents';
@@ -98,6 +110,11 @@ require_once 'includes/header.php';
             </table>
         </div>
     </div>
+    <?php if ($pagination->hasPages()): ?>
+    <div class="card-footer">
+        <?= $pagination->render() ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>

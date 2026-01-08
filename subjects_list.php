@@ -8,9 +8,21 @@ require_once 'modules/subjects/SubjectsModel.php';
 
 $subjectsModel = new SubjectsModel();
 
-// Handle search
+// Handle search and pagination
 $searchTerm = $_GET['search'] ?? '';
-$subjects = $searchTerm ? $subjectsModel->search($searchTerm) : $subjectsModel->getAllWithTeachers();
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+
+if ($searchTerm) {
+    $allSubjects = $subjectsModel->search($searchTerm);
+    $totalRecords = count($allSubjects);
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $subjects = array_slice($allSubjects, $pagination->getOffset(), $pagination->getLimit());
+} else {
+    $totalRecords = $subjectsModel->count();
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $subjects = $subjectsModel->getAllWithTeachers($pagination->getLimit(), $pagination->getOffset());
+}
 
 $pageTitle = 'Subjects Management';
 $currentPage = 'subjects';
@@ -95,6 +107,11 @@ require_once 'includes/header.php';
             </table>
         </div>
     </div>
+    <?php if ($pagination->hasPages()): ?>
+    <div class="card-footer">
+        <?= $pagination->render() ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>

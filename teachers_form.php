@@ -16,6 +16,8 @@ require_once 'modules/teachers/TeacherModel.php';
 $teacherModel = new TeacherModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
@@ -32,10 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($isEdit) {
             $teacherModel->update($teacherID, $data);
-            $_SESSION['success_message'] = 'Teacher updated successfully';
+            Session::setFlash('success', 'Teacher updated successfully');
         } else {
             $teacherModel->create($data);
-            $_SESSION['success_message'] = 'Teacher added successfully';
+            Session::setFlash('success', 'Teacher added successfully');
         }
         header('Location: teachers_list.php');
         exit;
@@ -72,6 +74,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="">
+            <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">First Name <span class="text-danger">*</span></label>

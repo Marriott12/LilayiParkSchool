@@ -7,7 +7,13 @@ RBAC::requirePermission('classes', 'read');
 require_once 'modules/classes/ClassModel.php';
 
 $classModel = new ClassModel();
-$classes = $classModel->getAllWithDetails();
+
+// Pagination
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+$totalRecords = $classModel->count();
+$pagination = new Pagination($totalRecords, $perPage, $page);
+$classes = $classModel->getAllWithDetails($pagination->getLimit(), $pagination->getOffset());
 
 $pageTitle = 'Classes Management';
 $currentPage = 'classes';
@@ -74,5 +80,13 @@ require_once 'includes/header.php';
     <?php endforeach; ?>
     <?php endif; ?>
 </div>
+
+<?php if ($pagination->hasPages()): ?>
+<div class="card">
+    <div class="card-footer">
+        <?= $pagination->render() ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php require_once 'includes/footer.php'; ?>

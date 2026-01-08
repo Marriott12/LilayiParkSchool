@@ -10,6 +10,8 @@ $settingsModel = new SettingsModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     try {
         // School Information
         $settingsModel->setSetting('school_name', $_POST['school_name'], 'school');
@@ -52,6 +54,7 @@ require_once 'includes/header.php';
 <?php endif; ?>
 
 <form method="POST" action="">
+    <?= CSRF::field() ?>
     <!-- School Information -->
     <div class="card mb-4">
         <div class="card-header" style="background-color: #f8f9fa;">

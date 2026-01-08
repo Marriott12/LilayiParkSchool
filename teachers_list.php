@@ -8,9 +8,21 @@ require_once 'modules/teachers/TeacherModel.php';
 
 $teacherModel = new TeacherModel();
 
-// Handle search
+// Handle search and pagination
 $searchTerm = $_GET['search'] ?? '';
-$teachers = $searchTerm ? $teacherModel->search($searchTerm) : $teacherModel->all();
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+
+if ($searchTerm) {
+    $allTeachers = $teacherModel->search($searchTerm);
+    $totalRecords = count($allTeachers);
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $teachers = array_slice($allTeachers, $pagination->getOffset(), $pagination->getLimit());
+} else {
+    $totalRecords = $teacherModel->count();
+    $pagination = new Pagination($totalRecords, $perPage, $page);
+    $teachers = $teacherModel->all(null, $pagination->getLimit(), $pagination->getOffset());
+}
 
 $pageTitle = 'Teachers Management';
 $currentPage = 'teachers';
@@ -100,6 +112,11 @@ require_once 'includes/header.php';
             </table>
         </div>
     </div>
+    <?php if ($pagination->hasPages()): ?>
+    <div class="card-footer">
+        <?= $pagination->render() ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>

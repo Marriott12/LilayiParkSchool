@@ -25,6 +25,9 @@ $parents = $parentModel->getAll();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    CSRF::requireToken();
+    
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
@@ -39,10 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($isEdit) {
             $pupilModel->update($pupilID, $data);
-            $_SESSION['success_message'] = 'Pupil updated successfully';
+            Session::setFlash('success', 'Pupil updated successfully');
         } else {
             $pupilModel->create($data);
-            $_SESSION['success_message'] = 'Pupil added successfully';
+            Session::setFlash('success', 'Pupil added successfully');
         }
         header('Location: pupils_list.php');
         exit;
@@ -80,6 +83,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="">
+            <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">First Name <span class="text-danger">*</span></label>

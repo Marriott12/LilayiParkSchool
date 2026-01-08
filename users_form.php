@@ -18,6 +18,8 @@ $usersModel = new UsersModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $data = [
         'username' => trim($_POST['username'] ?? ''),
         'email' => trim($_POST['email'] ?? ''),
@@ -98,6 +100,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="">
+            <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Username <span class="text-danger">*</span></label>

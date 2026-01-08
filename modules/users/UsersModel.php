@@ -23,10 +23,18 @@ class UsersModel extends BaseModel {
     /**
      * Get all users with role names
      */
-    public function getAllWithRoles() {
+    public function getAllWithRoles($limit = null, $offset = null) {
         $sql = "SELECT u.*, u.role as roleName
                 FROM {$this->table} u
                 ORDER BY u.username";
+        
+        if ($limit) {
+            $sql .= " LIMIT " . (int)$limit;
+            if ($offset) {
+                $sql .= " OFFSET " . (int)$offset;
+            }
+        }
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();

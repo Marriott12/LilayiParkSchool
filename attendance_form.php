@@ -28,6 +28,8 @@ $selectedClassID = $_GET['classID'] ?? $_POST['classID'] ?? null;
 $pupils = $selectedClassID ? $pupilModel->getPupilsByClass($selectedClassID) : [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    CSRF::requireToken();
+    
     $data = [
         'pupilID' => intval($_POST['pupilID'] ?? 0),
         'classID' => intval($_POST['classID'] ?? 0),
@@ -42,10 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($isEdit) {
             $attendanceModel->update($attendanceID, $data);
-            $_SESSION['success_message'] = 'Attendance updated successfully';
+            Session::setFlash('success', 'Attendance updated successfully');
         } else {
             $attendanceModel->create($data);
-            $_SESSION['success_message'] = 'Attendance marked successfully';
+            Session::setFlash('success', 'Attendance marked successfully');
         }
         header('Location: attendance_list.php');
         exit;
@@ -86,6 +88,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
         
         <form method="POST" action="" id="attendanceForm">
+            <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Class <span class="text-danger">*</span></label>

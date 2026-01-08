@@ -27,7 +27,7 @@ class PaymentModel extends BaseModel {
     /**
      * Get all payments with details
      */
-    public function getAllWithDetails() {
+    public function getAllWithDetails($limit = null, $offset = null) {
         $sql = "SELECT p.*, pu.fName as pupilFirstName, pu.lName as pupilLastName,
                        pr.fName as parentFirstName, pr.lName as parentLastName,
                        f.term, f.feeAmt
@@ -36,6 +36,14 @@ class PaymentModel extends BaseModel {
                 LEFT JOIN Parent pr ON pu.parentID = pr.parentID
                 LEFT JOIN Fees f ON p.feeID = f.feeID
                 ORDER BY p.paymentDate DESC";
+        
+        if ($limit) {
+            $sql .= " LIMIT " . (int)$limit;
+            if ($offset) {
+                $sql .= " OFFSET " . (int)$offset;
+            }
+        }
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();
