@@ -44,7 +44,7 @@ require_once 'includes/header.php';
             <p class="text-muted">Schedule and manage school examinations</p>
         </div>
         <div class="col-md-4 text-end">
-            <?php if (RBAC::hasPermission('examinations', 'create')): ?>
+            <?php if (RBAC::hasPermission('examinations', 'create', null)): ?>
                 <a href="examinations_form.php" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-1"></i> Schedule New Exam
                 </a>
@@ -206,7 +206,7 @@ require_once 'includes/header.php';
                                            title="View Schedule">
                                             <i class="bi bi-calendar3"></i>
                                         </a>
-                                        <?php if (RBAC::hasPermission('examinations', 'update')): ?>
+                                        <?php if (RBAC::hasPermission('examinations', 'update', null)): ?>
                                         <a href="examinations_form.php?examID=<?= $exam['examID'] ?>" 
                                            class="btn btn-outline-secondary"
                                            data-bs-toggle="tooltip" 
@@ -214,7 +214,7 @@ require_once 'includes/header.php';
                                             <i class="bi bi-pencil"></i>
                                         </a>
                                         <?php endif; ?>
-                                        <?php if (RBAC::hasPermission('examinations', 'delete') && $exam['scheduledClasses'] == 0): ?>
+                                        <?php if (RBAC::hasPermission('examinations', 'delete', null) && $exam['scheduledClasses'] == 0): ?>
                                         <button class="btn btn-outline-danger" 
                                                 onclick="deleteExam(<?= $exam['examID'] ?>, '<?= htmlspecialchars($exam['examName']) ?>')"
                                                 data-bs-toggle="tooltip" 

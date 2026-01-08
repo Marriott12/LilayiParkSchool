@@ -82,7 +82,21 @@ $schedules = $examinationsModel->getSchedulesByExam($examID);
 $statistics = $examinationsModel->getStatistics($examID);
 $classes = $classModel->getAll();
 $subjects = $subjectsModel->getAll();
-$teachers = $usersModel->getByRole(3); // Role 3 = Teacher
+// Role 3 = Teacher; use getByRole if available, otherwise filter all users
+if (method_exists($usersModel, 'getByRole')) {
+    $teachers = $usersModel->getByRole(3); // Role 3 = Teacher
+} else {
+    $allUsers = $usersModel->getAll();
+    $teachers = array_values(array_filter($allUsers, function($u) {
+        if (isset($u['roleID'])) {
+            return $u['roleID'] == 3;
+        }
+        if (isset($u['role'])) {
+            return $u['role'] == 3;
+        }
+        return false;
+    }));
+}
 
 $pageTitle = 'Exam Schedule - ' . $exam['examName'];
 $currentPage = 'examinations';
@@ -143,7 +157,7 @@ require_once 'includes/header.php';
         </div>
     </div>
 
-    <?php if (RBAC::hasPermission('examinations', 'create')): ?>
+    <?php if (RBAC::hasPermission('examinations', 'create', null)): ?>
     <!-- Add Schedule Form -->
     <div class="card mb-4">
         <div class="card-header">
@@ -280,7 +294,7 @@ require_once 'includes/header.php';
                                     </span>
                                 </td>
                                 <td>
-                                    <?php if (RBAC::hasPermission('examinations', 'delete')): ?>
+                                    <?php if (RBAC::hasPermission('examinations', 'delete', null)): ?>
                                     <form method="POST" class="d-inline" onsubmit="return confirm('Delete this schedule?')">
                                         <?= CSRF::field() ?>
                                         <input type="hidden" name="action" value="delete_schedule">

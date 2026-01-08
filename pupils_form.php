@@ -25,6 +25,9 @@ $parents = $parentModel->getAll();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token first
+    CSRF::requireToken();
+    
     $parentOption = $_POST['parentOption'] ?? 'existing';
     $parentID = null;
     
@@ -106,8 +109,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (!isset($error)) {
-        CSRF::requireToken();
-        
         try {
             // Create parent if new
             if ($parentOption === 'new' && !$isEdit) {
@@ -146,6 +147,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
+    } else {
+        CSRF::regenerateToken();
     }
 }
 
@@ -187,7 +190,7 @@ require_once 'includes/header.php';
                 </div>
                 <div class="card-body">
                     <?php if (!$isEdit): ?>
-                    <div class="mb-3">
+                    <div class="col-md-4 mb-3">
                         <label class="form-label">Parent/Guardian Option <span class="text-danger">*</span></label>
                         <div class="btn-group w-100" role="group">
                             <input type="radio" class="btn-check" name="parentOption" id="existingParent" value="existing" checked>
@@ -204,7 +207,7 @@ require_once 'includes/header.php';
                     
                     <!-- Existing Parent Selection -->
                     <div id="existingParentSection">
-                        <div class="mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Select Parent <span class="text-danger">*</span></label>
                             <select class="form-select" name="parentID" id="parentDropdown">
                                 <option value="">-- Select Parent/Guardian --</option>
@@ -463,7 +466,7 @@ require_once 'includes/header.php';
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-8 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Photo Consent <span class="text-danger">*</span></label>
                             <div class="btn-group w-100" role="group">
                                 <input type="radio" class="btn-check" name="photo" id="photoYes" value="Y" 

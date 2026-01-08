@@ -97,6 +97,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'getPupilDetails' && isset($_G
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token first
+    CSRF::requireToken();
+    
     $data = [
         'pupilID' => trim($_POST['pupilID'] ?? ''),
         'classID' => trim($_POST['classID'] ?? ''),
@@ -116,8 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (!isset($error)) {
-        CSRF::requireToken();
-        
         try {
             $paymentModel->create($data);
             Session::setFlash('success', 'Payment recorded successfully');
@@ -128,6 +129,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
+    } else {
+        CSRF::regenerateToken();
     }
 }
 

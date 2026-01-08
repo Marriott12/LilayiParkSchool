@@ -16,6 +16,9 @@ require_once 'modules/teachers/TeacherModel.php';
 $teacherModel = new TeacherModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token first
+    CSRF::requireToken();
+    
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
@@ -50,9 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (!isset($error)) {
-        // Validate CSRF token only when all validation passes
-        CSRF::requireToken();
-        
         try {
             if ($isEdit) {
                 $teacherModel->update($teacherID, $data);
@@ -70,6 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
+    } else {
+        CSRF::regenerateToken();
     }
 }
 
@@ -103,58 +105,52 @@ require_once 'includes/header.php';
         <form method="POST" action="">
             <?= CSRF::field() ?>
             <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Forename <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="fName" 
                            value="<?= htmlspecialchars($teacher['fName'] ?? '') ?>" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Last Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="lName" 
                            value="<?= htmlspecialchars($teacher['lName'] ?? '') ?>" required>
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">NRC <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="NRC" 
                            value="<?= htmlspecialchars($teacher['NRC'] ?? '') ?>" 
                            placeholder="e.g., 123456/78/9" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Social Security Number (SSN) <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="SSN" 
                            value="<?= htmlspecialchars($teacher['SSN'] ?? '') ?>" required>
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">TPIN <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="Tpin" 
                            value="<?= htmlspecialchars($teacher['Tpin'] ?? '') ?>" 
                            placeholder="Taxpayer Identification Number" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Phone <span class="text-danger">*</span></label>
                     <input type="tel" class="form-control" name="phone" 
                            value="<?= htmlspecialchars($teacher['phone'] ?? '') ?>" 
                            placeholder="e.g., +260 97 1234567" required>
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Email <span class="text-danger">*</span></label>
                     <input type="email" class="form-control" name="email" 
                            value="<?= htmlspecialchars($teacher['email'] ?? '') ?>" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Gender <span class="text-danger">*</span></label>
                     <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check" name="gender" id="gender_m" value="M" 

@@ -50,8 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             CSRF::regenerateToken();
             header('Location: announcements_list.php');
         exit;
-    } catch (Exception $e) {
-        $error = $e->getMessage();
+        } catch (Exception $e) {
+            $error = $e->getMessage();
+        }
     }
 }
 

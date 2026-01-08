@@ -22,6 +22,9 @@ $classModel = new ClassModel();
 $classes = $classModel->getAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token first
+    CSRF::requireToken();
+    
     $data = [
         'classID' => trim($_POST['classID'] ?? ''),
         'feeAmt' => floatval($_POST['feeAmt'] ?? 0),
@@ -41,8 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (!isset($error)) {
-        CSRF::requireToken();
-        
         try {
             if ($isEdit) {
                 $feesModel->update($feeID, $data);
@@ -58,6 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
+    } else {
+        CSRF::regenerateToken();
     }
 }
 

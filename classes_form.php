@@ -22,6 +22,9 @@ $teacherModel = new TeacherModel();
 $teachers = $teacherModel->getAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token first
+    CSRF::requireToken();
+    
     $data = [
         'className' => trim($_POST['className'] ?? ''),
         'grade' => trim($_POST['grade'] ?? ''),
@@ -39,8 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (!isset($error)) {
-        CSRF::requireToken();
-        
         try {
             if ($isEdit) {
                 $classModel->update($classID, $data);
@@ -56,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
+    } else {
+        CSRF::regenerateToken();
     }
 }
 
@@ -89,30 +92,28 @@ require_once 'includes/header.php';
         <form method="POST" action="">
             <?= CSRF::field() ?>
             <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Class Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="className" 
                            value="<?= htmlspecialchars($class['className'] ?? '') ?>" 
                            placeholder="e.g., Grade 1A, Reception" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Grade/Level <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="grade" 
                            value="<?= htmlspecialchars($class['grade'] ?? '') ?>" 
                            placeholder="e.g., Grade 1, Reception" required>
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Academic Year <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="academicYear" 
                            value="<?= htmlspecialchars($class['academicYear'] ?? '2025/2026') ?>" 
                            placeholder="2025/2026" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Class Teacher</label>
                     <select class="form-select" name="teacherID">
                         <option value="">No Teacher Assigned</option>
@@ -124,17 +125,15 @@ require_once 'includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Room/Location</label>
                     <input type="text" class="form-control" name="room" 
                            value="<?= htmlspecialchars($class['room'] ?? '') ?>" 
                            placeholder="e.g., Room 101, Building A">
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Capacity</label>
                     <input type="number" class="form-control" name="capacity" 
                            value="<?= htmlspecialchars($class['capacity'] ?? '') ?>" 

@@ -28,6 +28,9 @@ $selectedClassID = $_GET['classID'] ?? $_POST['classID'] ?? null;
 $pupils = $selectedClassID ? $pupilModel->getPupilsByClass($selectedClassID) : [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token first
+    CSRF::requireToken();
+    
     $data = [
         'pupilID' => intval($_POST['pupilID'] ?? 0),
         'classID' => intval($_POST['classID'] ?? 0),
@@ -47,8 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (!isset($error)) {
-        CSRF::requireToken();
-        
         try {
             if ($isEdit) {
                 $attendanceModel->update($attendanceID, $data);
@@ -64,6 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
+    } else {
+        CSRF::regenerateToken();
     }
 }
 

@@ -16,6 +16,9 @@ require_once 'modules/parents/ParentModel.php';
 $parentModel = new ParentModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token first
+    CSRF::requireToken();
+    
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
@@ -51,8 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (!isset($error)) {
-        CSRF::requireToken();
-        
         try {
             if ($isEdit) {
                 $parentModel->update($parentID, $data);
@@ -68,6 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
+    } else {
+        CSRF::regenerateToken();
     }
 }
 
@@ -101,21 +104,19 @@ require_once 'includes/header.php';
         <form method="POST" action="">
             <?= CSRF::field() ?>
             <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Forename <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="fName" 
                            value="<?= htmlspecialchars($parent['fName'] ?? '') ?>" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Last Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="lName" 
                            value="<?= htmlspecialchars($parent['lName'] ?? '') ?>" required>
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Relationship <span class="text-danger">*</span></label>
                     <select class="form-select" name="relation" required>
                         <option value="">Select Relationship</option>
@@ -126,7 +127,7 @@ require_once 'includes/header.php';
                     </select>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Gender <span class="text-danger">*</span></label>
                     <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check" name="gender" id="gender_m" value="M" 
@@ -142,47 +143,41 @@ require_once 'includes/header.php';
                         </label>
                     </div>
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">NRC <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="NRC" 
                            value="<?= htmlspecialchars($parent['NRC'] ?? '') ?>" 
                            placeholder="e.g., 123456/78/9" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Phone <span class="text-danger">*</span></label>
                     <input type="tel" class="form-control" name="phone" 
                            value="<?= htmlspecialchars($parent['phone'] ?? '') ?>" 
                            placeholder="e.g., +260 97 1234567" required>
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Email 1 <span class="text-danger">*</span></label>
                     <input type="email" class="form-control" name="email1" 
                            value="<?= htmlspecialchars($parent['email1'] ?? '') ?>" required>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Email 2</label>
                     <input type="email" class="form-control" name="email2" 
                            value="<?= htmlspecialchars($parent['email2'] ?? '') ?>" 
                            placeholder="Secondary email (optional)">
                 </div>
-            </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Occupation</label>
                     <input type="text" class="form-control" name="occupation" 
                            value="<?= htmlspecialchars($parent['occupation'] ?? '') ?>">
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Workplace</label>
                     <input type="text" class="form-control" name="workplace" 
                            value="<?= htmlspecialchars($parent['workplace'] ?? '') ?>" 
