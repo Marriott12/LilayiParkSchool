@@ -39,10 +39,21 @@ class CSRF {
         }
         
         if (!isset($_SESSION['csrf_token'])) {
+            error_log('CSRF Validation Failed: No session token');
             return false;
         }
         
-        return hash_equals($_SESSION['csrf_token'], $token);
+        if (empty($token)) {
+            error_log('CSRF Validation Failed: No POST token');
+            return false;
+        }
+        
+        $isValid = hash_equals($_SESSION['csrf_token'], $token);
+        if (!$isValid) {
+            error_log('CSRF Validation Failed: Token mismatch. Session: ' . substr($_SESSION['csrf_token'], 0, 10) . '... POST: ' . substr($token, 0, 10) . '...');
+        }
+        
+        return $isValid;
     }
     
     /**
@@ -51,7 +62,15 @@ class CSRF {
     public static function requireToken() {
         if (!self::validate()) {
             http_response_code(403);
-            die('CSRF token validation failed. Please refresh and try again.');
+            $debug = '';
+            if (!isset($_SESSION['csrf_token'])) {
+                $debug = 'Session token not found. ';
+            } elseif (empty($_POST['csrf_token'])) {
+                $debug = 'POST token not found. ';
+            } else {
+                $debug = 'Token mismatch. ';
+            }
+            die('CSRF token validation failed. ' . $debug . 'Please refresh the page and try again.');
         }
     }
     
