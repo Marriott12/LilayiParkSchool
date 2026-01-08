@@ -120,7 +120,7 @@ require_once 'includes/header.php';
                         <?php foreach ($teachers as $teacher): ?>
                         <option value="<?= $teacher['teacherID'] ?>" 
                                 <?= ($class['teacherID'] ?? '') == $teacher['teacherID'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($teacher['fName'] . ' ' . $teacher['lName'] . ' - ' . $teacher['subject']) ?>
+                            <?= htmlspecialchars($teacher['fName'] . ' ' . $teacher['lName']) ?? '' ?>
                         </option>
                         <?php endforeach; ?>
                     </select>

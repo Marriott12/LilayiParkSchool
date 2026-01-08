@@ -191,9 +191,6 @@ require_once 'includes/header.php';
                            required>
                     <small class="text-muted">10-13 digits, or +260XXXXXXXXX</small>
                 </div>
-                           value="<?= htmlspecialchars($parent['phone'] ?? '') ?>" 
-                           placeholder="e.g., +260 97 1234567" required>
-                </div>
             
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Email 1 <span class="text-danger">*</span></label>

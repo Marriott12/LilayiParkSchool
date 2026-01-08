@@ -24,7 +24,7 @@ class TeacherModel extends BaseModel {
      * Get all active teachers
      */
     public function getActiveTeachers() {
-        $sql = "SELECT * FROM {$this->table} WHERE status = 'Active' ORDER BY firstName, lastName";
+        $sql = "SELECT * FROM {$this->table} ORDER BY fName, lName";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();
@@ -120,6 +120,25 @@ class TeacherModel extends BaseModel {
         $searchTerm = "%{$term}%";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get teacher by user ID
+     */
+    public function getByUserID($userID) {
+        $sql = "SELECT * FROM {$this->table} WHERE userID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$userID]);
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Get teachers without user accounts (for linking)
+     */
+    public function getWithoutUserAccount() {
+        $sql = "SELECT * FROM {$this->table} WHERE userID IS NULL ORDER BY fName, lName";
+        $stmt = $this->db->query($sql);
         return $stmt->fetchAll();
     }
 }

@@ -112,4 +112,23 @@ class ParentModel extends BaseModel {
         $stmt->execute($params);
         return $stmt->fetchColumn() > 0;
     }
+    
+    /**
+     * Get parent by user ID
+     */
+    public function getByUserID($userID) {
+        $sql = "SELECT * FROM {$this->table} WHERE userID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$userID]);
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Get parents without user accounts (for linking)
+     */
+    public function getWithoutUserAccount() {
+        $sql = "SELECT * FROM {$this->table} WHERE userID IS NULL ORDER BY fName, lName";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
 }

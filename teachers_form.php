@@ -1,19 +1,23 @@
 <?php
-require_once 'includes/bootstrap.php';
+require_once 'includes/db.php';
+require_once 'includes/Session.php';
+require_once 'includes/CSRF.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
+// Require login
+Auth::requireLogin();
+Auth::requireAnyRole(['admin', 'teacher']);
 
 $teacherID = $_GET['id'] ?? null;
 $isEdit = !empty($teacherID);
 
-if ($isEdit) {
-    RBAC::requirePermission('teachers', 'update');
-} else {
-    RBAC::requirePermission('teachers', 'create');
-}
-
 require_once 'modules/teachers/TeacherModel.php';
+require_once 'modules/users/UsersModel.php';
+require_once 'modules/roles/RolesModel.php';
+
 $teacherModel = new TeacherModel();
+$usersModel = new UsersModel();
+$rolesModel = new RolesModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
@@ -31,6 +35,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'gender' => $_POST['gender'] ?? '',
             'tczNo' => trim($_POST['tczNo'] ?? '')
         ];
+        
+        // User account creation data
+        $createUserAccount = isset($_POST['create_user_account']);
+        $username = trim($_POST['username'] ?? '');
+        $password = trim($_POST['password'] ?? '');
+        $assignTeacherRole = isset($_POST['assign_teacher_role']);
         
         // Validation
         if (empty($data['fName'])) {
@@ -89,13 +99,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (!isset($error)) {
             try {
+                global $db;
+                $db->beginTransaction();
+                
                 if ($isEdit) {
-                    $teacherModel->update($teacherID, $data);
-                    Session::setFlash('success', 'Teacher updated successfully');
+                    // Update existing teacher
+                    $success = $teacherModel->update($teacherID, $data);
+                    $message = 'Teacher updated successfully';
+                    $finalTeacherID = $teacherID;
                 } else {
-                    $newId = $teacherModel->create($data);
-                    Session::setFlash('success', 'Teacher added successfully (ID: ' . $newId . ')');
+                    // Create new teacher
+                    $finalTeacherID = $teacherModel->create($data);
+                    $success = $finalTeacherID !== false;
+                    $message = 'Teacher created successfully';
                 }
+                
+                if (!$success) {
+                    throw new Exception('Failed to save teacher data');
+                }
+                
+                // Create user account if requested
+                if ($createUserAccount && !$isEdit) {
+                    // Additional validation for user account
+                    if (empty($username)) {
+                        throw new Exception('Username is required when creating a user account');
+                    }
+                    if (empty($password)) {
+                        throw new Exception('Password is required when creating a user account');
+                    }
+                    if ($usersModel->usernameExists($username)) {
+                        throw new Exception('Username already exists. Please choose a different username.');
+                    }
+                    
+                    // Create user account
+                    $userData = [
+                        'username' => $username,
+                        'email' => $data['email'],
+                        'password' => $password,
+                        'isActive' => 1
+                    ];
+                    
+                    $roleIDs = [];
+                    if ($assignTeacherRole) {
+                        $teacherRole = $rolesModel->getRoleByName('teacher');
+                        if ($teacherRole) {
+                            $roleIDs[] = $teacherRole['roleID'];
+                        }
+                    }
+                    
+                    $userID = $usersModel->createWithRoles($userData, $roleIDs);
+                    
+                    if (!$userID) {
+                        throw new Exception('Failed to create user account');
+                    }
+                    
+                    // Link user to teacher
+                    $usersModel->linkToTeacher($userID, $finalTeacherID);
+                    
+                    $message .= ' and user account created';
+                }
+                
+                $db->commit();
+                Session::setFlash('success', $message);
                 
                 // Regenerate CSRF token after successful submission
                 CSRF::regenerateToken();
@@ -103,8 +168,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: teachers_list.php');
                 exit;
             } catch (PDOException $e) {
+                if (isset($db) && $db->inTransaction()) {
+                    $db->rollBack();
+                }
                 $error = 'Database error: ' . $e->getMessage();
             } catch (Exception $e) {
+                if (isset($db) && $db->inTransaction()) {
+                    $db->rollBack();
+                }
                 $error = $e->getMessage();
             }
         }
@@ -232,6 +303,68 @@ require_once 'includes/header.php';
                        placeholder="Teachers Council of Zambia Number">
             </div>
             
+            <?php if (!$isEdit): ?>
+            <!-- User Account Creation Section -->
+            <hr class="my-4">
+            <div class="bg-light p-3 rounded">
+                <h6 class="mb-3">
+                    <i class="bi bi-person-check-fill"></i> User Account Creation
+                </h6>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="create_user_account" 
+                           name="create_user_account" checked onchange="toggleUserAccountFields()">
+                    <label class="form-check-label" for="create_user_account">
+                        <strong>Create user account for this teacher</strong>
+                        <br>
+                        <small class="text-muted">This allows the teacher to login to the system</small>
+                    </label>
+                </div>
+                
+                <div id="user_account_fields">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="username" id="username"
+                                       value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" 
+                                       placeholder="e.g., jdoe">
+                                <button class="btn btn-outline-secondary" type="button" 
+                                        onclick="generateUsername()" title="Generate username">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Will be used for login</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Password <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="password" id="password"
+                                       value="<?= htmlspecialchars($_POST['password'] ?? '') ?>" 
+                                       placeholder="Temporary password">
+                                <button class="btn btn-outline-secondary" type="button" 
+                                        onclick="generatePassword()" title="Generate password">
+                                    <i class="bi bi-key-fill"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">User should change this on first login</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="assign_teacher_role" 
+                               name="assign_teacher_role" checked>
+                        <label class="form-check-label" for="assign_teacher_role">
+                            Assign "Teacher" role (recommended)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <hr class="my-4">
+            
             <div class="d-flex gap-2">
                 <button type="submit" class="btn" style="background-color: #2d5016; color: white;">
                     <i class="bi bi-save"></i> <?= $isEdit ? 'Update' : 'Create' ?> Teacher
@@ -243,5 +376,66 @@ require_once 'includes/header.php';
         </form>
     </div>
 </div>
+
+<script>
+function toggleUserAccountFields() {
+    const checkbox = document.getElementById('create_user_account');
+    const fields = document.getElementById('user_account_fields');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    
+    if (checkbox.checked) {
+        fields.style.display = 'block';
+        usernameInput.required = true;
+        passwordInput.required = true;
+    } else {
+        fields.style.display = 'none';
+        usernameInput.required = false;
+        passwordInput.required = false;
+    }
+}
+
+function generateUsername() {
+    const fName = document.querySelector('input[name="fName"]').value.trim();
+    const lName = document.querySelector('input[name="lName"]').value.trim();
+    
+    if (!fName || !lName) {
+        alert('Please enter first name and last name first');
+        return;
+    }
+    
+    // Create username: first initial + last name (lowercase, no spaces)
+    const username = (fName[0] + lName).toLowerCase().replace(/[^a-z0-9]/g, '');
+    document.getElementById('username').value = username;
+}
+
+function generatePassword() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('password').value = password;
+}
+
+// Auto-generate username when first/last name changes
+document.addEventListener('DOMContentLoaded', function() {
+    const fNameInput = document.querySelector('input[name="fName"]');
+    const lNameInput = document.querySelector('input[name="lName"]');
+    const usernameInput = document.getElementById('username');
+    
+    if (fNameInput && lNameInput && usernameInput) {
+        function autoGenerateUsername() {
+            const createAccount = document.getElementById('create_user_account');
+            if (createAccount && createAccount.checked && !usernameInput.value) {
+                generateUsername();
+            }
+        }
+        
+        fNameInput.addEventListener('blur', autoGenerateUsername);
+        lNameInput.addEventListener('blur', autoGenerateUsername);
+    }
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

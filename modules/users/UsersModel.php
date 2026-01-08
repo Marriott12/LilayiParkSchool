@@ -148,4 +148,128 @@ class UsersModel extends BaseModel {
         $stmt->execute([$searchTerm, $searchTerm]);
         return $stmt->fetchAll();
     }
+    
+    /**
+     * Link a user to a teacher record
+     */
+    public function linkToTeacher($userID, $teacherID) {
+        try {
+            $sql = "UPDATE Teacher SET userID = ? WHERE teacherID = ?";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([$userID, $teacherID]);
+        } catch (PDOException $e) {
+            error_log("Error linking user to teacher: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Link a user to a parent record
+     */
+    public function linkToParent($userID, $parentID) {
+        try {
+            $sql = "UPDATE Parent SET userID = ? WHERE parentID = ?";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([$userID, $parentID]);
+        } catch (PDOException $e) {
+            error_log("Error linking user to parent: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Unlink a user from teacher record
+     */
+    public function unlinkFromTeacher($teacherID) {
+        $sql = "UPDATE Teacher SET userID = NULL WHERE teacherID = ?";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$teacherID]);
+    }
+    
+    /**
+     * Unlink a user from parent record
+     */
+    public function unlinkFromParent($parentID) {
+        $sql = "UPDATE Parent SET userID = NULL WHERE parentID = ?";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$parentID]);
+    }
+    
+    /**
+     * Get user by teacher ID
+     */
+    public function getByTeacherID($teacherID) {
+        $sql = "SELECT u.* FROM {$this->table} u
+                JOIN Teacher t ON u.userID = t.userID
+                WHERE t.teacherID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$teacherID]);
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Get user by parent ID
+     */
+    public function getByParentID($parentID) {
+        $sql = "SELECT u.* FROM {$this->table} u
+                JOIN Parent p ON u.userID = p.userID
+                WHERE p.parentID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$parentID]);
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Get all users with their associated roles (using new RBAC system)
+     */
+    public function getAllWithRBAC() {
+        $sql = "SELECT u.*, 
+                GROUP_CONCAT(r.roleName SEPARATOR ', ') as roles
+                FROM {$this->table} u
+                LEFT JOIN UserRoles ur ON u.userID = ur.userID
+                LEFT JOIN Roles r ON ur.roleID = r.roleID
+                GROUP BY u.userID
+                ORDER BY u.username";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Create user with roles (for new RBAC system)
+     */
+    public function createWithRoles($userData, $roleIDs = []) {
+        try {
+            $this->db->beginTransaction();
+            
+            // Hash password
+            if (isset($userData['password'])) {
+                $userData['password'] = password_hash($userData['password'], PASSWORD_DEFAULT);
+            }
+            
+            // Create user
+            $userID = $this->create($userData);
+            
+            if (!$userID) {
+                throw new Exception("Failed to create user");
+            }
+            
+            // Assign roles
+            if (!empty($roleIDs)) {
+                require_once __DIR__ . '/../roles/RolesModel.php';
+                $rolesModel = new RolesModel();
+                
+                foreach ($roleIDs as $roleID) {
+                    $rolesModel->assignRole($userID, $roleID, $_SESSION['user_id'] ?? null);
+                }
+            }
+            
+            $this->db->commit();
+            return $userID;
+            
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            error_log("Error creating user with roles: " . $e->getMessage());
+            return false;
+        }
+    }
 }
