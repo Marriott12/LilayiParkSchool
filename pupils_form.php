@@ -25,34 +25,119 @@ $parents = $parentModel->getAll();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $parentOption = $_POST['parentOption'] ?? 'existing';
+    $parentID = null;
+    
+    // Handle parent creation/selection
+    if ($parentOption === 'new' && !$isEdit) {
+        // Validate and create new parent
+        $parentData = [
+            'fName' => trim($_POST['parent_fName'] ?? ''),
+            'lName' => trim($_POST['parent_lName'] ?? ''),
+            'relation' => trim($_POST['parent_relation'] ?? ''),
+            'gender' => $_POST['parent_gender'] ?? '',
+            'NRC' => trim($_POST['parent_NRC'] ?? ''),
+            'phone' => trim($_POST['parent_phone'] ?? ''),
+            'email1' => trim($_POST['parent_email1'] ?? ''),
+            'email2' => trim($_POST['parent_email2'] ?? ''),
+            'occupation' => trim($_POST['parent_occupation'] ?? ''),
+            'workplace' => trim($_POST['parent_workplace'] ?? '')
+        ];
+        
+        if (empty($parentData['fName'])) {
+            $error = 'Parent first name is required';
+        } elseif (empty($parentData['lName'])) {
+            $error = 'Parent last name is required';
+        } elseif (empty($parentData['relation'])) {
+            $error = 'Parent relationship is required';
+        } elseif (empty($parentData['gender'])) {
+            $error = 'Parent gender is required';
+        } elseif (empty($parentData['NRC'])) {
+            $error = 'Parent NRC is required';
+        } elseif (empty($parentData['phone'])) {
+            $error = 'Parent phone is required';
+        } elseif (empty($parentData['email1'])) {
+            $error = 'Parent email is required';
+        } elseif (!filter_var($parentData['email1'], FILTER_VALIDATE_EMAIL)) {
+            $error = 'Invalid parent email format';
+        }
+    } else {
+        $parentID = !empty($_POST['parentID']) ? $_POST['parentID'] : null;
+        if (empty($parentID) && !$isEdit) {
+            $error = 'Please select a parent or choose to add a new one';
+        }
+    }
+    
+    // Pupil data
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
-        'lName' => trim($_POST['lName'] ?? ''),
-        'studentNumber' => trim($_POST['studentNumber'] ?? ''),
-        'dateOfBirth' => $_POST['dateOfBirth'] ?? '',
+        'sName' => trim($_POST['sName'] ?? ''),
         'gender' => $_POST['gender'] ?? '',
-        'address' => trim($_POST['address'] ?? ''),
-        'parentID' => !empty($_POST['parentID']) ? $_POST['parentID'] : null,
-        'medicalInfo' => trim($_POST['medicalInfo'] ?? '')
+        'DoB' => $_POST['DoB'] ?? '',
+        'homeAddress' => trim($_POST['homeAddress'] ?? ''),
+        'homeArea' => trim($_POST['homeArea'] ?? ''),
+        'medCondition' => trim($_POST['medCondition'] ?? ''),
+        'medAllergy' => trim($_POST['medAllergy'] ?? ''),
+        'restrictions' => trim($_POST['restrictions'] ?? ''),
+        'prevSch' => trim($_POST['prevSch'] ?? ''),
+        'reason' => trim($_POST['reason'] ?? ''),
+        'enrollDate' => $_POST['enrollDate'] ?? date('Y-m-d'),
+        'transport' => $_POST['transport'] ?? 'N',
+        'lunch' => $_POST['lunch'] ?? 'N',
+        'photo' => $_POST['photo'] ?? 'N',
+        'passPhoto' => '' // Will be handled by file upload
     ];
     
     // Validation
-    if (empty($data['fName'])) {
-        $error = 'First name is required';
-    } elseif (empty($data['lName'])) {
-        $error = 'Last name is required';
+    if (!isset($error)) {
+        if (empty($data['fName'])) {
+            $error = 'Pupil first name is required';
+        } elseif (empty($data['sName'])) {
+            $error = 'Pupil last name is required';
+        } elseif (empty($data['gender'])) {
+            $error = 'Gender is required';
+        } elseif (empty($data['DoB'])) {
+            $error = 'Date of birth is required';
+        } elseif (empty($data['homeAddress'])) {
+            $error = 'Home address is required';
+        } elseif (empty($data['homeArea'])) {
+            $error = 'Home area is required';
+        }
     }
     
     if (!isset($error)) {
         CSRF::requireToken();
         
         try {
+            // Create parent if new
+            if ($parentOption === 'new' && !$isEdit) {
+                $parentID = $parentModel->create($parentData);
+            }
+            
+            $data['parentID'] = $parentID;
+            
+            // Handle file upload for passport photo
+            if (isset($_FILES['passPhotoFile']) && $_FILES['passPhotoFile']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = 'uploads/pupils/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                
+                $fileExtension = pathinfo($_FILES['passPhotoFile']['name'], PATHINFO_EXTENSION);
+                $fileName = uniqid('pupil_') . '.' . $fileExtension;
+                $uploadPath = $uploadDir . $fileName;
+                
+                if (move_uploaded_file($_FILES['passPhotoFile']['tmp_name'], $uploadPath)) {
+                    $data['passPhoto'] = $uploadPath;
+                }
+            }
+            
             if ($isEdit) {
                 $pupilModel->update($pupilID, $data);
                 Session::setFlash('success', 'Pupil updated successfully');
             } else {
                 $pupilModel->create($data);
-                Session::setFlash('success', 'Pupil added successfully');
+                Session::setFlash('success', 'Pupil and ' . ($parentOption === 'new' ? 'parent' : 'parent link') . ' created successfully');
             }
             
             CSRF::regenerateToken();
@@ -92,69 +177,318 @@ require_once 'includes/header.php';
         </div>
         <?php endif; ?>
         
-        <form method="POST" action="">
+        <form method="POST" action="" enctype="multipart/form-data">
             <?= CSRF::field() ?>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">First Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" name="fName" 
-                           value="<?= htmlspecialchars($pupil['fName'] ?? '') ?>" required>
+            
+            <!-- Parent Selection Section -->
+            <div class="card mb-4" style="border-left: 4px solid #2d5016;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-person-hearts"></i> Parent/Guardian Information</h6>
                 </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Last Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" name="lName" 
-                           value="<?= htmlspecialchars($pupil['lName'] ?? '') ?>" required>
+                <div class="card-body">
+                    <?php if (!$isEdit): ?>
+                    <div class="mb-3">
+                        <label class="form-label">Parent/Guardian Option <span class="text-danger">*</span></label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="parentOption" id="existingParent" value="existing" checked>
+                            <label class="btn btn-outline-primary" for="existingParent">
+                                <i class="bi bi-search"></i> Select Existing Parent
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="parentOption" id="newParent" value="new">
+                            <label class="btn btn-outline-success" for="newParent">
+                                <i class="bi bi-person-plus"></i> Add New Parent
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Existing Parent Selection -->
+                    <div id="existingParentSection">
+                        <div class="mb-3">
+                            <label class="form-label">Select Parent <span class="text-danger">*</span></label>
+                            <select class="form-select" name="parentID" id="parentDropdown">
+                                <option value="">-- Select Parent/Guardian --</option>
+                                <?php foreach ($parents as $parent): ?>
+                                <option value="<?= $parent['parentID'] ?>">
+                                    <?= htmlspecialchars($parent['fName'] . ' ' . $parent['lName']) ?> 
+                                    (<?= htmlspecialchars($parent['relation'] ?? 'N/A') ?>) - <?= htmlspecialchars($parent['phone']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">Choose an existing parent/guardian from the list</div>
+                        </div>
+                    </div>
+                    
+                    <!-- New Parent Form -->
+                    <div id="newParentSection" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Fill in the parent/guardian details below. They will be created along with the pupil.
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Forename <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="parent_fName" id="parent_fName">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="parent_lName" id="parent_lName">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Relationship <span class="text-danger">*</span></label>
+                                <select class="form-select" name="parent_relation" id="parent_relation">
+                                    <option value="">Select Relationship</option>
+                                    <option value="Father">Father</option>
+                                    <option value="Mother">Mother</option>
+                                    <option value="Guardian">Guardian</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Gender <span class="text-danger">*</span></label>
+                                <select class="form-select" name="parent_gender" id="parent_gender">
+                                    <option value="">Select Gender</option>
+                                    <option value="M">Male</option>
+                                    <option value="F">Female</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">NRC <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="parent_NRC" id="parent_NRC" 
+                                       placeholder="e.g., 123456/78/9">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone <span class="text-danger">*</span></label>
+                                <input type="tel" class="form-control" name="parent_phone" id="parent_phone" 
+                                       placeholder="e.g., +260 97 1234567">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email 1 <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" name="parent_email1" id="parent_email1">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email 2</label>
+                                <input type="email" class="form-control" name="parent_email2" id="parent_email2" 
+                                       placeholder="Secondary email (optional)">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Occupation</label>
+                                <input type="text" class="form-control" name="parent_occupation" id="parent_occupation">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Workplace</label>
+                                <input type="text" class="form-control" name="parent_workplace" id="parent_workplace" 
+                                       placeholder="Employer/Company name">
+                            </div>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Parent cannot be changed when editing. Current parent: 
+                        <strong><?= htmlspecialchars(($pupil['parentFName'] ?? '') . ' ' . ($pupil['parentLName'] ?? '')) ?></strong>
+                    </div>
+                    <input type="hidden" name="parentID" value="<?= htmlspecialchars($pupil['parentID'] ?? '') ?>">
+                    <input type="hidden" name="parentOption" value="existing">
+                    <?php endif; ?>
                 </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Student Number <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" name="studentNumber" 
-                           value="<?= htmlspecialchars($pupil['studentNumber'] ?? '') ?>" required>
+            <!-- Pupil Information Section -->
+            <div class="card mb-4" style="border-left: 4px solid #5cb85c;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-person-fill"></i> Pupil Information</h6>
                 </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" name="dateOfBirth" 
-                           value="<?= htmlspecialchars($pupil['dateOfBirth'] ?? '') ?>" required>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Forename <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="fName" 
+                                   value="<?= htmlspecialchars($pupil['fName'] ?? '') ?>" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="sName" 
+                                   value="<?= htmlspecialchars($pupil['sName'] ?? '') ?>" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Gender <span class="text-danger">*</span></label>
+                            <select class="form-select" name="gender" required>
+                                <option value="">Select Gender</option>
+                                <option value="M" <?= ($pupil['gender'] ?? '') === 'M' ? 'selected' : '' ?>>Male</option>
+                                <option value="F" <?= ($pupil['gender'] ?? '') === 'F' ? 'selected' : '' ?>>Female</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="DoB" 
+                                   value="<?= htmlspecialchars($pupil['DoB'] ?? '') ?>" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Home Address <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="homeAddress" 
+                                   value="<?= htmlspecialchars($pupil['homeAddress'] ?? '') ?>" 
+                                   placeholder="Street address" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Home Area <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="homeArea" 
+                                   value="<?= htmlspecialchars($pupil['homeArea'] ?? '') ?>" 
+                                   placeholder="Town/District" required>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Gender <span class="text-danger">*</span></label>
-                    <select class="form-select" name="gender" required>
-                        <option value="">Select Gender</option>
-                        <option value="Male" <?= ($pupil['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
-                        <option value="Female" <?= ($pupil['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
-                    </select>
+            <!-- Medical Information Section -->
+            <div class="card mb-4" style="border-left: 4px solid #d9534f;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-heart-pulse-fill"></i> Medical Information</h6>
                 </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Parent/Guardian</label>
-                    <select class="form-select" name="parentID">
-                        <option value="">No Parent Assigned</option>
-                        <?php foreach ($parents as $parent): ?>
-                        <option value="<?= $parent['parentID'] ?>" 
-                                <?= ($pupil['parentID'] ?? '') == $parent['parentID'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($parent['fName'] . ' ' . $parent['lName']) ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Medical Conditions</label>
+                        <textarea class="form-control" name="medCondition" rows="2" 
+                                  placeholder="Any existing medical conditions (e.g., asthma, diabetes)"><?= htmlspecialchars($pupil['medCondition'] ?? '') ?></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Medical Allergies</label>
+                        <textarea class="form-control" name="medAllergy" rows="2" 
+                                  placeholder="Any known allergies (e.g., peanuts, penicillin)"><?= htmlspecialchars($pupil['medAllergy'] ?? '') ?></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Restrictions</label>
+                        <textarea class="form-control" name="restrictions" rows="2" 
+                                  placeholder="Any dietary or activity restrictions"><?= htmlspecialchars($pupil['restrictions'] ?? '') ?></textarea>
+                    </div>
                 </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">Address</label>
-                <textarea class="form-control" name="address" rows="2"><?= htmlspecialchars($pupil['address'] ?? '') ?></textarea>
+            <!-- Previous School Information -->
+            <div class="card mb-4" style="border-left: 4px solid #f0ad4e;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-building"></i> Previous School Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Previous School</label>
+                        <input type="text" class="form-control" name="prevSch" 
+                               value="<?= htmlspecialchars($pupil['prevSch'] ?? '') ?>" 
+                               placeholder="Name of previous school">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Leaving</label>
+                        <textarea class="form-control" name="reason" rows="2" 
+                                  placeholder="Reason for leaving previous school"><?= htmlspecialchars($pupil['reason'] ?? '') ?></textarea>
+                    </div>
+                </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">Medical Information</label>
-                <textarea class="form-control" name="medicalInfo" rows="3" 
-                          placeholder="Any allergies, conditions, or medical notes..."><?= htmlspecialchars($pupil['medicalInfo'] ?? '') ?></textarea>
+            <!-- Enrollment & Services -->
+            <div class="card mb-4" style="border-left: 4px solid #5bc0de;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-calendar-check"></i> Enrollment & Services</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Enrollment Date</label>
+                        <input type="date" class="form-control" name="enrollDate" 
+                               value="<?= htmlspecialchars($pupil['enrollDate'] ?? date('Y-m-d')) ?>">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Transport Required <span class="text-danger">*</span></label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="transport" id="transportYes" value="Y" 
+                                   <?= ($pupil['transport'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
+                            <label class="btn btn-outline-success" for="transportYes">
+                                <i class="bi bi-bus-front"></i> Yes
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="transport" id="transportNo" value="N" 
+                                   <?= ($pupil['transport'] ?? 'N') === 'N' ? 'checked' : '' ?>>
+                            <label class="btn btn-outline-secondary" for="transportNo">
+                                <i class="bi bi-x-circle"></i> No
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Lunch Required <span class="text-danger">*</span></label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="lunch" id="lunchYes" value="Y" 
+                                   <?= ($pupil['lunch'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
+                            <label class="btn btn-outline-success" for="lunchYes">
+                                <i class="bi bi-egg-fried"></i> Yes
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="lunch" id="lunchNo" value="N" 
+                                   <?= ($pupil['lunch'] ?? 'N') === 'N' ? 'checked' : '' ?>>
+                            <label class="btn btn-outline-secondary" for="lunchNo">
+                                <i class="bi bi-x-circle"></i> No
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Photo Consent (for school platforms/adverts) <span class="text-danger">*</span></label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="photo" id="photoYes" value="Y" 
+                                   <?= ($pupil['photo'] ?? 'N') === 'Y' ? 'checked' : '' ?>>
+                            <label class="btn btn-outline-success" for="photoYes">
+                                <i class="bi bi-camera"></i> Yes
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="photo" id="photoNo" value="N" 
+                                   <?= ($pupil['photo'] ?? 'N') === 'N' ? 'checked' : '' ?>>
+                            <label class="btn btn-outline-secondary" for="photoNo">
+                                <i class="bi bi-x-circle"></i> No
+                            </label>
+                        </div>
+                        <div class="form-text">Permission to use pupil's photo on school website and promotional materials</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Passport Size Photo</label>
+                        <input type="file" class="form-control" name="passPhotoFile" accept="image/*">
+                        <div class="form-text">Upload a passport-size photo (JPG, PNG - max 2MB)</div>
+                        <?php if (!empty($pupil['passPhoto'])): ?>
+                        <div class="mt-2">
+                            <img src="<?= htmlspecialchars($pupil['passPhoto']) ?>" alt="Current Photo" 
+                                 class="img-thumbnail" style="max-width: 150px;">
+                            <small class="d-block text-muted">Current photo</small>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
             
             <div class="d-flex gap-2">
@@ -168,5 +502,48 @@ require_once 'includes/header.php';
         </form>
     </div>
 </div>
+
+<script>
+// Toggle between existing and new parent sections
+document.addEventListener('DOMContentLoaded', function() {
+    const existingRadio = document.getElementById('existingParent');
+    const newRadio = document.getElementById('newParent');
+    const existingSection = document.getElementById('existingParentSection');
+    const newSection = document.getElementById('newParentSection');
+    const parentDropdown = document.getElementById('parentDropdown');
+    const newParentFields = ['parent_fName', 'parent_lName', 'parent_relation', 'parent_gender', 
+                             'parent_NRC', 'parent_phone', 'parent_email1'];
+    
+    function toggleSections() {
+        if (existingRadio && existingRadio.checked) {
+            existingSection.style.display = 'block';
+            newSection.style.display = 'none';
+            parentDropdown.required = true;
+            
+            // Remove required from new parent fields
+            newParentFields.forEach(id => {
+                const field = document.getElementById(id);
+                if (field) field.required = false;
+            });
+        } else if (newRadio && newRadio.checked) {
+            existingSection.style.display = 'none';
+            newSection.style.display = 'block';
+            parentDropdown.required = false;
+            
+            // Add required to new parent fields
+            newParentFields.forEach(id => {
+                const field = document.getElementById(id);
+                if (field) field.required = true;
+            });
+        }
+    }
+    
+    if (existingRadio) existingRadio.addEventListener('change', toggleSections);
+    if (newRadio) newRadio.addEventListener('change', toggleSections);
+    
+    // Initialize on page load
+    toggleSections();
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

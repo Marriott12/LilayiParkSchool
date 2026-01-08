@@ -19,11 +19,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
-        'email' => trim($_POST['email'] ?? ''),
-        'phoneNumber' => trim($_POST['phoneNumber'] ?? ''),
-        'address' => trim($_POST['address'] ?? ''),
+        'relation' => trim($_POST['relation'] ?? ''),
+        'gender' => $_POST['gender'] ?? '',
+        'NRC' => trim($_POST['NRC'] ?? ''),
+        'phone' => trim($_POST['phone'] ?? ''),
+        'email1' => trim($_POST['email1'] ?? ''),
+        'email2' => trim($_POST['email2'] ?? ''),
         'occupation' => trim($_POST['occupation'] ?? ''),
-        'emergencyContact' => trim($_POST['emergencyContact'] ?? '')
+        'workplace' => trim($_POST['workplace'] ?? '')
     ];
     
     // Validation
@@ -31,6 +34,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'First name is required';
     } elseif (empty($data['lName'])) {
         $error = 'Last name is required';
+    } elseif (empty($data['relation'])) {
+        $error = 'Relationship is required';
+    } elseif (empty($data['gender'])) {
+        $error = 'Gender is required';
+    } elseif (empty($data['NRC'])) {
+        $error = 'NRC is required';
+    } elseif (empty($data['phone'])) {
+        $error = 'Phone number is required';
+    } elseif (empty($data['email1'])) {
+        $error = 'Email is required';
+    } elseif (!filter_var($data['email1'], FILTER_VALIDATE_EMAIL)) {
+        $error = 'Invalid email format';
+    } elseif (!empty($data['email2']) && !filter_var($data['email2'], FILTER_VALIDATE_EMAIL)) {
+        $error = 'Invalid secondary email format';
     }
     
     if (!isset($error)) {
@@ -85,7 +102,7 @@ require_once 'includes/header.php';
             <?= CSRF::field() ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">First Name <span class="text-danger">*</span></label>
+                    <label class="form-label">Forename <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="fName" 
                            value="<?= htmlspecialchars($parent['fName'] ?? '') ?>" required>
                 </div>
@@ -99,15 +116,54 @@ require_once 'includes/header.php';
             
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Email <span class="text-danger">*</span></label>
-                    <input type="email" class="form-control" name="email" 
-                           value="<?= htmlspecialchars($parent['email'] ?? '') ?>" required>
+                    <label class="form-label">Relationship <span class="text-danger">*</span></label>
+                    <select class="form-select" name="relation" required>
+                        <option value="">Select Relationship</option>
+                        <option value="Father" <?= ($parent['relation'] ?? '') === 'Father' ? 'selected' : '' ?>>Father</option>
+                        <option value="Mother" <?= ($parent['relation'] ?? '') === 'Mother' ? 'selected' : '' ?>>Mother</option>
+                        <option value="Guardian" <?= ($parent['relation'] ?? '') === 'Guardian' ? 'selected' : '' ?>>Guardian</option>
+                        <option value="Other" <?= ($parent['relation'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
+                    </select>
                 </div>
                 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Phone Number <span class="text-danger">*</span></label>
-                    <input type="tel" class="form-control" name="phoneNumber" 
-                           value="<?= htmlspecialchars($parent['phoneNumber'] ?? '') ?>" required>
+                    <label class="form-label">Gender <span class="text-danger">*</span></label>
+                    <select class="form-select" name="gender" required>
+                        <option value="">Select Gender</option>
+                        <option value="M" <?= ($parent['gender'] ?? '') === 'M' ? 'selected' : '' ?>>Male</option>
+                        <option value="F" <?= ($parent['gender'] ?? '') === 'F' ? 'selected' : '' ?>>Female</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">NRC <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="NRC" 
+                           value="<?= htmlspecialchars($parent['NRC'] ?? '') ?>" 
+                           placeholder="e.g., 123456/78/9" required>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Phone <span class="text-danger">*</span></label>
+                    <input type="tel" class="form-control" name="phone" 
+                           value="<?= htmlspecialchars($parent['phone'] ?? '') ?>" 
+                           placeholder="e.g., +260 97 1234567" required>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Email 1 <span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" name="email1" 
+                           value="<?= htmlspecialchars($parent['email1'] ?? '') ?>" required>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Email 2</label>
+                    <input type="email" class="form-control" name="email2" 
+                           value="<?= htmlspecialchars($parent['email2'] ?? '') ?>" 
+                           placeholder="Secondary email (optional)">
                 </div>
             </div>
             
@@ -119,16 +175,11 @@ require_once 'includes/header.php';
                 </div>
                 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Emergency Contact</label>
-                    <input type="tel" class="form-control" name="emergencyContact" 
-                           value="<?= htmlspecialchars($parent['emergencyContact'] ?? '') ?>" 
-                           placeholder="Alternative contact number">
+                    <label class="form-label">Workplace</label>
+                    <input type="text" class="form-control" name="workplace" 
+                           value="<?= htmlspecialchars($parent['workplace'] ?? '') ?>" 
+                           placeholder="Employer/Company name">
                 </div>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Address</label>
-                <textarea class="form-control" name="address" rows="3"><?= htmlspecialchars($parent['address'] ?? '') ?></textarea>
             </div>
             
             <div class="d-flex gap-2">
