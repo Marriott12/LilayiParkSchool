@@ -16,8 +16,6 @@ require_once 'modules/teachers/TeacherModel.php';
 $teacherModel = new TeacherModel();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    CSRF::requireToken();
-    
     $data = [
         'fName' => trim($_POST['fName'] ?? ''),
         'lName' => trim($_POST['lName'] ?? ''),
@@ -31,18 +29,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'hireDate' => $_POST['hireDate'] ?? date('Y-m-d')
     ];
     
-    try {
-        if ($isEdit) {
-            $teacherModel->update($teacherID, $data);
-            Session::setFlash('success', 'Teacher updated successfully');
-        } else {
-            $teacherModel->create($data);
-            Session::setFlash('success', 'Teacher added successfully');
+    // Validation
+    if (empty($data['fName'])) {
+        $error = 'First name is required';
+    } elseif (empty($data['lName'])) {
+        $error = 'Last name is required';
+    } elseif (empty($data['email'])) {
+        $error = 'Email is required';
+    } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+        $error = 'Invalid email format';
+    }
+    
+    if (!isset($error)) {
+        // Validate CSRF token only when all validation passes
+        CSRF::requireToken();
+        
+        try {
+            if ($isEdit) {
+                $teacherModel->update($teacherID, $data);
+                Session::setFlash('success', 'Teacher updated successfully');
+            } else {
+                $teacherModel->create($data);
+                Session::setFlash('success', 'Teacher added successfully');
+            }
+            
+            // Regenerate CSRF token after successful submission
+            CSRF::regenerateToken();
+            
+            header('Location: teachers_list.php');
+            exit;
+        } catch (Exception $e) {
+            $error = $e->getMessage();
         }
-        header('Location: teachers_list.php');
-        exit;
-    } catch (Exception $e) {
-        $error = $e->getMessage();
     }
 }
 
