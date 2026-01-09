@@ -103,14 +103,7 @@ require_once 'includes/header.php';
                         </td>
                         <td class="text-center">
                             <?php if (!empty($parent['userID'])): ?>
-                                <?php
-                                // Check if account is active
-                                require_once 'modules/users/UsersModel.php';
-                                $usersModel = new UsersModel();
-                                $user = $usersModel->find($parent['userID']);
-                                $isActive = $user && $user['isActive'] === 'Y';
-                                ?>
-                                <?php if ($isActive): ?>
+                                <?php if ($parent['userIsActive'] === 'Y'): ?>
                                     <span class="badge bg-success">
                                         <i class="bi bi-check-circle me-1"></i>Active Account
                                     </span>
@@ -124,12 +117,13 @@ require_once 'includes/header.php';
                                     <i class="bi bi-x-circle me-1"></i>No Account
                                 </span>
                                 <?php if (PermissionHelper::canManage('parents')): ?>
+                                <br>
                                 <button type="button" 
-                                        class="btn btn-sm btn-success ms-2 create-account-btn" 
+                                        class="btn btn-sm btn-success mt-1 create-account-btn" 
                                         data-parent-id="<?= $parent['parentID'] ?>"
                                         data-parent-name="<?= htmlspecialchars($parent['fName'] . ' ' . $parent['lName']) ?>"
                                         title="Create Account">
-                                    <i class="bi bi-plus-circle"></i>
+                                    <i class="bi bi-plus-circle me-1"></i>Create Account
                                 </button>
                                 <?php endif; ?>
                             <?php endif; ?>

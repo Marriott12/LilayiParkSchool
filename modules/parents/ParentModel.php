@@ -8,6 +8,31 @@ class ParentModel extends BaseModel {
     protected $primaryKey = 'parentID';
     
     /**
+     * Override all() to include user account info
+     */
+    public function all($orderBy = null, $limit = null, $offset = null) {
+        $sql = "SELECT p.*, u.isActive as userIsActive 
+                FROM {$this->table} p
+                LEFT JOIN Users u ON p.userID = u.userID";
+        
+        if ($orderBy) {
+            $sql .= " ORDER BY {$orderBy}";
+        } else {
+            $sql .= " ORDER BY p.fName, p.lName";
+        }
+        
+        if ($limit) {
+            $sql .= " LIMIT {$limit}";
+            if ($offset) {
+                $sql .= " OFFSET {$offset}";
+            }
+        }
+        
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
+    
+    /**
      * Get parent with user account info
      */
     public function getParentWithUser($parentID) {
@@ -34,8 +59,9 @@ class ParentModel extends BaseModel {
      * Get parent with children count
      */
     public function getAllWithChildrenCount($limit = null, $offset = null) {
-        $sql = "SELECT p.*, COUNT(pu.pupilID) as childrenCount
+        $sql = "SELECT p.*, u.isActive as userIsActive, COUNT(pu.pupilID) as childrenCount
                 FROM {$this->table} p
+                LEFT JOIN Users u ON p.userID = u.userID
                 LEFT JOIN Pupil pu ON p.parentID = pu.parentID
                 GROUP BY p.parentID
                 ORDER BY p.fName, p.lName";
@@ -53,7 +79,8 @@ class ParentModel extends BaseModel {
      * Search parents
      */
     public function search($term) {
-        $sql = "SELECT * FROM {$this->table} 
+        $sql = "SELECT p.*, u.isActive as userIsActive FROM {$this->table} p
+                LEFT JOIN Users u ON p.userID = u.userID
                 WHERE fName LIKE ? OR lName LIKE ? OR email1 LIKE ? OR email2 LIKE ? OR phone LIKE ? OR NRC LIKE ?
                 ORDER BY fName, lName";
         $searchTerm = "%{$term}%";
