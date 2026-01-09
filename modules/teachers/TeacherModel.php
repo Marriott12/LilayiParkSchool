@@ -8,6 +8,31 @@ class TeacherModel extends BaseModel {
     protected $primaryKey = 'teacherID';
     
     /**
+     * Override all() to include user account info
+     */
+    public function all($orderBy = null, $limit = null, $offset = null) {
+        $sql = "SELECT t.*, u.isActive as userIsActive 
+                FROM {$this->table} t
+                LEFT JOIN Users u ON t.userID = u.userID";
+        
+        if ($orderBy) {
+            $sql .= " ORDER BY {$orderBy}";
+        } else {
+            $sql .= " ORDER BY t.fName, t.lName";
+        }
+        
+        if ($limit) {
+            $sql .= " LIMIT {$limit}";
+            if ($offset) {
+                $sql .= " OFFSET {$offset}";
+            }
+        }
+        
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
+    
+    /**
      * Get teacher with user account info
      */
     public function getTeacherWithUser($teacherID) {
@@ -114,7 +139,8 @@ class TeacherModel extends BaseModel {
      * Search teachers
      */
     public function search($term) {
-        $sql = "SELECT * FROM {$this->table} 
+        $sql = "SELECT t.*, u.isActive as userIsActive FROM {$this->table} t
+                LEFT JOIN Users u ON t.userID = u.userID
                 WHERE fName LIKE ? OR lName LIKE ? OR email LIKE ? OR phone LIKE ? OR tczNo LIKE ?
                 ORDER BY fName, lName";
         $searchTerm = "%{$term}%";

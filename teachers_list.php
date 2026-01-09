@@ -210,14 +210,7 @@ require_once 'includes/header.php';
                         </td>
                         <td class="text-center">
                             <?php if (!empty($teacher['userID'])): ?>
-                                <?php
-                                // Check if account is active
-                                require_once 'modules/users/UsersModel.php';
-                                $usersModel = new UsersModel();
-                                $user = $usersModel->find($teacher['userID']);
-                                $isActive = $user && $user['isActive'] === 'Y';
-                                ?>
-                                <?php if ($isActive): ?>
+                                <?php if ($teacher['userIsActive'] === 'Y'): ?>
                                     <span class="badge bg-success">
                                         <i class="bi bi-check-circle me-1"></i>Active Account
                                     </span>

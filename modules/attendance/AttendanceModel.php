@@ -4,7 +4,7 @@
  */
 
 class AttendanceModel extends BaseModel {
-    protected $table = 'Attendance';
+    protected $table = 'DailyAttendance';
     protected $primaryKey = 'attendanceID';
     
     /**
