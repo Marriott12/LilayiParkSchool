@@ -70,13 +70,13 @@ require_once 'includes/header.php';
                                 Term <?= $fee['term'] ?>
                             </span>
                         </td>
-                        <td><?= htmlspecialchars($fee['feeType'] ?? 'Tuition') ?></td>
+                        <td><?= htmlspecialchars($fee['year']) ?></td>
                         <td>
                             <strong style="color: #2d5016;">
-                                K <?= number_format($fee['amount'], 2) ?>
+                                K <?= number_format($fee['feeAmt'], 2) ?>
                             </strong>
                         </td>
-                        <td><?= $fee['dueDate'] ? date('M d, Y', strtotime($fee['dueDate'])) : 'N/A' ?></td>
+                        <td><?= date('M d, Y', strtotime($fee['createdAt'])) ?></td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
                                 <a href="fees_view.php?id=<?= $fee['feeID'] ?>" class="btn btn-outline-info btn-sm">

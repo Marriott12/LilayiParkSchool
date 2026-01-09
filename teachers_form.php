@@ -116,7 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'phone' => trim($_POST['phone'] ?? ''),
             'email' => trim($_POST['email'] ?? ''),
             'gender' => $_POST['gender'] ?? '',
-            'tczNo' => trim($_POST['tczNo'] ?? '')
+            'tczNo' => trim($_POST['tczNo'] ?? ''),
+            'dateEmployed' => $_POST['dateEmployed'] ?? date('Y-m-d')
         ];
         
         // User account creation data
@@ -491,6 +492,15 @@ require_once 'includes/header.php';
                             <i class="bi bi-gender-female"></i> Female
                         </label>
                     </div>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Date Employed <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" name="dateEmployed" 
+                           value="<?= htmlspecialchars($teacher['dateEmployed'] ?? date('Y-m-d')) ?>" 
+                           max="<?= date('Y-m-d') ?>"
+                           required>
+                    <small class="text-muted">Date when teacher started employment</small>
                 </div>
             </div>
             

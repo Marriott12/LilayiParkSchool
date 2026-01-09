@@ -74,4 +74,19 @@ class ClassModel extends BaseModel {
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([$classID, $pupilID]);
     }
+    
+    /**
+     * Get pupils not in this class (available to add)
+     */
+    public function getAvailablePupils($classID) {
+        $sql = "SELECT p.pupilID, p.fName, p.lName, p.studentNumber
+                FROM Pupil p
+                WHERE p.pupilID NOT IN (
+                    SELECT pupilID FROM Pupil_Class WHERE classID = ?
+                )
+                ORDER BY p.fName, p.lName";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$classID]);
+        return $stmt->fetchAll();
+    }
 }

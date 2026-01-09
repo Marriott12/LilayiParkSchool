@@ -137,11 +137,17 @@ require_once 'includes/PermissionHelper.php';
                     <h5 class="mb-0">
                         <i class="bi bi-people-fill me-2" style="color: #2d5016;"></i>Class Roster
                         <span class="badge bg-primary ms-2"><?= count($roster) ?></span>
+                        <span id="rosterSelectedCount" class="badge bg-info ms-1" style="display: none;">0 selected</span>
                     </h5>
                     <?php if (PermissionHelper::canManage('classes')): ?>
-                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addPupilModal">
-                        <i class="bi bi-plus-circle me-1"></i>Add Pupil
-                    </button>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addPupilModal">
+                            <i class="bi bi-plus-circle me-1"></i>Add Pupils
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger" id="bulkRemoveBtn" onclick="bulkRemovePupils()" style="display: none;">
+                            <i class="bi bi-trash me-1"></i>Remove Selected
+                        </button>
+                    </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -153,7 +159,13 @@ require_once 'includes/PermissionHelper.php';
                         <div class="card bg-light border-0">
                             <div class="card-body py-2">
                                 <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center">
+                                    <div class="d-flex align-items-center flex-grow-1">
+                                        <?php if (PermissionHelper::canManage('classes')): ?>
+                                        <input type="checkbox" 
+                                               class="form-check-input me-2 roster-checkbox" 
+                                               value="<?= $p['pupilID'] ?>"
+                                               onchange="updateRosterSelection()">
+                                        <?php endif; ?>
                                         <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-2" 
                                              style="width: 40px; height: 40px;">
                                             <i class="bi bi-person-fill" style="color: #2d5016;"></i>
@@ -201,14 +213,27 @@ require_once 'includes/PermissionHelper.php';
         <div class="modal-content">
             <div class="modal-header" style="background-color: #2d5016; color: white;">
                 <h5 class="modal-title" id="addPupilModalLabel">
-                    <i class="bi bi-person-plus me-2"></i>Add Pupil to Class
+                    <i class="bi bi-person-plus me-2"></i>Add Pupils to Class
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Search Pupils</label>
-                    <input type="text" class="form-control" id="pupilSearchInput" placeholder="Search by name or student number...">
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Search Pupils</label>
+                        <input type="text" class="form-control" id="pupilSearchInput" placeholder="Search by name or student number...">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllPupils()">
+                                <i class="bi bi-check-all"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAllPupils()">
+                                <i class="bi bi-x"></i> Clear
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div id="availablePupilsList" style="max-height: 400px; overflow-y: auto;">
                     <div class="text-center py-4">
@@ -219,6 +244,13 @@ require_once 'includes/PermissionHelper.php';
                     </div>
                 </div>
             </div>
+            <div class="modal-footer">
+                <span id="selectedCount" class="me-auto text-muted">0 selected</span>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="bulkAddBtn" onclick="bulkAddPupils()" disabled>
+                    <i class="bi bi-plus-circle me-1"></i>Add Selected
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -226,9 +258,11 @@ require_once 'includes/PermissionHelper.php';
 <script>
 const classID = '<?= $classID ?>';
 let availablePupils = [];
+let selectedPupils = new Set();
 
 // Load available pupils when modal is opened
 document.getElementById('addPupilModal').addEventListener('show.bs.modal', function() {
+    selectedPupils.clear();
     loadAvailablePupils();
 });
 
@@ -275,41 +309,66 @@ function displayAvailablePupils(pupils) {
     
     container.innerHTML = '<div class="list-group">' + 
         pupils.map(p => `
-            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                <div>
+            <label class="list-group-item list-group-item-action d-flex align-items-center" style="cursor: pointer;">
+                <input type="checkbox" 
+                       class="form-check-input me-3 available-pupil-checkbox" 
+                       value="${p.pupilID}"
+                       ${selectedPupils.has(p.pupilID) ? 'checked' : ''}
+                       onchange="updateSelection()">
+                <div class="flex-grow-1">
                     <h6 class="mb-0">${escapeHtml(p.fName + ' ' + p.lName)}</h6>
                     <small class="text-muted"><i class="bi bi-hash"></i>${escapeHtml(p.studentNumber)}</small>
                 </div>
-                <button type="button" 
-                        class="btn btn-sm btn-success add-pupil-btn" 
-                        data-pupil-id="${p.pupilID}"
-                        data-pupil-name="${escapeHtml(p.fName + ' ' + p.lName)}">
-                    <i class="bi bi-plus-circle me-1"></i>Add
-                </button>
-            </div>
+            </label>
         `).join('') + 
     '</div>';
-    
-    // Attach event listeners to add buttons
-    document.querySelectorAll('.add-pupil-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            addPupilToClass(this.dataset.pupilId, this.dataset.pupilName, this);
-        });
-    });
 }
 
-function addPupilToClass(pupilID, pupilName, button) {
-    if (!confirm(`Add ${pupilName} to this class?`)) {
+function selectAllPupils() {
+    document.querySelectorAll('.available-pupil-checkbox').forEach(cb => {
+        cb.checked = true;
+        selectedPupils.add(cb.value);
+    });
+    updateSelection();
+}
+
+function clearAllPupils() {
+    document.querySelectorAll('.available-pupil-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    selectedPupils.clear();
+    updateSelection();
+}
+
+function updateSelection() {
+    selectedPupils.clear();
+    document.querySelectorAll('.available-pupil-checkbox:checked').forEach(cb => {
+        selectedPupils.add(cb.value);
+    });
+    
+    const count = selectedPupils.size;
+    document.getElementById('selectedCount').textContent = `${count} selected`;
+    document.getElementById('bulkAddBtn').disabled = count === 0;
+}
+
+function bulkAddPupils() {
+    const count = selectedPupils.size;
+    if (count === 0) return;
+    
+    if (!confirm(`Add ${count} pupil(s) to this class?`)) {
         return;
     }
     
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    const btn = document.getElementById('bulkAddBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adding...';
     
     const formData = new FormData();
-    formData.append('action', 'add');
+    formData.append('action', 'bulkAdd');
     formData.append('classID', classID);
-    formData.append('pupilID', pupilID);
+    selectedPupils.forEach(pupilID => {
+        formData.append('pupilIDs[]', pupilID);
+    });
     
     fetch('classes_manage_pupils.php', {
         method: 'POST',
@@ -318,24 +377,84 @@ function addPupilToClass(pupilID, pupilName, button) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Close modal and reload page
             bootstrap.Modal.getInstance(document.getElementById('addPupilModal')).hide();
             location.reload();
         } else {
             alert('Error: ' + data.error);
-            button.disabled = false;
-            button.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add Selected';
         }
     })
     .catch(error => {
         console.error('Error:', error);
         alert('An error occurred');
-        button.disabled = false;
-        button.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add Selected';
     });
 }
 
-// Remove pupil from class
+// Roster selection management
+function updateRosterSelection() {
+    const checked = document.querySelectorAll('.roster-checkbox:checked');
+    const count = checked.length;
+    
+    const countBadge = document.getElementById('rosterSelectedCount');
+    const removeBtn = document.getElementById('bulkRemoveBtn');
+    
+    if (count > 0) {
+        countBadge.textContent = `${count} selected`;
+        countBadge.style.display = 'inline-block';
+        removeBtn.style.display = 'inline-block';
+    } else {
+        countBadge.style.display = 'none';
+        removeBtn.style.display = 'none';
+    }
+}
+
+function bulkRemovePupils() {
+    const checked = document.querySelectorAll('.roster-checkbox:checked');
+    const pupilIDs = Array.from(checked).map(cb => cb.value);
+    
+    if (pupilIDs.length === 0) return;
+    
+    if (!confirm(`Remove ${pupilIDs.length} pupil(s) from this class?`)) {
+        return;
+    }
+    
+    const btn = document.getElementById('bulkRemoveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Removing...';
+    
+    const formData = new FormData();
+    formData.append('action', 'bulkRemove');
+    formData.append('classID', classID);
+    pupilIDs.forEach(pupilID => {
+        formData.append('pupilIDs[]', pupilID);
+    });
+    
+    fetch('classes_manage_pupils.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash me-1"></i>Remove Selected';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash me-1"></i>Remove Selected';
+    });
+}
+
+// Remove pupil from class (single)
 document.querySelectorAll('.remove-pupil-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const pupilID = this.dataset.pupilId;

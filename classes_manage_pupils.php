@@ -48,6 +48,29 @@ try {
             }
             break;
             
+        case 'bulkAdd':
+            $pupilIDs = $_POST['pupilIDs'] ?? [];
+            if (!is_array($pupilIDs) || empty($pupilIDs)) {
+                echo json_encode(['success' => false, 'error' => 'No pupils selected']);
+                exit;
+            }
+            
+            $added = 0;
+            $failed = 0;
+            foreach ($pupilIDs as $pupilID) {
+                if ($classModel->assignPupil($classID, $pupilID)) {
+                    $added++;
+                } else {
+                    $failed++;
+                }
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => "$added pupil(s) added successfully" . ($failed > 0 ? ", $failed failed" : '')
+            ]);
+            break;
+            
         case 'remove':
             $pupilID = $_POST['pupilID'] ?? null;
             if (!$pupilID) {
@@ -65,17 +88,32 @@ try {
             }
             break;
             
+        case 'bulkRemove':
+            $pupilIDs = $_POST['pupilIDs'] ?? [];
+            if (!is_array($pupilIDs) || empty($pupilIDs)) {
+                echo json_encode(['success' => false, 'error' => 'No pupils selected']);
+                exit;
+            }
+            
+            $removed = 0;
+            $failed = 0;
+            foreach ($pupilIDs as $pupilID) {
+                if ($classModel->removePupil($classID, $pupilID)) {
+                    $removed++;
+                } else {
+                    $failed++;
+                }
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => "$removed pupil(s) removed successfully" . ($failed > 0 ? ", $failed failed" : '')
+            ]);
+            break;
+            
         case 'getAvailable':
             // Get pupils not in this class
-            $sql = "SELECT p.pupilID, p.fName, p.lName, p.studentNumber
-                    FROM Pupil p
-                    WHERE p.pupilID NOT IN (
-                        SELECT pupilID FROM Pupil_Class WHERE classID = ?
-                    )
-                    ORDER BY p.fName, p.lName";
-            $stmt = $classModel->db->prepare($sql);
-            $stmt->execute([$classID]);
-            $availablePupils = $stmt->fetchAll();
+            $availablePupils = $classModel->getAvailablePupils($classID);
             
             echo json_encode([
                 'success' => true,
