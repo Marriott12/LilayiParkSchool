@@ -224,12 +224,13 @@ require_once 'includes/header.php';
                                     <i class="bi bi-x-circle me-1"></i>No Account
                                 </span>
                                 <?php if (PermissionHelper::canManage('teachers')): ?>
+                                <br>
                                 <button type="button" 
-                                        class="btn btn-sm btn-success ms-2 create-account-btn" 
+                                        class="btn btn-sm btn-success mt-1 create-account-btn" 
                                         data-teacher-id="<?= $teacher['teacherID'] ?>"
                                         data-teacher-name="<?= htmlspecialchars($teacher['fName'] . ' ' . $teacher['lName']) ?>"
                                         title="Create Account">
-                                    <i class="bi bi-plus-circle"></i>
+                                    <i class="bi bi-plus-circle me-1"></i>Create Account
                                 </button>
                                 <?php endif; ?>
                             <?php endif; ?>
