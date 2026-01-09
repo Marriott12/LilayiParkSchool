@@ -1,15 +1,18 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
+Auth::requireLogin();
 
 $gradeID = $_GET['id'] ?? null;
 $isEdit = !empty($gradeID);
 
-if ($isEdit) {
-    RBAC::requirePermission('grades', 'update');
-} else {
-    RBAC::requirePermission('grades', 'create');
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_grades')) {
+    Session::setFlash('error', 'You do not have permission to manage grades.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
 }
 
 require_once 'modules/grades/GradesModel.php';

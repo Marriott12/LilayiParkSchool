@@ -115,11 +115,11 @@ class TeacherModel extends BaseModel {
      */
     public function search($term) {
         $sql = "SELECT * FROM {$this->table} 
-                WHERE firstName LIKE ? OR lastName LIKE ? OR email LIKE ?
-                ORDER BY firstName, lastName";
+                WHERE fName LIKE ? OR lName LIKE ? OR email LIKE ? OR phone LIKE ? OR tczNo LIKE ?
+                ORDER BY fName, lName";
         $searchTerm = "%{$term}%";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
         return $stmt->fetchAll();
     }
     
@@ -140,5 +140,49 @@ class TeacherModel extends BaseModel {
         $sql = "SELECT * FROM {$this->table} WHERE userID IS NULL ORDER BY fName, lName";
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();
+    }
+    
+    /**
+     * Check if teacher is assigned to a specific class
+     */
+    public function isAssignedToClass($teacherID, $classID) {
+        $sql = "SELECT COUNT(*) FROM Class WHERE teacherID = ? AND classID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$teacherID, $classID]);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
+     * Check if teacher can access a specific pupil (pupil is in one of their classes)
+     */
+    public function canAccessPupil($teacherID, $pupilID) {
+        $sql = "SELECT COUNT(*) FROM Pupil_Class pc
+                INNER JOIN Class c ON pc.classID = c.classID
+                WHERE c.teacherID = ? AND pc.pupilID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$teacherID, $pupilID]);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
+     * Get all pupil IDs that teacher can access (pupils in their classes)
+     */
+    public function getAccessiblePupilIDs($teacherID) {
+        $sql = "SELECT DISTINCT pc.pupilID FROM Pupil_Class pc
+                INNER JOIN Class c ON pc.classID = c.classID
+                WHERE c.teacherID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$teacherID]);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+    
+    /**
+     * Get all class IDs assigned to teacher
+     */
+    public function getAssignedClassIDs($teacherID) {
+        $sql = "SELECT classID FROM Class WHERE teacherID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$teacherID]);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 }

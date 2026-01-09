@@ -2,34 +2,31 @@
 require_once __DIR__ . '/includes/bootstrap.php';
 
 // Redirect if already logged in
-if (Session::isLoggedIn()) {
-    Utils::redirect(BASE_URL . '/index.php');
+if (Auth::check()) {
+    header('Location: ' . BASE_URL . '/index.php');
+    exit;
 }
 
 $error = '';
 
-if (Utils::isPost()) {
-    require_once __DIR__ . '/modules/auth/AuthModel.php';
-    $authModel = new AuthModel();
-    
-    $username = Utils::sanitize($_POST['username'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
     if (empty($username) || empty($password)) {
         $error = 'Please enter both username and password';
     } else {
-        $user = $authModel->verifyCredentials($username, $password);
+        $result = Auth::attempt($username, $password);
         
-        if ($user) {
-            Session::set('user_id', $user['userID']);
-            Session::set('user_name', $user['firstName'] . ' ' . $user['lastName']);
-            Session::set('user_email', $user['email']);
-            Session::set('user_role', $user['role']);
-            Session::set('user_username', $user['username']);
+        if ($result === true) {
+            // Login successful - redirect
+            $redirect = $_SESSION['redirect_after_login'] ?? BASE_URL . '/index.php';
+            unset($_SESSION['redirect_after_login']);
             
-            $authModel->updateLastLogin($user['userID']);
+            Session::setFlash('success', 'Welcome back, ' . Auth::username() . '!');
             
-            Utils::redirect(BASE_URL . '/index.php');
+            header('Location: ' . $redirect);
+            exit;
         } else {
             $error = 'Invalid username or password';
         }

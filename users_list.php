@@ -1,8 +1,10 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('users', 'read');
+Auth::requireLogin();
+Auth::requireAnyRole(['admin']);
 
 require_once 'modules/users/UsersModel.php';
 
@@ -31,7 +33,7 @@ require_once 'includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-people-fill"></i> System Users</h2>
-    <?php if (RBAC::hasPermission(Session::getUserRole(), 'users', 'create')): ?>
+    <?php if (PermissionHelper::canManage('users')): ?>
     <a href="users_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> Add New User
     </a>
@@ -94,29 +96,31 @@ require_once 'includes/header.php';
                             </span>
                         </td>
                         <td>
-                            <?php if (($user['isActive'] ?? 1) == 1): ?>
-                                <span class="badge bg-success">Active</span>
+                            <?php if (($user['isActive'] ?? 'Y') === 'Y'): ?>
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
                             <?php else: ?>
-                                <span class="badge bg-secondary">Inactive</span>
+                                <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Inactive</span>
                             <?php endif; ?>
                         </td>
                         <td><?= $user['createdAt'] ? date('M d, Y', strtotime($user['createdAt'])) : 'N/A' ?></td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="users_view.php?id=<?= $user['userID'] ?>" class="btn btn-info" title="View">
-                                    <i class="bi bi-eye"></i>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="users_view.php?id=<?= $user['userID'] ?>" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-eye"></i> View
                                 </a>
-                                <?php if (RBAC::hasPermission(Session::getUserRole(), 'users', 'update')): ?>
-                                <a href="users_form.php?id=<?= $user['userID'] ?>" class="btn btn-warning" title="Edit">
-                                    <i class="bi bi-pencil"></i>
+                                <?php if (PermissionHelper::canManage('users')): ?>
+                                <a href="users_form.php?id=<?= $user['userID'] ?>" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-pencil"></i> Edit
                                 </a>
-                                <a href="users_password.php?id=<?= $user['userID'] ?>" class="btn btn-secondary" title="Reset Password">
-                                    <i class="bi bi-key"></i>
+                                <a href="users_password.php?id=<?= $user['userID'] ?>" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-key"></i> Reset
                                 </a>
                                 <?php endif; ?>
-                                <?php if (RBAC::hasPermission(Session::getUserRole(), 'users', 'delete') && $user['userID'] != Session::get('user_id')): ?>
-                                <a href="delete.php?module=users&id=<?= $user['userID'] ?>" class="btn btn-danger" title="Delete" onclick="return confirm('Are you sure?')">
-                                    <i class="bi bi-trash"></i>
+                                <?php if (PermissionHelper::canManage('users') && $user['userID'] != Session::get('user_id')): ?>
+                                <a href="delete.php?module=users&id=<?= $user['userID'] ?>" 
+                                   class="btn btn-outline-danger btn-sm" 
+                                   onclick="return confirm('Are you sure you want to delete this user?');">
+                                    <i class="bi bi-trash"></i> Delete
                                 </a>
                                 <?php endif; ?>
                             </div>

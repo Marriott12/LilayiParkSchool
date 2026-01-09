@@ -19,8 +19,8 @@ class Auth {
     public static function requireLogin() {
         if (!self::check()) {
             $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
-            Session::setFlashMessage('Please log in to access this page.', 'warning');
-            header('Location: /modules/auth/login.php');
+            Session::setFlash('warning', 'Please log in to access this page.');
+            header('Location: /LilayiParkSchool/login.php');
             exit;
         }
     }
@@ -94,7 +94,7 @@ class Auth {
     public static function requireRole($role) {
         self::requireLogin();
         if (!self::hasRole($role)) {
-            header('Location: /403.php');
+            header('Location: ' . BASE_URL . '/403.php');
             exit;
         }
     }
@@ -105,7 +105,7 @@ class Auth {
     public static function requireAnyRole($roles) {
         self::requireLogin();
         if (!self::hasAnyRole($roles)) {
-            header('Location: /403.php');
+            header('Location: ' . BASE_URL . '/403.php');
             exit;
         }
     }
@@ -157,7 +157,7 @@ class Auth {
         
         try {
             // Find user by username or email
-            $sql = "SELECT * FROM Users WHERE (username = ? OR email = ?) AND isActive = 1";
+            $sql = "SELECT * FROM Users WHERE (username = ? OR email = ?) AND isActive = 'Y'";
             $stmt = $db->prepare($sql);
             $stmt->execute([$username, $username]);
             $user = $stmt->fetch();
@@ -201,8 +201,10 @@ class Auth {
             // Set session variables
             $_SESSION['user_id'] = $user['userID'];
             $_SESSION['username'] = $user['username'];
+            $_SESSION['user_name'] = $user['firstName'] . ' ' . $user['lastName'];
             $_SESSION['user_email'] = $user['email'];
             $_SESSION['user_roles'] = $roles;
+            $_SESSION['user_role'] = !empty($roles) ? $roles[0] : 'user';
             $_SESSION['teacher_id'] = $teacherID;
             $_SESSION['parent_id'] = $parentID;
             $_SESSION['login_time'] = time();
@@ -237,7 +239,7 @@ class Auth {
         
         // Start a new session for flash messages
         session_start();
-        Session::setFlashMessage('You have been logged out successfully.', 'success');
+        Session::setFlash('success', 'You have been logged out successfully.');
     }
     
     /**
@@ -316,5 +318,145 @@ class Auth {
         // Update login time to extend session
         $_SESSION['login_time'] = $currentTime;
         return true;
+    }
+    
+    /**
+     * Context-based permission checking for teachers
+     * Check if teacher can access a specific class
+     */
+    public static function canAccessClass($classID) {
+        // Admin can access all classes
+        if (self::isAdmin()) {
+            return true;
+        }
+        
+        // Teachers can only access their assigned classes
+        if (self::isTeacher()) {
+            $teacherID = self::getTeacherID();
+            if (!$teacherID) {
+                return false;
+            }
+            
+            require_once __DIR__ . '/../modules/teachers/TeacherModel.php';
+            $teacherModel = new TeacherModel();
+            return $teacherModel->isAssignedToClass($teacherID, $classID);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Context-based permission checking for teachers
+     * Check if teacher can access a specific pupil
+     */
+    public static function canAccessPupil($pupilID) {
+        // Admin can access all pupils
+        if (self::isAdmin()) {
+            return true;
+        }
+        
+        // Teachers can access pupils in their classes
+        if (self::isTeacher()) {
+            $teacherID = self::getTeacherID();
+            if (!$teacherID) {
+                return false;
+            }
+            
+            require_once __DIR__ . '/../modules/teachers/TeacherModel.php';
+            $teacherModel = new TeacherModel();
+            return $teacherModel->canAccessPupil($teacherID, $pupilID);
+        }
+        
+        // Parents can access their own children
+        if (self::isParent()) {
+            $parentID = self::getParentID();
+            if (!$parentID) {
+                return false;
+            }
+            
+            require_once __DIR__ . '/../modules/parents/ParentModel.php';
+            $parentModel = new ParentModel();
+            return $parentModel->isMyChild($parentID, $pupilID);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Get list of pupil IDs accessible to current user
+     * Used for filtering queries based on user context
+     */
+    public static function getAccessiblePupilIDs() {
+        // Admin can access all pupils
+        if (self::isAdmin()) {
+            return null; // null means all pupils
+        }
+        
+        // Teachers can access pupils in their classes
+        if (self::isTeacher()) {
+            $teacherID = self::getTeacherID();
+            if (!$teacherID) {
+                return [];
+            }
+            
+            require_once __DIR__ . '/../modules/teachers/TeacherModel.php';
+            $teacherModel = new TeacherModel();
+            return $teacherModel->getAccessiblePupilIDs($teacherID);
+        }
+        
+        // Parents can access their own children only
+        if (self::isParent()) {
+            $parentID = self::getParentID();
+            if (!$parentID) {
+                return [];
+            }
+            
+            require_once __DIR__ . '/../modules/parents/ParentModel.php';
+            $parentModel = new ParentModel();
+            return $parentModel->getMyChildrenIDs($parentID);
+        }
+        
+        return [];
+    }
+    
+    /**
+     * Get list of class IDs accessible to current user
+     */
+    public static function getAccessibleClassIDs() {
+        // Admin can access all classes
+        if (self::isAdmin()) {
+            return null; // null means all classes
+        }
+        
+        // Teachers can access their assigned classes
+        if (self::isTeacher()) {
+            $teacherID = self::getTeacherID();
+            if (!$teacherID) {
+                return [];
+            }
+            
+            require_once __DIR__ . '/../modules/teachers/TeacherModel.php';
+            $teacherModel = new TeacherModel();
+            return $teacherModel->getAssignedClassIDs($teacherID);
+        }
+        
+        return [];
+    }
+    
+    /**
+     * Check if user has permission to view/manage fees for a pupil
+     */
+    public static function canAccessPupilFees($pupilID) {
+        // Admin and accountant can access all fees
+        if (self::isAdmin() || self::hasRole('accountant')) {
+            return true;
+        }
+        
+        // Parents can view fees for their children only
+        if (self::isParent()) {
+            return self::canAccessPupil($pupilID);
+        }
+        
+        return false;
     }
 }

@@ -4,8 +4,9 @@
  * Handles deletion for Teachers, Parents, Classes, Fees, Payments, Attendance
  */
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
+Auth::requireLogin();
 
 // Determine which module we're deleting from
 $module = $_GET['module'] ?? '';
@@ -13,6 +14,15 @@ $id = $_GET['id'] ?? null;
 
 // Module configuration
 $moduleConfig = [
+    'pupils' => [
+        'model' => 'PupilModel',
+        'path' => 'modules/pupils/PupilModel.php',
+        'permission' => 'pupils',
+        'primaryKey' => 'pupilID',
+        'nameFields' => ['fName', 'lName'],
+        'listPage' => 'pupils_list.php',
+        'title' => 'Pupil'
+    ],
     'teachers' => [
         'model' => 'TeacherModel',
         'path' => 'modules/teachers/TeacherModel.php',
@@ -66,6 +76,15 @@ $moduleConfig = [
         'nameFields' => ['attendanceID'],
         'listPage' => 'attendance_list.php',
         'title' => 'Attendance Record'
+    ],
+    'examinations' => [
+        'model' => 'ExaminationsModel',
+        'path' => 'modules/examinations/ExaminationsModel.php',
+        'permission' => 'examinations',
+        'primaryKey' => 'examID',
+        'nameFields' => ['examName'],
+        'listPage' => 'examinations_list.php',
+        'title' => 'Examination'
     ]
 ];
 
@@ -77,7 +96,16 @@ if (!isset($moduleConfig[$module])) {
 }
 
 $config = $moduleConfig[$module];
-RBAC::requirePermission($config['permission'], 'delete');
+
+// Check delete permission
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+$permissionName = 'manage_' . $config['permission'];
+if (!$rolesModel->userHasPermission(Auth::id(), $permissionName)) {
+    Session::setFlash('error', 'You do not have permission to delete this item.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 if (!$id) {
     $_SESSION['error_message'] = 'Invalid ID';

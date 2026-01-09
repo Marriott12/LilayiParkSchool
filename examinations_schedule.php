@@ -1,8 +1,17 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('examinations', 'read');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_examinations')) {
+    Session::setFlash('error', 'You do not have permission to view examinations.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/examinations/ExaminationsModel.php';
 require_once 'modules/classes/ClassModel.php';
@@ -157,7 +166,7 @@ require_once 'includes/header.php';
         </div>
     </div>
 
-    <?php if (RBAC::hasPermission('examinations', 'create', null)): ?>
+    <?php if (PermissionHelper::canManage('examinations')): ?>
     <!-- Add Schedule Form -->
     <div class="card mb-4">
         <div class="card-header">
@@ -294,7 +303,7 @@ require_once 'includes/header.php';
                                     </span>
                                 </td>
                                 <td>
-                                    <?php if (RBAC::hasPermission('examinations', 'delete', null)): ?>
+                                    <?php if (PermissionHelper::canManage('examinations')): ?>
                                     <form method="POST" class="d-inline" onsubmit="return confirm('Delete this schedule?')">
                                         <?= CSRF::field() ?>
                                         <input type="hidden" name="action" value="delete_schedule">

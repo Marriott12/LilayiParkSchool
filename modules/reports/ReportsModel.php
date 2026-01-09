@@ -98,7 +98,7 @@ class ReportsModel extends BaseModel {
         $sql = "SELECT 
                     p.pupilID,
                     p.fName,
-                    p.sName,
+                    p.lName,
                     a.term,
                     a.year,
                     a.daysPresent,
@@ -121,7 +121,7 @@ class ReportsModel extends BaseModel {
             $params[':year'] = $year;
         }
         
-        $sql .= " ORDER BY a.year DESC, a.term, p.sName, p.fName";
+        $sql .= " ORDER BY a.year DESC, a.term, p.lName, p.fName";
         
         $stmt = $this->db->prepare($sql);
         foreach ($params as $key => $value) {

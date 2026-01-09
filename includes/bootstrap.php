@@ -10,7 +10,7 @@ require_once __DIR__ . '/../config/config.php';
 // Load core classes
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/Session.php';
-require_once __DIR__ . '/RBAC.php';
+require_once __DIR__ . '/Auth.php';
 require_once __DIR__ . '/BaseModel.php';
 require_once __DIR__ . '/Utils.php';
 require_once __DIR__ . '/CSRF.php';

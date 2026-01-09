@@ -1,8 +1,17 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('attendance', 'read');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_attendance')) {
+    Session::setFlash('error', 'You do not have permission to view attendance.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/attendance/AttendanceModel.php';
 require_once 'modules/classes/ClassModel.php';
@@ -26,7 +35,7 @@ require_once 'includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-calendar-check"></i> Attendance</h2>
-    <?php if (RBAC::hasPermission(Session::getUserRole(), 'attendance', 'create')): ?>
+    <?php if (PermissionHelper::canManage('attendance')): ?>
     <a href="attendance_form.php?class_id=<?= $selectedClass ?>&date=<?= $selectedDate ?>" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> Mark Attendance
     </a>
@@ -111,10 +120,20 @@ require_once 'includes/header.php';
                         </td>
                         <td><?= htmlspecialchars($record['remarks'] ?? '-') ?></td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="attendance_view.php?id=<?= $record['attendanceID'] ?>" class="btn btn-info btn-sm" title="View">
-                                    <i class="bi bi-eye"></i>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="attendance_view.php?id=<?= $record['attendanceID'] ?>" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-eye"></i> View
                                 </a>
+                                <?php if (PermissionHelper::canManage('attendance')): ?>
+                                <a href="attendance_form.php?id=<?= $record['attendanceID'] ?>" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                                <a href="delete.php?module=attendance&id=<?= $record['attendanceID'] ?>" 
+                                   class="btn btn-outline-danger btn-sm" 
+                                   onclick="return confirm('Are you sure you want to delete this attendance record?');">
+                                    <i class="bi bi-trash"></i> Delete
+                                </a>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>

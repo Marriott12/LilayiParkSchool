@@ -1,8 +1,16 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('examinations', 'delete');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_examinations')) {
+    Session::setFlash('error', 'You do not have permission to manage examinations.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     Session::setFlash('error', 'Invalid request method');

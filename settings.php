@@ -1,8 +1,9 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('settings', 'update');
+Auth::requireLogin();
+Auth::requireAnyRole(['admin']);
 
 require_once 'modules/settings/SettingsModel.php';
 

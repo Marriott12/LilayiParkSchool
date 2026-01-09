@@ -1,15 +1,18 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
+Auth::requireLogin();
 
 $feeID = $_GET['id'] ?? null;
 $isEdit = !empty($feeID);
 
-if ($isEdit) {
-    RBAC::requirePermission('fees', 'update');
-} else {
-    RBAC::requirePermission('fees', 'create');
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_fees')) {
+    Session::setFlash('error', 'You do not have permission to manage fees.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
 }
 
 require_once 'modules/fees/FeesModel.php';

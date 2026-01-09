@@ -1,8 +1,16 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('examinations', $_GET['examID'] ?? null ? 'update' : 'create');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_examinations')) {
+    Session::setFlash('error', 'You do not have permission to manage examinations.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/examinations/ExaminationsModel.php';
 

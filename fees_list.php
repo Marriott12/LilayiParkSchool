@@ -1,8 +1,17 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('fees', 'read');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_fees')) {
+    Session::setFlash('error', 'You do not have permission to view fees.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/fees/FeesModel.php';
 
@@ -22,7 +31,7 @@ require_once 'includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-cash-coin"></i> Fee Structure</h2>
-    <?php if (RBAC::hasPermission(Session::getUserRole(), 'fees', 'create')): ?>
+    <?php if (PermissionHelper::canManage('fees')): ?>
     <a href="fees_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> Add New Fee
     </a>
@@ -69,18 +78,18 @@ require_once 'includes/header.php';
                         </td>
                         <td><?= $fee['dueDate'] ? date('M d, Y', strtotime($fee['dueDate'])) : 'N/A' ?></td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="fees_view.php?id=<?= $fee['feeID'] ?>" class="btn btn-info btn-sm" title="View">
-                                    <i class="bi bi-eye"></i>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="fees_view.php?id=<?= $fee['feeID'] ?>" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-eye"></i> View
                                 </a>
-                                <?php if (RBAC::hasPermission(Session::getUserRole(), 'fees', 'update')): ?>
-                                <a href="fees_form.php?id=<?= $fee['feeID'] ?>" class="btn btn-warning btn-sm" title="Edit">
-                                    <i class="bi bi-pencil"></i>
+                                <?php if (PermissionHelper::canManage('fees')): ?>
+                                <a href="fees_form.php?id=<?= $fee['feeID'] ?>" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-pencil"></i> Edit
                                 </a>
-                                <?php endif; ?>
-                                <?php if (RBAC::hasPermission(Session::getUserRole(), 'fees', 'delete')): ?>
-                                <a href="delete.php?module=fees&id=<?= $fee['feeID'] ?>" class="btn btn-danger" title="Delete" onclick="return confirm('Are you sure?')">
-                                    <i class="bi bi-trash"></i>
+                                <a href="delete.php?module=fees&id=<?= $fee['feeID'] ?>" 
+                                   class="btn btn-outline-danger btn-sm" 
+                                   onclick="return confirm('Are you sure you want to delete this fee?');">
+                                    <i class="bi bi-trash"></i> Delete
                                 </a>
                                 <?php endif; ?>
                             </div>

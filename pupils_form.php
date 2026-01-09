@@ -1,24 +1,29 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
+Auth::requireLogin();
 
 // Check if editing or creating
 $pupilID = $_GET['id'] ?? null;
 $isEdit = !empty($pupilID);
 
 // Require appropriate permissions
-if ($isEdit) {
-    RBAC::requirePermission('pupils', 'update');
-} else {
-    RBAC::requirePermission('pupils', 'create');
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_pupils')) {
+    Session::setFlash('error', 'You do not have permission to manage pupils.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
 }
 
 require_once 'modules/pupils/PupilModel.php';
 require_once 'modules/parents/ParentModel.php';
+require_once 'modules/users/UsersModel.php';
 
 $pupilModel = new PupilModel();
 $parentModel = new ParentModel();
+$usersModel = new UsersModel();
 
 // Get all parents for dropdown
 $parents = $parentModel->getAll();
@@ -114,6 +119,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Create parent if new
             if ($parentOption === 'new' && !$isEdit) {
                 $parentID = $parentModel->create($parentData);
+                
+                // Automatically create user account for new parent
+                if ($parentID) {
+                    // Check if user account with this email already exists
+                    if (!$usersModel->emailExists($parentData['email1'])) {
+                        // Generate username from parent's name
+                        $username = strtolower($parentData['fName'] . '.' . $parentData['lName']);
+                        $baseUsername = $username;
+                        $counter = 1;
+                        
+                        // Ensure unique username
+                        while ($usersModel->usernameExists($username)) {
+                            $username = $baseUsername . $counter;
+                            $counter++;
+                        }
+                        
+                        // Generate random password
+                        $generatedPassword = Auth::generatePassword(12);
+                        
+                        // Create user account
+                        $userData = [
+                            'username' => $username,
+                            'email' => $parentData['email1'],
+                            'password' => $generatedPassword,
+                            'role' => 'parent',
+                            'firstName' => $parentData['fName'],
+                            'lastName' => $parentData['lName'],
+                            'isActive' => 'Y'
+                        ];
+                        
+                        $userID = $usersModel->createUser($userData);
+                        
+                        // Link user account to parent
+                        if ($userID) {
+                            $parentModel->update($parentID, ['userID' => $userID]);
+                            
+                            // Store credentials to display to user
+                            Session::set('new_parent_username', $username);
+                            Session::set('new_parent_password', $generatedPassword);
+                            Session::set('new_parent_email', $parentData['email1']);
+                        }
+                    }
+                }
             }
             
             $data['parentID'] = $parentID;
@@ -139,7 +187,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Session::setFlash('success', 'Pupil updated successfully');
             } else {
                 $pupilModel->create($data);
-                Session::setFlash('success', 'Pupil and ' . ($parentOption === 'new' ? 'parent' : 'parent link') . ' created successfully');
+                
+                // Build success message
+                $successMsg = 'Pupil created successfully.';
+                if ($parentOption === 'new') {
+                    $successMsg .= ' Parent account created.';
+                    
+                    // Add login credentials if new user was created
+                    if (Session::has('new_parent_username')) {
+                        $successMsg .= ' Login credentials: Username: ' . Session::get('new_parent_username') . 
+                                     ', Password: ' . Session::get('new_parent_password') . 
+                                     ' (Email sent to: ' . Session::get('new_parent_email') . ')';
+                        // Clear the temporary session data
+                        Session::remove('new_parent_username');
+                        Session::remove('new_parent_password');
+                        Session::remove('new_parent_email');
+                    }
+                }
+                
+                Session::setFlash('success', $successMsg);
             }
             
             CSRF::regenerateToken();

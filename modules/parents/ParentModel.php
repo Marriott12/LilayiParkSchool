@@ -54,11 +54,11 @@ class ParentModel extends BaseModel {
      */
     public function search($term) {
         $sql = "SELECT * FROM {$this->table} 
-                WHERE firstName LIKE ? OR lastName LIKE ? OR email LIKE ? OR phoneNumber LIKE ?
-                ORDER BY firstName, lastName";
+                WHERE fName LIKE ? OR lName LIKE ? OR email1 LIKE ? OR email2 LIKE ? OR phone LIKE ? OR NRC LIKE ?
+                ORDER BY fName, lName";
         $searchTerm = "%{$term}%";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
         return $stmt->fetchAll();
     }
     
@@ -130,5 +130,25 @@ class ParentModel extends BaseModel {
         $sql = "SELECT * FROM {$this->table} WHERE userID IS NULL ORDER BY fName, lName";
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();
+    }
+    
+    /**
+     * Check if a pupil is the child of a specific parent
+     */
+    public function isMyChild($parentID, $pupilID) {
+        $sql = "SELECT COUNT(*) FROM Pupil WHERE parentID = ? AND pupilID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$parentID, $pupilID]);
+        return $stmt->fetchColumn() > 0;
+    }
+    
+    /**
+     * Get all pupil IDs that are children of this parent
+     */
+    public function getMyChildrenIDs($parentID) {
+        $sql = "SELECT pupilID FROM Pupil WHERE parentID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$parentID]);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 }

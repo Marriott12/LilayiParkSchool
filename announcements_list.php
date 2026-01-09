@@ -1,8 +1,10 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('announcements', 'read');
+Auth::requireLogin();
+Auth::requireAnyRole(['admin']);
 
 require_once 'modules/announcements/AnnouncementsModel.php';
 
@@ -14,7 +16,7 @@ $perPage = 20;
 
 // Get announcements based on user role
 $userRole = Session::getUserRole();
-if ($userRole === 'admin' || RBAC::hasPermission($userRole, 'announcements', 'create')) {
+if ($userRole === 'admin' || PermissionHelper::canManage('announcements')) {
     $totalRecords = $announcementsModel->count();
     $pagination = new Pagination($totalRecords, $perPage, $page);
     $announcements = $announcementsModel->getAllWithAuthors($pagination->getLimit(), $pagination->getOffset());
@@ -32,7 +34,7 @@ require_once 'includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-megaphone-fill"></i> Announcements</h2>
-    <?php if (RBAC::hasPermission($userRole, 'announcements', 'create')): ?>
+    <?php if (PermissionHelper::canManage('announcements')): ?>
     <a href="announcements_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> New Announcement
     </a>
@@ -60,19 +62,18 @@ require_once 'includes/header.php';
             <h5 class="card-title mb-0" style="color: #2d5016;">
                 <?= htmlspecialchars($announcement['title']) ?>
             </h5>
-            <div class="btn-group btn-group-sm">
-                <a href="announcements_view.php?id=<?= $announcement['announcementID'] ?>" class="btn btn-outline-info">
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="announcements_view.php?id=<?= $announcement['announcementID'] ?>" class="btn btn-outline-info btn-sm">
                     <i class="bi bi-eye"></i> View
                 </a>
-                <?php if (RBAC::hasPermission($userRole, 'announcements', 'update')): ?>
-                <a href="announcements_form.php?id=<?= $announcement['announcementID'] ?>" class="btn btn-outline-warning">
-                    <i class="bi bi-pencil"></i>
+                <?php if (PermissionHelper::canManage('announcements')): ?>
+                <a href="announcements_form.php?id=<?= $announcement['announcementID'] ?>" class="btn btn-outline-warning btn-sm">
+                    <i class="bi bi-pencil"></i> Edit
                 </a>
-                <?php endif; ?>
-                <?php if (RBAC::hasPermission($userRole, 'announcements', 'delete')): ?>
                 <a href="delete.php?module=announcements&id=<?= $announcement['announcementID'] ?>" 
-                   class="btn btn-outline-danger" onclick="return confirm('Are you sure?')">
-                    <i class="bi bi-trash"></i>
+                   class="btn btn-outline-danger btn-sm" 
+                   onclick="return confirm('Are you sure you want to delete this announcement?');">
+                    <i class="bi bi-trash"></i> Delete
                 </a>
                 <?php endif; ?>
             </div>

@@ -1,10 +1,20 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('payments', 'read');
+Auth::requireLogin();
 
 require_once 'modules/payments/PaymentModel.php';
+require_once 'modules/roles/RolesModel.php';
+
+// Check permission via RBAC
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_fees')) {
+    Session::setFlash('error', 'You do not have permission to view payments.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 $paymentModel = new PaymentModel();
 
@@ -12,15 +22,21 @@ $paymentModel = new PaymentModel();
 $page = $_GET['page'] ?? 1;
 $perPage = 20;
 
-// Filter by parent for parent role
-if (Session::getUserRole() === 'parent') {
-    // Assuming parent has parentID linked to user
-    $parentID = Session::get('parent_id');
+// Filter by user context
+if (Auth::isParent()) {
+    // Parents can only see payments for their children
+    $parentID = Auth::getParentID();
+    if (!$parentID) {
+        Session::setFlash('error', 'Parent account not properly linked.');
+        header('Location: /LilayiParkSchool/index.php');
+        exit;
+    }
     $allPayments = $paymentModel->getPaymentsByParent($parentID);
     $totalRecords = count($allPayments);
     $pagination = new Pagination($totalRecords, $perPage, $page);
     $payments = array_slice($allPayments, $pagination->getOffset(), $pagination->getLimit());
 } else {
+    // Admin and accountant can see all payments
     $totalRecords = $paymentModel->count();
     $pagination = new Pagination($totalRecords, $perPage, $page);
     $payments = $paymentModel->getAllWithDetails($pagination->getLimit(), $pagination->getOffset());
@@ -32,8 +48,8 @@ require_once 'includes/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-credit-card"></i> Payments</h2>
-    <?php if (RBAC::hasPermission(Session::getUserRole(), 'payments', 'create')): ?>
+    <h2><i class="bi bi-credit-card"></i> Payments <?php if (Auth::isParent()): ?><small class="text-muted">(My Children)</small><?php endif; ?></h2>
+    <?php if (PermissionHelper::canManage('fees')): ?>
     <a href="payments_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> Record Payment
     </a>
@@ -88,10 +104,20 @@ require_once 'includes/header.php';
                             <span class="badge bg-success">Paid</span>
                         </td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="payments_view.php?id=<?= $payment['paymentID'] ?>" class="btn btn-info btn-sm" title="View Receipt">
-                                    <i class="bi bi-receipt"></i>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="payments_view.php?id=<?= $payment['paymentID'] ?>" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-receipt"></i> View
                                 </a>
+                                <?php if (PermissionHelper::canManage('fees')): ?>
+                                <a href="payments_form.php?id=<?= $payment['paymentID'] ?>" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                                <a href="delete.php?module=payments&id=<?= $payment['paymentID'] ?>" 
+                                   class="btn btn-outline-danger btn-sm" 
+                                   onclick="return confirm('Are you sure you want to delete this payment?');">
+                                    <i class="bi bi-trash"></i> Delete
+                                </a>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>

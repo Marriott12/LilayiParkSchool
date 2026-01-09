@@ -151,10 +151,18 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
                 
                 <?php 
-                $flash = Session::getFlash();
-                if ($flash): ?>
-                <div class="alert alert-<?= $flash['type'] ?>"><?= htmlspecialchars($flash['message']) ?></div>
-                <?php endif; ?>
+                // Session::getFlash requires a type parameter; check common types and show the first found message.
+                foreach (['success','error','info','warning'] as $ftype) {
+                    $message = Session::getFlash($ftype);
+                    if ($message) {
+                        $alertClass = $ftype === 'error' ? 'danger' : $ftype;
+                        ?>
+                        <div class="alert alert-<?= $alertClass ?>"><?= htmlspecialchars($message) ?></div>
+                        <?php
+                        break;
+                    }
+                }
+                ?>
                 
                 <h6 class="mb-3">Current Roles</h6>
                 <?php if (empty($userRoles)): ?>

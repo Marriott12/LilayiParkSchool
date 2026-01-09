@@ -1,29 +1,112 @@
 <?php
-require_once 'includes/db.php';
-require_once 'includes/Session.php';
-require_once 'includes/CSRF.php';
+require_once 'includes/bootstrap.php';
 require_once 'includes/Auth.php';
 
 // Require login
 Auth::requireLogin();
-Auth::requireAnyRole(['admin', 'teacher']);
+
+// Check permission via RBAC
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_teachers')) {
+    Session::setFlash('error', 'You do not have permission to manage teachers.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 $teacherID = $_GET['id'] ?? null;
 $isEdit = !empty($teacherID);
 
 require_once 'modules/teachers/TeacherModel.php';
 require_once 'modules/users/UsersModel.php';
-require_once 'modules/roles/RolesModel.php';
 
 $teacherModel = new TeacherModel();
 $usersModel = new UsersModel();
 $rolesModel = new RolesModel();
+
+// Get all teachers for dropdown
+$allTeachers = $teacherModel->getAll();
+
+// Get all roles for multi-role assignment
+$allRoles = $rolesModel->getAllRoles();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
     if (!CSRF::requireToken()) {
         $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
+        // Check if using existing teacher
+        $teacherMode = $_POST['teacher_mode'] ?? 'new';
+        $existingTeacherID = $_POST['existing_teacher_id'] ?? null;
+        
+        // User account creation data
+        $createUserAccount = isset($_POST['create_user_account']);
+        $username = trim($_POST['username'] ?? '');
+        $password = trim($_POST['password'] ?? '');
+        $selectedRoles = $_POST['roles'] ?? []; // Multi-role support
+        
+        if ($teacherMode === 'existing' && !$isEdit) {
+            // Mode: Create user account for existing teacher
+            if (empty($existingTeacherID)) {
+                $error = 'Please select a teacher';
+            } elseif (empty($username)) {
+                $error = 'Username is required';
+            } elseif (empty($password)) {
+                $error = 'Password is required';
+            } elseif (empty($selectedRoles)) {
+                $error = 'Please select at least one role';
+            } elseif ($usersModel->usernameExists($username)) {
+                $error = 'Username already exists. Please choose a different username.';
+            } else {
+                try {
+                    global $db;
+                    $db->beginTransaction();
+                    
+                    // Get teacher data
+                    $teacher = $teacherModel->getById($existingTeacherID);
+                    if (!$teacher) {
+                        throw new Exception('Teacher not found');
+                    }
+                    
+                    // Check if teacher already has a user account
+                    if (!empty($teacher['userID'])) {
+                        throw new Exception('This teacher already has a user account');
+                    }
+                    
+                    // Create user account
+                    $userData = [
+                        'username' => $username,
+                        'email' => $teacher['email'],
+                        'password' => $password,
+                        'isActive' => 'Y'
+                    ];
+                    
+                    $userID = $usersModel->createWithRoles($userData, $selectedRoles);
+                    
+                    if (!$userID) {
+                        throw new Exception('Failed to create user account');
+                    }
+                    
+                    // Link user to teacher
+                    $usersModel->linkToTeacher($userID, $existingTeacherID);
+                    
+                    $db->commit();
+                    Session::setFlash('success', 'User account created for ' . $teacher['fName'] . ' ' . $teacher['lName'] . ' with ' . count($selectedRoles) . ' role(s)');
+                    
+                    // Regenerate CSRF token
+                    CSRF::regenerateToken();
+                    
+                    header('Location: teachers_list.php');
+                    exit;
+                } catch (Exception $e) {
+                    if (isset($db) && $db->inTransaction()) {
+                        $db->rollBack();
+                    }
+                    $error = $e->getMessage();
+                }
+            }
+        } else {
+            // Mode: Create new teacher (existing logic)
         $data = [
             'fName' => trim($_POST['fName'] ?? ''),
             'lName' => trim($_POST['lName'] ?? ''),
@@ -40,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $createUserAccount = isset($_POST['create_user_account']);
         $username = trim($_POST['username'] ?? '');
         $password = trim($_POST['password'] ?? '');
-        $assignTeacherRole = isset($_POST['assign_teacher_role']);
+        $selectedRoles = $_POST['roles'] ?? []; // Multi-role support
         
         // Validation
         if (empty($data['fName'])) {
@@ -107,6 +190,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $success = $teacherModel->update($teacherID, $data);
                     $message = 'Teacher updated successfully';
                     $finalTeacherID = $teacherID;
+                    
+                    // Update roles if teacher has existing user account
+                    if ($teacher && !empty($teacher['userID']) && !empty($selectedRoles)) {
+                        // Remove all existing roles
+                        $currentRoles = $rolesModel->getUserRoles($teacher['userID']);
+                        foreach ($currentRoles as $role) {
+                            $rolesModel->removeRole($teacher['userID'], $role['roleID']);
+                        }
+                        // Add selected roles
+                        foreach ($selectedRoles as $roleID) {
+                            $rolesModel->assignRole($teacher['userID'], $roleID, Auth::id());
+                        }
+                        $message .= ' and roles updated';
+                    }
                 } else {
                     // Create new teacher
                     $finalTeacherID = $teacherModel->create($data);
@@ -131,23 +228,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new Exception('Username already exists. Please choose a different username.');
                     }
                     
+                    // Validate at least one role is selected
+                    if (empty($selectedRoles)) {
+                        throw new Exception('Please select at least one role for the user account');
+                    }
+                    
                     // Create user account
                     $userData = [
                         'username' => $username,
                         'email' => $data['email'],
                         'password' => $password,
-                        'isActive' => 1
+                        'isActive' => 'Y'
                     ];
                     
-                    $roleIDs = [];
-                    if ($assignTeacherRole) {
-                        $teacherRole = $rolesModel->getRoleByName('teacher');
-                        if ($teacherRole) {
-                            $roleIDs[] = $teacherRole['roleID'];
-                        }
-                    }
-                    
-                    $userID = $usersModel->createWithRoles($userData, $roleIDs);
+                    $userID = $usersModel->createWithRoles($userData, $selectedRoles);
                     
                     if (!$userID) {
                         throw new Exception('Failed to create user account');
@@ -156,7 +250,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Link user to teacher
                     $usersModel->linkToTeacher($userID, $finalTeacherID);
                     
-                    $message .= ' and user account created';
+                    $message .= ' and user account created with ' . count($selectedRoles) . ' role(s)';
                 }
                 
                 $db->commit();
@@ -179,26 +273,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = $e->getMessage();
             }
         }
+        } // End of new teacher mode
     }
 }
 
 $teacher = $isEdit ? $teacherModel->getById($teacherID) : null;
+
+// Get existing user account and roles if editing
+$existingUser = null;
+$existingUserRoles = [];
+if ($isEdit && $teacher && !empty($teacher['userID'])) {
+    $existingUser = $usersModel->getById($teacher['userID']);
+    $existingUserRoles = $rolesModel->getUserRoles($teacher['userID']);
+}
+$existingRoleIDs = array_column($existingUserRoles, 'roleID');
 
 $pageTitle = $isEdit ? 'Edit Teacher' : 'Add New Teacher';
 $currentPage = 'teachers';
 require_once 'includes/header.php';
 ?>
 
-<div class="mb-4">
-    <a href="teachers_list.php" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Back to Teachers
-    </a>
+<!-- Page Header -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="index.php" class="text-decoration-none">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="teachers_list.php" class="text-decoration-none">Teachers</a></li>
+                <li class="breadcrumb-item active" aria-current="page"><?= $isEdit ? 'Edit' : 'Add New' ?></li>
+            </ol>
+        </nav>
+        <h2 class="mb-0">
+            <i class="bi bi-person-badge me-2" style="color: #2d5016;"></i>
+            <span style="color: #2d5016; font-weight: 600;"><?= $pageTitle ?></span>
+        </h2>
+    </div>
+    <div class="col-md-4 text-end align-self-end">
+        <a href="teachers_list.php" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Teachers
+        </a>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom">
         <h5 class="mb-0">
-            <i class="bi bi-person-badge-fill"></i> <?= $pageTitle ?>
+            <i class="bi bi-person-badge-fill me-2" style="color: #2d5016;"></i><?= $pageTitle ?>
         </h5>
     </div>
     <div class="card-body">
@@ -211,6 +331,84 @@ require_once 'includes/header.php';
         
         <form method="POST" action="">
             <?= CSRF::field() ?>
+            
+            <?php if (!$isEdit): ?>
+            <!-- Teacher Mode Selection - Always Visible -->
+            <div class="card mb-4 border-primary" style="border-width: 2px;">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-person-plus-fill me-2"></i>Choose an Option
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check p-3 border rounded" style="cursor: pointer;" onclick="document.getElementById('mode_new').click();">
+                                <input class="form-check-input" type="radio" name="teacher_mode" id="mode_new" 
+                                       value="new" checked onchange="toggleTeacherMode()">
+                                <label class="form-check-label w-100" for="mode_new" style="cursor: pointer;">
+                                    <div class="d-flex align-items-start">
+                                        <i class="bi bi-person-plus-fill text-success me-2" style="font-size: 1.5rem;"></i>
+                                        <div>
+                                            <strong class="d-block">Create a New Teacher</strong>
+                                            <small class="text-muted">Add a brand new teacher record to the system</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check p-3 border rounded" style="cursor: pointer;" onclick="document.getElementById('mode_existing').click();">
+                                <input class="form-check-input" type="radio" name="teacher_mode" id="mode_existing" 
+                                       value="existing" onchange="toggleTeacherMode()">
+                                <label class="form-check-label w-100" for="mode_existing" style="cursor: pointer;">
+                                    <div class="d-flex align-items-start">
+                                        <i class="bi bi-person-check-fill text-info me-2" style="font-size: 1.5rem;"></i>
+                                        <div>
+                                            <strong class="d-block">Select Existing Teacher</strong>
+                                            <small class="text-muted">Create a user account for an existing teacher</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="existing_teacher_section" style="display: none;" class="mb-4">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-person-lines-fill me-2"></i>Select Teacher
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label fw-semibold">Choose Teacher <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-lg" name="existing_teacher_id" id="existing_teacher_select">
+                            <option value="">-- Select a Teacher --</option>
+                            <?php foreach ($allTeachers as $t): ?>
+                            <option value="<?= $t['teacherID'] ?>" 
+                                    data-fname="<?= htmlspecialchars($t['fName']) ?>"
+                                    data-lname="<?= htmlspecialchars($t['lName']) ?>"
+                                    data-email="<?= htmlspecialchars($t['email']) ?>"
+                                    <?= !empty($t['userID']) ? 'disabled' : '' ?>>
+                                <?= htmlspecialchars($t['fName'] . ' ' . $t['lName']) ?> 
+                                - <?= htmlspecialchars($t['email']) ?>
+                                <?= !empty($t['userID']) ? ' ✓ (Already has account)' : '' ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Note:</strong> Teachers who already have user accounts are disabled in the list.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <div id="teacher_info_section">
             <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Forename <span class="text-danger">*</span></label>
@@ -302,6 +500,7 @@ require_once 'includes/header.php';
                        value="<?= htmlspecialchars($teacher['tczNo'] ?? '') ?>" 
                        placeholder="Teachers Council of Zambia Number">
             </div>
+            </div><!-- End teacher_info_section -->
             
             <?php if (!$isEdit): ?>
             <!-- User Account Creation Section -->
@@ -322,6 +521,32 @@ require_once 'includes/header.php';
                 </div>
                 
                 <div id="user_account_fields">
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-shield-lock-fill"></i> <strong>Role Assignment</strong>
+                        <p class="mb-0 small">Select one or more roles. The teacher role is recommended but you can assign multiple roles.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label d-block">Assign Roles <span class="text-danger">*</span></label>
+                        <div class="row">
+                            <?php foreach ($allRoles as $role): ?>
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="roles[]" 
+                                           value="<?= $role['roleID'] ?>" id="role_<?= $role['roleID'] ?>"
+                                           <?= $role['roleName'] === 'teacher' ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="role_<?= $role['roleID'] ?>">
+                                        <strong><?= htmlspecialchars($role['roleName']) ?></strong>
+                                        <?php if (!empty($role['description'])): ?>
+                                        <br><small class="text-muted"><?= htmlspecialchars($role['description']) ?></small>
+                                        <?php endif; ?>
+                                    </label>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Username <span class="text-danger">*</span></label>
@@ -351,13 +576,45 @@ require_once 'includes/header.php';
                             <small class="text-muted">User should change this on first login</small>
                         </div>
                     </div>
-                    
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="assign_teacher_role" 
-                               name="assign_teacher_role" checked>
-                        <label class="form-check-label" for="assign_teacher_role">
-                            Assign "Teacher" role (recommended)
-                        </label>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if ($isEdit && $existingUser): ?>
+            <!-- Role Management for Existing User Account -->
+            <hr class="my-4">
+            <div class="bg-light p-3 rounded">
+                <h6 class="mb-3">
+                    <i class="bi bi-shield-lock-fill"></i> User Account & Role Management
+                </h6>
+                
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i> This teacher has a user account: <strong><?= htmlspecialchars($existingUser['username']) ?></strong>
+                    <br><small>User Status: <?= $existingUser['isActive'] === 'Y' ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>' ?></small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label d-block">Assigned Roles <span class="text-danger">*</span></label>
+                    <div class="alert alert-warning mb-2">
+                        <i class="bi bi-shield-lock-fill"></i> <strong>Update Role Assignment</strong>
+                        <p class="mb-0 small">Select one or more roles for this teacher.</p>
+                    </div>
+                    <div class="row">
+                        <?php foreach ($allRoles as $role): ?>
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="roles[]" 
+                                       value="<?= $role['roleID'] ?>" id="edit_role_<?= $role['roleID'] ?>"
+                                       <?= in_array($role['roleID'], $existingRoleIDs) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="edit_role_<?= $role['roleID'] ?>">
+                                    <strong><?= htmlspecialchars($role['roleName']) ?></strong>
+                                    <?php if (!empty($role['description'])): ?>
+                                    <br><small class="text-muted"><?= htmlspecialchars($role['description']) ?></small>
+                                    <?php endif; ?>
+                                </label>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             </div>
@@ -377,7 +634,112 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<style>
+.form-check.p-3.border {
+    transition: all 0.3s ease;
+}
+.form-check.p-3.border:hover {
+    background-color: #f8f9fa;
+    border-color: #2d5016 !important;
+    box-shadow: 0 0 10px rgba(45, 80, 22, 0.1);
+}
+.form-check-input:checked + .form-check-label {
+    color: #2d5016;
+}
+.card {
+    transition: all 0.3s ease;
+}
+</style>
+
 <script>
+function toggleTeacherMode() {
+    const modeNew = document.getElementById('mode_new');
+    const modeExisting = document.getElementById('mode_existing');
+    const existingSection = document.getElementById('existing_teacher_section');
+    const teacherInfoSection = document.getElementById('teacher_info_section');
+    const userAccountCheckbox = document.getElementById('create_user_account');
+    
+    // Update visual selection
+    const allCards = document.querySelectorAll('.form-check.p-3.border');
+    allCards.forEach(card => {
+        card.style.borderColor = '#dee2e6';
+        card.style.backgroundColor = 'white';
+    });
+    
+    if (modeNew.checked) {
+        // Highlight selected card
+        modeNew.closest('.form-check.p-3.border').style.borderColor = '#198754';
+        modeNew.closest('.form-check.p-3.border').style.backgroundColor = '#f0f9f4';
+        
+        // New teacher mode
+        existingSection.style.display = 'none';
+        teacherInfoSection.style.display = 'block';
+        
+        // Make teacher info fields required
+        document.querySelectorAll('#teacher_info_section input[required], #teacher_info_section select[required]').forEach(input => {
+            input.disabled = false;
+        });
+        
+        // Make existing teacher select not required
+        const existingSelect = document.getElementById('existing_teacher_select');
+        if (existingSelect) {
+            existingSelect.required = false;
+        }
+    } else {
+        // Highlight selected card
+        modeExisting.closest('.form-check.p-3.border').style.borderColor = '#0dcaf0';
+        modeExisting.closest('.form-check.p-3.border').style.backgroundColor = '#f0f9ff';
+        
+        // Existing teacher mode
+        existingSection.style.display = 'block';
+        teacherInfoSection.style.display = 'none';
+        
+        // Disable teacher info fields
+        document.querySelectorAll('#teacher_info_section input, #teacher_info_section select').forEach(input => {
+            input.disabled = true;
+        });
+        
+        // Make existing teacher select required
+        const existingSelect = document.getElementById('existing_teacher_select');
+        if (existingSelect) {
+            existingSelect.required = true;
+        }
+        
+        // Force user account creation for existing teachers
+        if (userAccountCheckbox) {
+            userAccountCheckbox.checked = true;
+            toggleUserAccountFields();
+        }
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleTeacherMode();
+});
+
+// Populate email when existing teacher is selected
+document.addEventListener('DOMContentLoaded', function() {
+    const existingSelect = document.getElementById('existing_teacher_select');
+    if (existingSelect) {
+        existingSelect.addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            const fname = selected.dataset.fname || '';
+            const lname = selected.dataset.lname || '';
+            const email = selected.dataset.email || '';
+            
+            // Auto-generate username from selected teacher
+            if (fname && lname) {
+                const username = (fname[0] + lname).toLowerCase().replace(/[^a-z0-9]/g, '');
+                const usernameInput = document.getElementById('username');
+                if (usernameInput) {
+                    usernameInput.value = username;
+                }
+            }
+        });
+    }
+});
+
 function toggleUserAccountFields() {
     const checkbox = document.getElementById('create_user_account');
     const fields = document.getElementById('user_account_fields');

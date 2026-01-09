@@ -47,7 +47,7 @@ class ClassModel extends BaseModel {
     public function getClassRoster($classID) {
         $sql = "SELECT p.*, pc.enrollmentDate
                 FROM Pupil p
-                INNER JOIN PupilClass pc ON p.pupilID = pc.pupilID
+                INNER JOIN Pupil_Class pc ON p.pupilID = pc.pupilID
                 WHERE pc.classID = ?
                 ORDER BY p.fName, p.lName";
         $stmt = $this->db->prepare($sql);
@@ -59,7 +59,7 @@ class ClassModel extends BaseModel {
      * Assign pupil to class
      */
     public function assignPupil($classID, $pupilID) {
-        $sql = "INSERT INTO PupilClass (classID, pupilID, enrollmentDate) 
+        $sql = "INSERT INTO Pupil_Class (classID, pupilID, enrollmentDate) 
                 VALUES (?, ?, NOW())
                 ON DUPLICATE KEY UPDATE enrollmentDate = NOW()";
         $stmt = $this->db->prepare($sql);
@@ -70,7 +70,7 @@ class ClassModel extends BaseModel {
      * Remove pupil from class
      */
     public function removePupil($classID, $pupilID) {
-        $sql = "DELETE FROM PupilClass WHERE classID = ? AND pupilID = ?";
+        $sql = "DELETE FROM Pupil_Class WHERE classID = ? AND pupilID = ?";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([$classID, $pupilID]);
     }

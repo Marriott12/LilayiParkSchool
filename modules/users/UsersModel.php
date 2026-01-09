@@ -12,9 +12,12 @@ class UsersModel extends BaseModel {
      * Get user with role information
      */
     public function getUserWithRole($userID) {
-        $sql = "SELECT u.*, u.role as roleName
+        $sql = "SELECT u.*, GROUP_CONCAT(r.roleName SEPARATOR ', ') as roleName
                 FROM {$this->table} u
-                WHERE u.userID = ?";
+                LEFT JOIN UserRoles ur ON u.userID = ur.userID
+                LEFT JOIN Roles r ON ur.roleID = r.roleID
+                WHERE u.userID = ?
+                GROUP BY u.userID";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$userID]);
         return $stmt->fetch();
@@ -24,8 +27,11 @@ class UsersModel extends BaseModel {
      * Get all users with role names
      */
     public function getAllWithRoles($limit = null, $offset = null) {
-        $sql = "SELECT u.*, u.role as roleName
+        $sql = "SELECT u.*, GROUP_CONCAT(r.roleName SEPARATOR ', ') as roleName
                 FROM {$this->table} u
+                LEFT JOIN UserRoles ur ON u.userID = ur.userID
+                LEFT JOIN Roles r ON ur.roleID = r.roleID
+                GROUP BY u.userID
                 ORDER BY u.username";
         
         if ($limit !== null) {

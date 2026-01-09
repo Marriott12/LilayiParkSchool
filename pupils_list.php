@@ -1,8 +1,18 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('pupils', 'read');
+Auth::requireLogin();
+
+// Check permission via RBAC
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_pupils')) {
+    Session::setFlash('error', 'You do not have permission to view pupils.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/pupils/PupilModel.php';
 require_once 'modules/parents/ParentModel.php';
@@ -15,15 +25,40 @@ $searchTerm = $_GET['search'] ?? '';
 $page = $_GET['page'] ?? 1;
 $perPage = 20;
 
+// Get accessible pupil IDs based on user role
+$accessiblePupilIDs = Auth::getAccessiblePupilIDs();
+
 if ($searchTerm) {
     $allPupils = $pupilModel->search($searchTerm);
+    
+    // Filter by accessible pupils for teachers/parents
+    if ($accessiblePupilIDs !== null) {
+        $allPupils = array_filter($allPupils, function($pupil) use ($accessiblePupilIDs) {
+            return in_array($pupil['pupilID'], $accessiblePupilIDs);
+        });
+    }
+    
     $totalRecords = count($allPupils);
     $pagination = new Pagination($totalRecords, $perPage, $page);
     $pupils = array_slice($allPupils, $pagination->getOffset(), $pagination->getLimit());
 } else {
-    $totalRecords = $pupilModel->count();
-    $pagination = new Pagination($totalRecords, $perPage, $page);
-    $pupils = $pupilModel->getAllWithParents($pagination->getLimit(), $pagination->getOffset());
+    // Filter pupils based on user context
+    if ($accessiblePupilIDs === null) {
+        // Admin - all pupils
+        $totalRecords = $pupilModel->count();
+        $pagination = new Pagination($totalRecords, $perPage, $page);
+        $pupils = $pupilModel->getAllWithParents($pagination->getLimit(), $pagination->getOffset());
+    } elseif (empty($accessiblePupilIDs)) {
+        // No accessible pupils
+        $totalRecords = 0;
+        $pagination = new Pagination($totalRecords, $perPage, $page);
+        $pupils = [];
+    } else {
+        // Teachers or parents - filtered pupils
+        $pupils = $pupilModel->getByIDs($accessiblePupilIDs, $pagination->getLimit(), $pagination->getOffset());
+        $totalRecords = count($accessiblePupilIDs);
+        $pagination = new Pagination($totalRecords, $perPage, $page);
+    }
 }
 
 $pageTitle = 'Pupils Management';
@@ -32,8 +67,17 @@ require_once 'includes/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-people-fill"></i> Pupils</h2>
-    <?php if (RBAC::hasPermission(Session::getUserRole(), 'pupils', 'create')): ?>
+    <div>
+        <h2><i class="bi bi-people-fill"></i> Pupils
+        <?php if (Auth::isTeacher()): ?>
+            <small class="text-muted">(My Classes)</small>
+        <?php elseif (Auth::isParent()): ?>
+            <small class="text-muted">(My Children)</small>
+        <?php endif; ?>
+        </h2>
+        <p class="text-muted mb-0">Viewing: <?= PermissionHelper::getContextDescription() ?></p>
+    </div>
+    <?php if (PermissionHelper::canManage('pupils')): ?>
     <a href="pupils_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> Add New Pupil
     </a>
@@ -87,25 +131,26 @@ require_once 'includes/header.php';
                         <td>
                             <strong><?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName']) ?></strong>
                         </td>
-                        <td><?= date('M d, Y', strtotime($pupil['dateOfBirth'])) ?></td></td>
+                        <td><?= date('M d, Y', strtotime($pupil['dateOfBirth'])) ?></td>
                         <td><?= htmlspecialchars($pupil['gender']) ?></td>
                         <td>
                             <?= htmlspecialchars(($pupil['parentFirstName'] ?? '') . ' ' . ($pupil['parentLastName'] ?? '')) ?>
                         </td>
                         <td><?= htmlspecialchars($pupil['address'] ?? 'N/A') ?></td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="pupils_view.php?id=<?= $pupil['pupilID'] ?>" class="btn btn-info" title="View">
-                                    <i class="bi bi-eye"></i>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="pupils_view.php?id=<?= $pupil['pupilID'] ?>" class="btn btn-outline-info btn-sm" title="View Details">
+                                    <i class="bi bi-eye"></i> View
                                 </a>
-                                <?php if (RBAC::hasPermission('pupils', 'update', null)): ?>
-                                <a href="pupils_form.php?id=<?= $pupil['pupilID'] ?>" class="btn btn-warning" title="Edit">
-                                    <i class="bi bi-pencil"></i>
+                                <?php if (PermissionHelper::canManage('pupils')): ?>
+                                <a href="pupils_form.php?id=<?= $pupil['pupilID'] ?>" class="btn btn-outline-warning btn-sm" title="Edit Pupil">
+                                    <i class="bi bi-pencil"></i> Edit
                                 </a>
-                                <?php endif; ?>
-                                <?php if (RBAC::hasPermission('pupils', 'delete', null)): ?>
-                                <a href="pupils_delete.php?id=<?= $pupil['pupilID'] ?>" class="btn btn-danger" title="Delete" onclick="return confirm('Are you sure?')">
-                                    <i class="bi bi-trash"></i>
+                                <a href="delete.php?module=pupils&id=<?= $pupil['pupilID'] ?>" 
+                                   class="btn btn-outline-danger btn-sm" 
+                                   title="Delete Pupil"
+                                   onclick="return confirm('Are you sure you want to delete this pupil?');">
+                                    <i class="bi bi-trash"></i> Delete
                                 </a>
                                 <?php endif; ?>
                             </div>

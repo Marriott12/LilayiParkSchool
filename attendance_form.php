@@ -1,15 +1,18 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
+Auth::requireLogin();
 
 $attendanceID = $_GET['id'] ?? null;
 $isEdit = !empty($attendanceID);
 
-if ($isEdit) {
-    RBAC::requirePermission('attendance', 'update');
-} else {
-    RBAC::requirePermission('attendance', 'create');
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_attendance')) {
+    Session::setFlash('error', 'You do not have permission to manage attendance.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
 }
 
 require_once 'modules/attendance/AttendanceModel.php';

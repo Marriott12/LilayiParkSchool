@@ -1,15 +1,18 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
+Auth::requireLogin();
 
 $announcementID = $_GET['id'] ?? null;
 $isEdit = !empty($announcementID);
 
-if ($isEdit) {
-    RBAC::requirePermission('announcements', 'update');
-} else {
-    RBAC::requirePermission('announcements', 'create');
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_announcements')) {
+    Session::setFlash('error', 'You do not have permission to manage announcements.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
 }
 
 require_once 'modules/announcements/AnnouncementsModel.php';

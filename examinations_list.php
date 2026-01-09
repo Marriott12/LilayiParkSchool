@@ -1,8 +1,17 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('examinations', 'read');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_examinations')) {
+    Session::setFlash('error', 'You do not have permission to view examinations.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/examinations/ExaminationsModel.php';
 
@@ -44,7 +53,7 @@ require_once 'includes/header.php';
             <p class="text-muted">Schedule and manage school examinations</p>
         </div>
         <div class="col-md-4 text-end">
-            <?php if (RBAC::hasPermission('examinations', 'create', null)): ?>
+            <?php if (PermissionHelper::canManage('examinations')): ?>
                 <a href="examinations_form.php" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-1"></i> Schedule New Exam
                 </a>
@@ -199,28 +208,23 @@ require_once 'includes/header.php';
                                     <span class="badge bg-info"><?= $exam['scheduledClasses'] ?> Classes</span>
                                 </td>
                                 <td>
-                                    <div class="btn-group btn-group-sm">
+                                    <div class="btn-group btn-group-sm" role="group">
                                         <a href="examinations_schedule.php?examID=<?= $exam['examID'] ?>" 
-                                           class="btn btn-outline-primary"
-                                           data-bs-toggle="tooltip" 
-                                           title="View Schedule">
-                                            <i class="bi bi-calendar3"></i>
+                                           class="btn btn-outline-info btn-sm">
+                                            <i class="bi bi-calendar3"></i> View
                                         </a>
-                                        <?php if (RBAC::hasPermission('examinations', 'update', null)): ?>
+                                        <?php if (PermissionHelper::canManage('examinations')): ?>
                                         <a href="examinations_form.php?examID=<?= $exam['examID'] ?>" 
-                                           class="btn btn-outline-secondary"
-                                           data-bs-toggle="tooltip" 
-                                           title="Edit">
-                                            <i class="bi bi-pencil"></i>
+                                           class="btn btn-outline-warning btn-sm">
+                                            <i class="bi bi-pencil"></i> Edit
                                         </a>
                                         <?php endif; ?>
-                                        <?php if (RBAC::hasPermission('examinations', 'delete', null) && $exam['scheduledClasses'] == 0): ?>
-                                        <button class="btn btn-outline-danger" 
-                                                onclick="deleteExam(<?= $exam['examID'] ?>, '<?= htmlspecialchars($exam['examName']) ?>')"
-                                                data-bs-toggle="tooltip" 
-                                                title="Delete">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
+                                        <?php if (PermissionHelper::canManage('examinations') && $exam['scheduledClasses'] == 0): ?>
+                                        <a href="delete.php?module=examinations&id=<?= $exam['examID'] ?>" 
+                                           class="btn btn-outline-danger btn-sm" 
+                                           onclick="return confirm('Are you sure you want to delete this examination?');">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </a>
                                         <?php endif; ?>
                                     </div>
                                 </td>

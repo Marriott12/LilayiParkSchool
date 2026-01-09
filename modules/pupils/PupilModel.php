@@ -74,4 +74,28 @@ class PupilModel extends BaseModel {
         $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
         return $stmt->fetchAll();
     }
+    
+    /**
+     * Get pupils by array of IDs (for context-based filtering)
+     */
+    public function getByIDs($pupilIDs, $limit = null, $offset = null) {
+        if (empty($pupilIDs)) {
+            return [];
+        }
+        
+        $placeholders = implode(',', array_fill(0, count($pupilIDs), '?'));
+        $sql = "SELECT p.*, pr.fName as parentFirstName, pr.lName as parentLastName
+                FROM {$this->table} p
+                LEFT JOIN Parent pr ON p.parentID = pr.parentID
+                WHERE p.pupilID IN ({$placeholders})
+                ORDER BY p.fName, p.lName";
+        
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($pupilIDs);
+        return $stmt->fetchAll();
+    }
 }

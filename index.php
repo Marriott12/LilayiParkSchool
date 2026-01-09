@@ -1,8 +1,19 @@
 <?php
 require_once __DIR__ . '/includes/bootstrap.php';
+require_once __DIR__ . '/includes/Auth.php';
+require_once __DIR__ . '/includes/PermissionHelper.php';
 
 // Require authentication
-RBAC::requireAuth();
+Auth::requireLogin();
+
+// Check if user must change password
+require_once __DIR__ . '/modules/users/UsersModel.php';
+$usersModel = new UsersModel();
+$currentUser = $usersModel->find(Auth::id());
+if (isset($currentUser['mustChangePassword']) && $currentUser['mustChangePassword'] === 'Y') {
+    header('Location: ' . BASE_URL . '/change_password.php');
+    exit;
+}
 
 // Set page variables
 $pageTitle = 'Dashboard';
@@ -12,9 +23,37 @@ $currentPage = 'dashboard';
 require_once __DIR__ . '/modules/reports/ReportsModel.php';
 require_once __DIR__ . '/modules/announcements/AnnouncementsModel.php';
 require_once __DIR__ . '/modules/settings/SettingsModel.php';
+require_once __DIR__ . '/modules/roles/RolesModel.php';
 
+$rolesModel = new RolesModel();
 $reportsModel = new ReportsModel();
 $stats = $reportsModel->getDashboardStats();
+
+// Get gender statistics
+$db = Database::getInstance()->getConnection();
+$genderStmt = $db->query("SELECT gender, COUNT(*) as count FROM Pupil GROUP BY gender");
+$genderStats = [];
+while ($row = $genderStmt->fetch()) {
+    $genderStats[$row['gender']] = $row['count'];
+}
+$maleCount = $genderStats['M'] ?? 0;
+$femaleCount = $genderStats['F'] ?? 0;
+
+// Get upcoming birthdays (next 7 days)
+$upcomingBirthdays = $db->query("
+    SELECT pupilID, fName, lName, DoB,
+           DATE_FORMAT(DoB, '%M %d') as birthDate,
+           DATEDIFF(
+               DATE_ADD(DoB, INTERVAL (YEAR(CURDATE()) - YEAR(DoB) + IF(DAYOFYEAR(DoB) < DAYOFYEAR(CURDATE()), 1, 0)) YEAR),
+               CURDATE()
+           ) as daysUntil
+    FROM Pupil
+    WHERE DATEDIFF(
+        DATE_ADD(DoB, INTERVAL (YEAR(CURDATE()) - YEAR(DoB) + IF(DAYOFYEAR(DoB) < DAYOFYEAR(CURDATE()), 1, 0)) YEAR),
+        CURDATE()
+    ) BETWEEN 0 AND 7
+    ORDER BY daysUntil ASC
+")->fetchAll();
 
 // Get additional stats
 require_once __DIR__ . '/modules/subjects/SubjectsModel.php';
@@ -88,7 +127,7 @@ require_once 'includes/header.php';
     </div>
     
     <div class="col-md-3">
-        <?php if (RBAC::hasPermission(Session::getUserRole(), 'subjects', 'read')): ?>
+        <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_subjects')): ?>
         <a href="subjects_list.php" class="text-decoration-none">
             <div class="stat-card card-yellow">
                 <h2><?php echo $totalSubjects; ?></h2>
@@ -104,8 +143,45 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Gender Summary Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm" style="border-left: 4px solid #0d6efd;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Male Pupils</h6>
+                        <h2 class="mb-0"><?= $maleCount ?></h2>
+                        <small class="text-muted"><?= $stats['totalPupils'] > 0 ? number_format(($maleCount / $stats['totalPupils']) * 100, 1) : 0 ?>%</small>
+                    </div>
+                    <div class="text-primary" style="font-size: 3rem; opacity: 0.2;">
+                        <i class="bi bi-gender-male"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm" style="border-left: 4px solid #d63384;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Female Pupils</h6>
+                        <h2 class="mb-0"><?= $femaleCount ?></h2>
+                        <small class="text-muted"><?= $stats['totalPupils'] > 0 ? number_format(($femaleCount / $stats['totalPupils']) * 100, 1) : 0 ?>%</small>
+                    </div>
+                    <div style="color: #d63384; font-size: 3rem; opacity: 0.2;">
+                        <i class="bi bi-gender-female"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Finance Cards -->
-<?php if (RBAC::hasPermission(Session::getUserRole(), 'payments', 'read')): ?>
+<?php if ($rolesModel->userHasPermission(Auth::id(), 'view_payments')): ?>
 <div class="row g-4 mb-4">
     <div class="col-md-4">
         <div class="stat-card card-indigo">
@@ -141,43 +217,43 @@ require_once 'includes/header.php';
             </div>
             <div class="card-body">
                 <div class="quick-actions">
-                    <?php if (RBAC::hasPermission(Session::getUserRole(), 'pupils', 'create')): ?>
+                    <?php if (PermissionHelper::canManage('pupils')): ?>
                         <a href="pupils_form.php" class="btn btn-primary">
                             <i class="bi bi-plus-circle me-1"></i>Add New Pupil
                         </a>
                     <?php endif; ?>
                     
-                    <?php if (RBAC::hasPermission(Session::getUserRole(), 'teachers', 'create')): ?>
+                    <?php if (PermissionHelper::canManage('teachers')): ?>
                         <a href="teachers_form.php" class="btn btn-success">
                             <i class="bi bi-plus-circle me-1"></i>Add New Teacher
                         </a>
                     <?php endif; ?>
                     
-                    <?php if (RBAC::hasPermission(Session::getUserRole(), 'classes', 'create')): ?>
+                    <?php if (PermissionHelper::canManage('classes')): ?>
                         <a href="classes_form.php" class="btn btn-info">
                             <i class="bi bi-plus-circle me-1"></i>Create Class
                         </a>
                     <?php endif; ?>
                     
-                    <?php if (RBAC::hasPermission(Session::getUserRole(), 'payments', 'create')): ?>
+                    <?php if (PermissionHelper::canManage('payments')): ?>
                         <a href="payments_form.php" class="btn btn-warning">
                             <i class="bi bi-cash me-1"></i>Record Payment
                         </a>
                     <?php endif; ?>
                     
-                    <?php if (RBAC::hasPermission(Session::getUserRole(), 'attendance', 'create')): ?>
+                    <?php if (PermissionHelper::canManage('attendance')): ?>
                         <a href="attendance_form.php" class="btn btn-secondary">
                             <i class="bi bi-calendar-check me-1"></i>Mark Attendance
                         </a>
                     <?php endif; ?>
                     
-                    <?php if (RBAC::hasPermission(Session::getUserRole(), 'announcements', 'create')): ?>
+                    <?php if (PermissionHelper::canManage('announcements')): ?>
                         <a href="announcements_form.php" class="btn" style="background-color: #f0ad4e; color: white;">
                             <i class="bi bi-megaphone me-1"></i>New Announcement
                         </a>
                     <?php endif; ?>
                     
-                    <?php if (RBAC::hasPermission(Session::getUserRole(), 'reports', 'read')): ?>
+                    <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_reports')): ?>
                         <a href="reports.php" class="btn btn-dark">
                             <i class="bi bi-file-earmark-text me-1"></i>View Reports
                         </a>
@@ -187,6 +263,48 @@ require_once 'includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Upcoming Birthdays -->
+<?php if (!empty($upcomingBirthdays)): ?>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white;">
+                <h6 class="mb-0"><i class="bi bi-cake2-fill me-2"></i>Upcoming Birthdays (Next 7 Days)</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <?php foreach ($upcomingBirthdays as $birthday): ?>
+                    <div class="col-md-4">
+                        <div class="card border-0" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3" style="font-size: 2.5rem;">
+                                        🎂
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-0"><?= htmlspecialchars($birthday['fName'] . ' ' . $birthday['lName']) ?></h6>
+                                        <small class="text-muted"><?= htmlspecialchars($birthday['birthDate']) ?></small>
+                                        <br>
+                                        <?php if ($birthday['daysUntil'] == 0): ?>
+                                            <span class="badge bg-danger"><i class="bi bi-gift-fill"></i> Today!</span>
+                                        <?php elseif ($birthday['daysUntil'] == 1): ?>
+                                            <span class="badge bg-warning">Tomorrow</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-info">In <?= $birthday['daysUntil'] ?> days</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Row with Recent Activity & Announcements -->
 <div class="row">
@@ -235,11 +353,11 @@ require_once 'includes/header.php';
                 <table class="table table-sm table-borderless mb-0">
                     <tr>
                         <td><strong>Logged in as:</strong></td>
-                        <td><?php echo Session::get('user_name'); ?></td>
+                        <td><?php echo $_SESSION['user_name'] ?? Auth::username(); ?></td>
                     </tr>
                     <tr>
                         <td><strong>Role:</strong></td>
-                        <td><span class="badge bg-info"><?php echo ucfirst(Session::getUserRole()); ?></span></td>
+                        <td><span class="badge bg-info"><?php echo ucfirst($_SESSION['user_role'] ?? 'user'); ?></span></td>
                     </tr>
                     <tr>
                         <td><strong>Today's Date:</strong></td>
@@ -254,7 +372,7 @@ require_once 'includes/header.php';
                         <td><?= $currentYear ?></td>
                     </tr>
                 </table>
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'settings', 'update')): ?>
+                <?php if (PermissionHelper::canManage('settings')): ?>
                 <hr>
                 <a href="settings.php" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-gear"></i> Settings

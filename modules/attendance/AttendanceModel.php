@@ -11,7 +11,7 @@ class AttendanceModel extends BaseModel {
      * Get attendance with pupil info
      */
     public function getAttendanceWithPupil($attendanceID) {
-        $sql = "SELECT a.*, p.fName, p.lName, p.studentNumber
+        $sql = "SELECT a.*, p.fName, p.lName, p.pupilID
                 FROM {$this->table} a
                 INNER JOIN Pupil p ON a.pupilID = p.pupilID
                 WHERE a.attendanceID = ?";
@@ -24,10 +24,10 @@ class AttendanceModel extends BaseModel {
      * Get attendance by class and date
      */
     public function getByClassAndDate($classID, $date) {
-        $sql = "SELECT a.*, p.fName, p.lName, p.studentNumber
+        $sql = "SELECT a.*, p.fName, p.lName, p.pupilID
                 FROM {$this->table} a
                 INNER JOIN Pupil p ON a.pupilID = p.pupilID
-                INNER JOIN PupilClass pc ON p.pupilID = pc.pupilID
+                INNER JOIN Pupil_Class pc ON p.pupilID = pc.pupilID
                 WHERE pc.classID = ? AND DATE(a.attendanceDate) = ?
                 ORDER BY p.fName, p.lName";
         $stmt = $this->db->prepare($sql);
@@ -84,7 +84,7 @@ class AttendanceModel extends BaseModel {
                     SUM(CASE WHEN a.status = 'Absent' THEN 1 ELSE 0 END) as absent,
                     SUM(CASE WHEN a.status = 'Late' THEN 1 ELSE 0 END) as late
                 FROM Pupil p
-                INNER JOIN PupilClass pc ON p.pupilID = pc.pupilID
+                INNER JOIN Pupil_Class pc ON p.pupilID = pc.pupilID
                 LEFT JOIN {$this->table} a ON p.pupilID = a.pupilID AND DATE(a.attendanceDate) = ?
                 WHERE pc.classID = ?";
         $stmt = $this->db->prepare($sql);

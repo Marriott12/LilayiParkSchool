@@ -1,8 +1,17 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('grades', 'read');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_grades')) {
+    Session::setFlash('error', 'You do not have permission to view grades.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/grades/GradesModel.php';
 require_once 'modules/classes/ClassModel.php';
@@ -65,7 +74,7 @@ require_once 'includes/header.php';
             <i class="bi bi-award"></i> Grades & Marks
         </h5>
         <div>
-            <?php if (RBAC::hasPermission(Session::getUserRole(), 'grades', 'create')): ?>
+            <?php if (PermissionHelper::canManage('grades')): ?>
             <a href="grades_form.php" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-circle"></i> Enter Grades
             </a>
@@ -177,7 +186,7 @@ require_once 'includes/header.php';
                         <?php endif; ?>
                         <th>Recorded By</th>
                         <th>Date</th>
-                        <?php if (RBAC::hasPermission(Session::getUserRole(), 'grades', 'update')): ?>
+                        <?php if (PermissionHelper::canManage('grades')): ?>
                         <th>Actions</th>
                         <?php endif; ?>
                     </tr>
@@ -211,12 +220,19 @@ require_once 'includes/header.php';
                         <?php endif; ?>
                         <td><small><?= htmlspecialchars($grade['recordedByName'] ?? 'N/A') ?></small></td>
                         <td><small><?= date('M d, Y', strtotime($grade['recordedAt'])) ?></small></td>
-                        <?php if (RBAC::hasPermission(Session::getUserRole(), 'grades', 'update')): ?>
+                        <?php if (PermissionHelper::canManage('grades')): ?>
                         <td>
-                            <a href="grades_form.php?id=<?= $grade['gradeID'] ?>" 
-                               class="btn btn-warning btn-sm" title="Edit">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="grades_form.php?id=<?= $grade['gradeID'] ?>" 
+                                   class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                                <a href="delete.php?module=grades&id=<?= $grade['gradeID'] ?>" 
+                                   class="btn btn-outline-danger btn-sm" 
+                                   onclick="return confirm('Are you sure you want to delete this grade?');">
+                                    <i class="bi bi-trash"></i> Delete
+                                </a>
+                            </div>
                         </td>
                         <?php endif; ?>
                     </tr>

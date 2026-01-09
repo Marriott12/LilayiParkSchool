@@ -1,8 +1,16 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('payments', 'create');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'manage_payments')) {
+    Session::setFlash('error', 'You do not have permission to manage payments.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/payments/PaymentModel.php';
 require_once 'modules/pupils/PupilModel.php';
@@ -15,11 +23,11 @@ $feesModel = new FeesModel();
 // Get pupils with their current class from Pupil_Class junction table
 $db = Database::getInstance()->getConnection();
 $stmt = $db->prepare("
-    SELECT DISTINCT p.pupilID, p.fName, p.sName, pc.classID, c.className
+    SELECT DISTINCT p.pupilID, p.fName, p.lName, pc.classID, c.className
     FROM Pupil p
     INNER JOIN Pupil_Class pc ON p.pupilID = pc.pupilID
     INNER JOIN Class c ON pc.classID = c.classID
-    ORDER BY p.fName, p.sName
+    ORDER BY p.fName, p.lName
 ");
 $stmt->execute();
 $pupils = $stmt->fetchAll();
@@ -174,7 +182,7 @@ require_once 'includes/header.php';
                             <option value="">-- Select Pupil --</option>
                             <?php foreach ($pupils as $pupil): ?>
                             <option value="<?= $pupil['pupilID'] ?>" data-classid="<?= $pupil['classID'] ?>">
-                                <?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['sName'] . ' - ' . $pupil['className']) ?>
+                                <?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName'] . ' - ' . $pupil['className']) ?>
                             </option>
                             <?php endforeach; ?>
                         </select>

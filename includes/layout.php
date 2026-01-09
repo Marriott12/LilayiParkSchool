@@ -1,3 +1,17 @@
+<?php
+require_once __DIR__ . '/../classes/RBAC.php';
+?>
+<?php
+if (!class_exists('Auth')) {
+    require_once __DIR__ . '/Auth.php';
+}
+if (!class_exists('RolesModel')) {
+    require_once __DIR__ . '/../modules/roles/RolesModel.php';
+}
+if (!isset($rolesModel)) {
+    $rolesModel = new RolesModel();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,55 +39,49 @@
                     <i class="bi bi-speedometer2 me-2"></i> Dashboard
                 </a>
                 
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'pupils', 'read')): ?>
-                <a href="<?php echo BASE_URL; ?>/pupils_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupils' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-person-video3 me-2"></i> Pupils
-                </a>
-                <?php endif; ?>
-                
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'pupils', 'read')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_pupils')): ?>
                 <a href="<?php echo BASE_URL; ?>/pupils_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupils' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-mortarboard me-2"></i> Pupils
                 </a>
                 <?php endif; ?>
                 
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'teachers', 'read')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_teachers')): ?>
                 <a href="<?php echo BASE_URL; ?>/teachers_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'teachers' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-person-workspace me-2"></i> Teachers
                 </a>
                 <?php endif; ?>
                 
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'parents', 'read')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_parents')): ?>
                 <a href="<?php echo BASE_URL; ?>/parents_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'parents' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-people me-2"></i> Parents
                 </a>
                 <?php endif; ?>
                 
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'classes', 'read')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_classes')): ?>
                 <a href="<?php echo BASE_URL; ?>/classes_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'classes' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-building me-2"></i> Classes
                 </a>
                 <?php endif; ?>
                 
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'fees', 'read')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_fees')): ?>
                 <a href="<?php echo BASE_URL; ?>/fees_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'fees' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-cash-coin me-2"></i> Fees
                 </a>
                 <?php endif; ?>
                 
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'payments', 'read')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_payments')): ?>
                 <a href="<?php echo BASE_URL; ?>/payments_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'payments' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-credit-card me-2"></i> Payments
                 </a>
                 <?php endif; ?>
                 
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'attendance', 'read')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_attendance')): ?>
                 <a href="<?php echo BASE_URL; ?>/attendance_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'attendance' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-calendar-check me-2"></i> Attendance
                 </a>
                 <?php endif; ?>
                 
-                <?php if (RBAC::hasPermission(Session::getUserRole(), 'reports', 'read')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_reports')): ?>
                 <a href="<?php echo BASE_URL; ?>/reports.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'reports' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-bar-chart me-2"></i> Reports
                 </a>

@@ -1,8 +1,9 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+require_once 'includes/PermissionHelper.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('subjects', 'read');
+Auth::requireLogin();
 
 require_once 'modules/subjects/SubjectsModel.php';
 
@@ -31,7 +32,7 @@ require_once 'includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-book-fill"></i> Subjects</h2>
-    <?php if (RBAC::hasPermission(Session::getUserRole(), 'subjects', 'create')): ?>
+    <?php if (PermissionHelper::canManage('subjects')): ?>
     <a href="subjects_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> Add New Subject
     </a>
@@ -84,18 +85,18 @@ require_once 'includes/header.php';
                         <td><?= htmlspecialchars(($subject['teacherFirstName'] ?? '') . ' ' . ($subject['teacherLastName'] ?? 'Not Assigned')) ?></td>
                         <td><?= $subject['credits'] ?? 1 ?></td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="subjects_view.php?id=<?= $subject['subjectID'] ?>" class="btn btn-info" title="View">
-                                    <i class="bi bi-eye"></i>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="subjects_view.php?id=<?= $subject['subjectID'] ?>" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-eye"></i> View
                                 </a>
-                                <?php if (RBAC::hasPermission(Session::getUserRole(), 'subjects', 'update')): ?>
-                                <a href="subjects_form.php?id=<?= $subject['subjectID'] ?>" class="btn btn-warning" title="Edit">
-                                    <i class="bi bi-pencil"></i>
+                                <?php if (PermissionHelper::canManage('subjects')): ?>
+                                <a href="subjects_form.php?id=<?= $subject['subjectID'] ?>" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-pencil"></i> Edit
                                 </a>
-                                <?php endif; ?>
-                                <?php if (RBAC::hasPermission(Session::getUserRole(), 'subjects', 'delete')): ?>
-                                <a href="delete.php?module=subjects&id=<?= $subject['subjectID'] ?>" class="btn btn-danger" title="Delete" onclick="return confirm('Are you sure?')">
-                                    <i class="bi bi-trash"></i>
+                                <a href="delete.php?module=subjects&id=<?= $subject['subjectID'] ?>" 
+                                   class="btn btn-outline-danger btn-sm" 
+                                   onclick="return confirm('Are you sure you want to delete this subject?');">
+                                    <i class="bi bi-trash"></i> Delete
                                 </a>
                                 <?php endif; ?>
                             </div>

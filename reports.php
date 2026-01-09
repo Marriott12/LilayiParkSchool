@@ -1,8 +1,16 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
 
-RBAC::requireAuth();
-RBAC::requirePermission('reports', 'read');
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_reports')) {
+    Session::setFlash('error', 'You do not have permission to view reports.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
 
 require_once 'modules/reports/ReportsModel.php';
 require_once 'modules/classes/ClassModel.php';

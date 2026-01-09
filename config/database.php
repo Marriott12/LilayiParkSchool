@@ -56,3 +56,6 @@ class Database {
         throw new Exception("Cannot unserialize singleton");
     }
 }
+
+// Initialize global database connection for backward compatibility
+$db = Database::getInstance()->getConnection();
