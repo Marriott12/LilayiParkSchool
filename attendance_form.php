@@ -137,7 +137,7 @@ require_once 'includes/header.php';
                         <?php foreach ($pupils as $pupil): ?>
                         <option value="<?= $pupil['pupilID'] ?>" 
                                 <?= ($attendance['pupilID'] ?? '') == $pupil['pupilID'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName'] . ' (' . $pupil['studentNumber'] . ')') ?>
+                            <?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName'] . ' (' . $pupil['pupilID'] . ')') ?>
                         </option>
                         <?php endforeach; ?>
                     </select>

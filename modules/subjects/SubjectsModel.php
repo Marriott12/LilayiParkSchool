@@ -85,9 +85,9 @@ class SubjectsModel extends BaseModel {
      * Get classes assigned to subject
      */
     public function getAssignedClasses($subjectID) {
-        $sql = "SELECT c.*, cs.createdAt as assignedDate
-                FROM Class c
-                INNER JOIN ClassSubjects cs ON c.classID = cs.classID
+        $sql = "SELECT c.*, cs.assignedDate
+                FROM class c
+                INNER JOIN classsubjects cs ON c.classID = cs.classID
                 WHERE cs.subjectID = ?
                 ORDER BY c.className";
         $stmt = $this->db->prepare($sql);

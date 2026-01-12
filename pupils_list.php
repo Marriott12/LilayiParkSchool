@@ -77,31 +77,46 @@ require_once 'includes/header.php';
         </h2>
         <p class="text-muted mb-0">Viewing: <?= PermissionHelper::getContextDescription() ?></p>
     </div>
-    <?php if (PermissionHelper::canManage('pupils')): ?>
-    <a href="pupils_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
-        <i class="bi bi-plus-circle"></i> Add New Pupil
-    </a>
-    <?php endif; ?>
+    <div>
+        <!-- Export Buttons -->
+        <div class="btn-group me-2" role="group">
+            <a href="api/export_pupils.php?format=csv" class="btn btn-sm btn-outline-success" title="Export to CSV">
+                <i class="bi bi-file-earmark-spreadsheet"></i> CSV
+            </a>
+            <a href="api/export_pupils.php?format=excel" class="btn btn-sm btn-outline-success" title="Export to Excel">
+                <i class="bi bi-file-earmark-excel"></i> Excel
+            </a>
+        </div>
+        <?php if (PermissionHelper::canManage('pupils')): ?>
+        <a href="pupils_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
+            <i class="bi bi-plus-circle"></i> Add New Pupil
+        </a>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- Search Bar -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-10">
-                <input type="text" class="form-control" name="search" placeholder="Search by name or student number..." value="<?= htmlspecialchars($searchTerm) ?>">
+        <div class="row g-3">
+            <div class="col-md-12">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control border-start-0 ps-0" id="liveSearchInput" 
+                           placeholder="Start typing to search by name, admission number, or pupil ID..." 
+                           value="<?= htmlspecialchars($searchTerm) ?>"
+                           autocomplete="off">
+                </div>
+                <small class="text-muted">Results update as you type</small>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn w-100" style="background-color: #2d5016; color: white;">
-                    <i class="bi bi-search"></i> Search
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <!-- Pupils Table -->
-<div class="card">
+<div class="card" id="resultsTable">
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -127,7 +142,7 @@ require_once 'includes/header.php';
                     <?php else: ?>
                     <?php foreach ($pupils as $pupil): ?>
                     <tr>
-                        <td><?= htmlspecialchars($pupil['studentNumber']) ?></td>
+                        <td><?= htmlspecialchars($pupil['pupilID']) ?></td>
                         <td>
                             <strong><?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName']) ?></strong>
                         </td>
@@ -170,5 +185,73 @@ require_once 'includes/header.php';
         <?php endif; ?>
     </div>
 </div>
+
+<script src="assets/js/live-search.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    new LiveSearch({
+        searchInput: '#liveSearchInput',
+        resultsContainer: '#resultsTable',
+        apiEndpoint: '/LilayiParkSchool/api/search_pupils.php',
+        emptyMessage: 'No pupils found',
+        debounceDelay: 300,
+        renderRow: function(pupil) {
+            const fullName = `${pupil.fName} ${pupil.lName}`;
+            const dob = pupil.DOB ? new Date(pupil.DOB).toLocaleDateString() : 'N/A';
+            const parentName = (pupil.parentFirstName && pupil.parentLastName) 
+                ? `${pupil.parentFirstName} ${pupil.parentLastName}` 
+                : 'No Parent';
+            const phone = pupil.parentPhone || pupil.phone || 'N/A';
+            
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(pupil.admNo || pupil.pupilID)}</strong></td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle me-2 bg-primary text-white">
+                                ${pupil.fName.charAt(0)}${pupil.lName.charAt(0)}
+                            </div>
+                            <div>
+                                <div class="fw-bold">${escapeHtml(fullName)}</div>
+                                <small class="text-muted">ID: ${escapeHtml(pupil.pupilID)}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${dob}</td>
+                    <td>
+                        ${pupil.gender === 'M' 
+                            ? '<span class="badge bg-primary">Male</span>' 
+                            : '<span class="badge bg-danger">Female</span>'}
+                    </td>
+                    <td>${escapeHtml(parentName)}</td>
+                    <td>
+                        <i class="bi bi-telephone text-muted me-1"></i>
+                        ${escapeHtml(phone)}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="pupils_view.php?id=${pupil.pupilID}" class="btn btn-outline-primary" title="View">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <?php if (PermissionHelper::canManage('pupils')): ?>
+                            <a href="pupils_form.php?id=${pupil.pupilID}" class="btn btn-outline-success" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

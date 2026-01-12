@@ -5,7 +5,7 @@
  */
 
 class GradesModel extends BaseModel {
-    protected $table = 'Grades';
+    protected $table = 'grades';
     protected $primaryKey = 'gradeID';
     
     /**

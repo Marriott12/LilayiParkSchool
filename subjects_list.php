@@ -42,21 +42,25 @@ require_once 'includes/header.php';
 <!-- Search Bar -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-10">
-                <input type="text" class="form-control" name="search" placeholder="Search by subject name or code..." value="<?= htmlspecialchars($searchTerm) ?>">
+        <div class="row g-3">
+            <div class="col-md-12">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control border-start-0 ps-0" id="liveSearchInput" 
+                           placeholder="Start typing to search by subject name or code..." 
+                           value="<?= htmlspecialchars($searchTerm) ?>"
+                           autocomplete="off">
+                </div>
+                <small class="text-muted">Results update as you type</small>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn w-100" style="background-color: #2d5016; color: white;">
-                    <i class="bi bi-search"></i> Search
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <!-- Subjects Table -->
-<div class="card">
+<div class="card" id="resultsTable">
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -114,5 +118,64 @@ require_once 'includes/header.php';
     </div>
     <?php endif; ?>
 </div>
+
+<script src="assets/js/live-search.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canManage = <?= PermissionHelper::canManage('subjects') ? 'true' : 'false' ?>;
+    
+    new LiveSearch({
+        searchInput: '#liveSearchInput',
+        resultsContainer: '#resultsTable',
+        apiEndpoint: '/LilayiParkSchool/api/search_subjects.php',
+        emptyMessage: 'No subjects found',
+        debounceDelay: 300,
+        renderRow: function(subject) {
+            const teacherName = (subject.teacherFirstName && subject.teacherLastName) 
+                ? `${subject.teacherFirstName} ${subject.teacherLastName}`
+                : 'Not Assigned';
+            const credits = subject.credits || 1;
+            const subjectCode = subject.subjectCode || 'N/A';
+            
+            return `
+                <tr>
+                    <td>
+                        <span class="badge" style="background-color: #2d5016;">
+                            ${escapeHtml(subjectCode)}
+                        </span>
+                    </td>
+                    <td><strong>${escapeHtml(subject.subjectName)}</strong></td>
+                    <td>${escapeHtml(teacherName)}</td>
+                    <td>${credits}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="subjects_view.php?id=${subject.subjectID}" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                            ${canManage ? `
+                            <a href="subjects_form.php?id=${subject.subjectID}" class="btn btn-outline-warning btn-sm">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            <a href="delete.php?module=subjects&id=${subject.subjectID}" 
+                               class="btn btn-outline-danger btn-sm" 
+                               onclick="return confirm('Are you sure you want to delete this subject?');">
+                                <i class="bi bi-trash"></i> Delete
+                            </a>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

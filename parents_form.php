@@ -2,11 +2,10 @@
 require_once 'includes/bootstrap.php';
 require_once 'includes/Auth.php';
 
+// Require login
 Auth::requireLogin();
 
-$parentID = $_GET['id'] ?? null;
-$isEdit = !empty($parentID);
-
+// Check permission via RBAC
 require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'manage_parents')) {
@@ -15,14 +14,99 @@ if (!$rolesModel->userHasPermission(Auth::id(), 'manage_parents')) {
     exit;
 }
 
+$parentID = $_GET['id'] ?? null;
+$isEdit = !empty($parentID);
+
 require_once 'modules/parents/ParentModel.php';
+require_once 'modules/users/UsersModel.php';
+
 $parentModel = new ParentModel();
+$usersModel = new UsersModel();
+$rolesModel = new RolesModel();
+
+// Get all parents for dropdown
+$allParents = $parentModel->getAll();
+
+// Get all roles for multi-role assignment
+$allRoles = $rolesModel->getAllRoles();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token first
     if (!CSRF::requireToken()) {
         $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
+        // Check if using existing parent
+        $parentMode = $_POST['parent_mode'] ?? 'new';
+        $existingParentID = $_POST['existing_parent_id'] ?? null;
+        
+        // User account creation data
+        $createUserAccount = isset($_POST['create_user_account']);
+        $username = trim($_POST['username'] ?? '');
+        $password = trim($_POST['password'] ?? '');
+        $selectedRoles = $_POST['roles'] ?? []; // Multi-role support
+        
+        if ($parentMode === 'existing' && !$isEdit) {
+            // Mode: Create user account for existing parent
+            if (empty($existingParentID)) {
+                $error = 'Please select a parent';
+            } elseif (empty($username)) {
+                $error = 'Username is required';
+            } elseif (empty($password)) {
+                $error = 'Password is required';
+            } elseif (empty($selectedRoles)) {
+                $error = 'Please select at least one role';
+            } elseif ($usersModel->usernameExists($username)) {
+                $error = 'Username already exists. Please choose a different username.';
+            } else {
+                try {
+                    global $db;
+                    $db->beginTransaction();
+                    
+                    // Get parent data
+                    $parent = $parentModel->getById($existingParentID);
+                    if (!$parent) {
+                        throw new Exception('Parent not found');
+                    }
+                    
+                    // Check if parent already has a user account
+                    if (!empty($parent['userID'])) {
+                        throw new Exception('This parent already has a user account');
+                    }
+                    
+                    // Create user account
+                    $userData = [
+                        'username' => $username,
+                        'email' => $parent['email1'],
+                        'password' => $password,
+                        'isActive' => 'Y'
+                    ];
+                    
+                    $userID = $usersModel->createWithRoles($userData, $selectedRoles);
+                    
+                    if (!$userID) {
+                        throw new Exception('Failed to create user account');
+                    }
+                    
+                    // Link user to parent
+                    $usersModel->linkToParent($userID, $existingParentID);
+                    
+                    $db->commit();
+                    Session::setFlash('success', 'User account created for ' . $parent['fName'] . ' ' . $parent['lName'] . ' with ' . count($selectedRoles) . ' role(s)');
+                    
+                    // Regenerate CSRF token
+                    CSRF::regenerateToken();
+                    
+                    header('Location: parents_list.php');
+                    exit;
+                } catch (Exception $e) {
+                    if (isset($db) && $db->inTransaction()) {
+                        $db->rollBack();
+                    }
+                    $error = $e->getMessage();
+                }
+            }
+        } else {
+            // Mode: Create new parent (with optional user account) OR Edit existing parent
         $data = [
             'fName' => trim($_POST['fName'] ?? ''),
             'lName' => trim($_POST['lName'] ?? ''),
@@ -83,41 +167,147 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (!isset($error)) {
             try {
+                global $db;
+                $db->beginTransaction();
+                
+                $success = false;
+                $message = '';
+                $finalParentID = $parentID;
+                
                 if ($isEdit) {
-                    $parentModel->update($parentID, $data);
-                    Session::setFlash('success', 'Parent updated successfully');
+                    // Update existing parent
+                    $success = $parentModel->update($parentID, $data);
+                    $message = 'Parent updated successfully';
+                    
+                    // Handle role updates for existing user
+                    $parent = $parentModel->getById($parentID);
+                    if (!empty($parent['userID']) && !empty($selectedRoles)) {
+                        // Remove existing roles
+                        $existingRoles = $rolesModel->getUserRoles($parent['userID']);
+                        foreach ($existingRoles as $role) {
+                            $rolesModel->removeRole($parent['userID'], $role['roleID']);
+                        }
+                        // Add selected roles
+                        foreach ($selectedRoles as $roleID) {
+                            $rolesModel->assignRole($parent['userID'], $roleID, Auth::id());
+                        }
+                        $message .= ' and roles updated';
+                    }
                 } else {
-                    $parentModel->create($data);
-                    Session::setFlash('success', 'Parent added successfully');
+                    // Create new parent
+                    $finalParentID = $parentModel->create($data);
+                    $success = $finalParentID !== false;
+                    $message = 'Parent created successfully';
                 }
                 
+                if (!$success) {
+                    throw new Exception('Failed to save parent data');
+                }
+                
+                // Create user account if requested
+                if ($createUserAccount && !$isEdit) {
+                    // Additional validation for user account
+                    if (empty($username)) {
+                        throw new Exception('Username is required when creating a user account');
+                    }
+                    if (empty($password)) {
+                        throw new Exception('Password is required when creating a user account');
+                    }
+                    if ($usersModel->usernameExists($username)) {
+                        throw new Exception('Username already exists. Please choose a different username.');
+                    }
+                    
+                    // Validate at least one role is selected
+                    if (empty($selectedRoles)) {
+                        throw new Exception('Please select at least one role for the user account');
+                    }
+                    
+                    // Create user account
+                    $userData = [
+                        'username' => $username,
+                        'email' => $data['email1'],
+                        'password' => $password,
+                        'isActive' => 'Y'
+                    ];
+                    
+                    $userID = $usersModel->createWithRoles($userData, $selectedRoles);
+                    
+                    if (!$userID) {
+                        throw new Exception('Failed to create user account');
+                    }
+                    
+                    // Link user to parent
+                    $usersModel->linkToParent($userID, $finalParentID);
+                    
+                    $message .= ' and user account created with ' . count($selectedRoles) . ' role(s)';
+                }
+                
+                $db->commit();
+                Session::setFlash('success', $message);
+                
+                // Regenerate CSRF token after successful submission
                 CSRF::regenerateToken();
+                
                 header('Location: parents_list.php');
                 exit;
+            } catch (PDOException $e) {
+                if (isset($db) && $db->inTransaction()) {
+                    $db->rollBack();
+                }
+                $error = 'Database error: ' . $e->getMessage();
             } catch (Exception $e) {
+                if (isset($db) && $db->inTransaction()) {
+                    $db->rollBack();
+                }
                 $error = $e->getMessage();
             }
         }
+        } // End of new parent mode
     }
 }
 
 $parent = $isEdit ? $parentModel->getById($parentID) : null;
+
+// Get existing user account and roles if editing
+$existingUser = null;
+$existingUserRoles = [];
+if ($isEdit && $parent && !empty($parent['userID'])) {
+    $existingUser = $usersModel->getById($parent['userID']);
+    $existingUserRoles = $rolesModel->getUserRoles($parent['userID']);
+}
+$existingRoleIDs = array_column($existingUserRoles, 'roleID');
 
 $pageTitle = $isEdit ? 'Edit Parent' : 'Add New Parent';
 $currentPage = 'parents';
 require_once 'includes/header.php';
 ?>
 
-<div class="mb-4">
-    <a href="parents_list.php" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Back to Parents
-    </a>
+<!-- Page Header -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="index.php" class="text-decoration-none">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="parents_list.php" class="text-decoration-none">Parents</a></li>
+                <li class="breadcrumb-item active" aria-current="page"><?= $isEdit ? 'Edit' : 'Add New' ?></li>
+            </ol>
+        </nav>
+        <h2 class="mb-0">
+            <i class="bi bi-people me-2" style="color: #2d5016;"></i>
+            <span style="color: #2d5016; font-weight: 600;"><?= $pageTitle ?></span>
+        </h2>
+    </div>
+    <div class="col-md-4 text-end align-self-end">
+        <a href="parents_list.php" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Parents
+        </a>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom">
         <h5 class="mb-0">
-            <i class="bi bi-person-hearts"></i> <?= $pageTitle ?>
+            <i class="bi bi-people-fill me-2" style="color: #2d5016;"></i><?= $pageTitle ?>
         </h5>
     </div>
     <div class="card-body">
@@ -130,6 +320,84 @@ require_once 'includes/header.php';
         
         <form method="POST" action="">
             <?= CSRF::field() ?>
+            
+            <?php if (!$isEdit): ?>
+            <!-- Parent Mode Selection - Always Visible -->
+            <div class="card mb-4 border-primary" style="border-width: 2px;">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-person-plus-fill me-2"></i>Choose an Option
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check p-3 border rounded" style="cursor: pointer;" onclick="document.getElementById('mode_new').click();">
+                                <input class="form-check-input" type="radio" name="parent_mode" id="mode_new" 
+                                       value="new" checked onchange="toggleParentMode()">
+                                <label class="form-check-label w-100" for="mode_new" style="cursor: pointer;">
+                                    <div class="d-flex align-items-start">
+                                        <i class="bi bi-person-plus-fill text-success me-2" style="font-size: 1.5rem;"></i>
+                                        <div>
+                                            <strong class="d-block">Create a New Parent</strong>
+                                            <small class="text-muted">Add a brand new parent record to the system</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check p-3 border rounded" style="cursor: pointer;" onclick="document.getElementById('mode_existing').click();">
+                                <input class="form-check-input" type="radio" name="parent_mode" id="mode_existing" 
+                                       value="existing" onchange="toggleParentMode()">
+                                <label class="form-check-label w-100" for="mode_existing" style="cursor: pointer;">
+                                    <div class="d-flex align-items-start">
+                                        <i class="bi bi-person-check-fill text-info me-2" style="font-size: 1.5rem;"></i>
+                                        <div>
+                                            <strong class="d-block">Select Existing Parent</strong>
+                                            <small class="text-muted">Create a user account for an existing parent</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="existing_parent_section" style="display: none;" class="mb-4">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-person-lines-fill me-2"></i>Select Parent
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label fw-semibold">Choose Parent <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-lg" name="existing_parent_id" id="existing_parent_select">
+                            <option value="">-- Select a Parent --</option>
+                            <?php foreach ($allParents as $p): ?>
+                            <option value="<?= $p['parentID'] ?>" 
+                                    data-fname="<?= htmlspecialchars($p['fName']) ?>"
+                                    data-lname="<?= htmlspecialchars($p['lName']) ?>"
+                                    data-email="<?= htmlspecialchars($p['email1']) ?>"
+                                    <?= !empty($p['userID']) ? 'disabled' : '' ?>>
+                                <?= htmlspecialchars($p['fName'] . ' ' . $p['lName']) ?> 
+                                - <?= htmlspecialchars($p['email1']) ?>
+                                <?= !empty($p['userID']) ? ' ✓ (Already has account)' : '' ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Note:</strong> Parents who already have user accounts are disabled in the list.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <div id="parent_info_section">
             <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Forename <span class="text-danger">*</span></label>
@@ -221,6 +489,119 @@ require_once 'includes/header.php';
                            placeholder="Employer/Company name">
                 </div>
             </div>
+            </div>
+            
+            <?php if (!$isEdit): ?>
+            <!-- User Account Creation Section -->
+            <div id="user_account_section">
+                <hr class="my-4">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input bg-white border-2" type="checkbox" 
+                                   name="create_user_account" id="create_user_account" 
+                                   onchange="toggleUserAccountFields()">
+                            <label class="form-check-label fw-semibold" for="create_user_account">
+                                <i class="bi bi-person-plus-fill me-2"></i>Create User Account for Portal Access
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-body" id="user_account_fields" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Note:</strong> Creating a user account will allow this parent to log in to the system.
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Username <span class="text-danger user-required">*</span></label>
+                                <input type="text" class="form-control" name="username" id="username" 
+                                       placeholder="Enter username">
+                                <small class="text-muted">Used for logging in</small>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Password <span class="text-danger user-required">*</span></label>
+                                <input type="password" class="form-control" name="password" id="password" 
+                                       placeholder="Enter password">
+                                <small class="text-muted">Minimum 8 characters</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label d-block">Assign Roles <span class="text-danger user-required">*</span></label>
+                            <div class="alert alert-warning mb-2">
+                                <i class="bi bi-shield-lock-fill"></i> <strong>Role Assignment</strong>
+                                <p class="mb-0 small">Select one or more roles for this parent. Typically, parents are assigned the "parent" role.</p>
+                            </div>
+                            <div class="row">
+                                <?php foreach ($allRoles as $role): ?>
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="roles[]" 
+                                               value="<?= $role['roleID'] ?>" id="role_<?= $role['roleID'] ?>"
+                                               <?= $role['roleName'] === 'parent' ? 'checked' : '' ?>>
+                                        <label class="form-check-label" for="role_<?= $role['roleID'] ?>">
+                                            <strong><?= htmlspecialchars($role['roleName']) ?></strong>
+                                            <?php if (!empty($role['description'])): ?>
+                                            <br><small class="text-muted"><?= htmlspecialchars($role['description']) ?></small>
+                                            <?php endif; ?>
+                                        </label>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php else: ?>
+            <!-- Edit Mode: Role Management for Existing User -->
+            <?php if (!empty($existingUser)): ?>
+            <hr class="my-4">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-person-badge-fill me-2"></i>User Account Management
+                    </h6>
+                </div>
+                <div class="card-body">
+                
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i> This parent has a user account: <strong><?= htmlspecialchars($existingUser['username']) ?></strong>
+                    <br><small>User Status: <?= $existingUser['isActive'] === 'Y' ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>' ?></small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label d-block">Assigned Roles <span class="text-danger">*</span></label>
+                    <div class="alert alert-warning mb-2">
+                        <i class="bi bi-shield-lock-fill"></i> <strong>Update Role Assignment</strong>
+                        <p class="mb-0 small">Select one or more roles for this parent.</p>
+                    </div>
+                    <div class="row">
+                        <?php foreach ($allRoles as $role): ?>
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="roles[]" 
+                                       value="<?= $role['roleID'] ?>" id="edit_role_<?= $role['roleID'] ?>"
+                                       <?= in_array($role['roleID'], $existingRoleIDs) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="edit_role_<?= $role['roleID'] ?>">
+                                    <strong><?= htmlspecialchars($role['roleName']) ?></strong>
+                                    <?php if (!empty($role['description'])): ?>
+                                    <br><small class="text-muted"><?= htmlspecialchars($role['description']) ?></small>
+                                    <?php endif; ?>
+                                </label>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            </div>
+            <?php endif; ?>
+            <?php endif; ?>
+            
+            <hr class="my-4">
             
             <div class="d-flex gap-2">
                 <button type="submit" class="btn" style="background-color: #2d5016; color: white;">
@@ -233,5 +614,117 @@ require_once 'includes/header.php';
         </form>
     </div>
 </div>
+
+<style>
+.form-check.p-3.border {
+    transition: all 0.3s ease;
+}
+.form-check.p-3.border:hover {
+    background-color: #f8f9fa;
+    border-color: #2d5016 !important;
+    box-shadow: 0 0 10px rgba(45, 80, 22, 0.1);
+}
+.form-check-input:checked + .form-check-label {
+    color: #2d5016;
+}
+.card {
+    transition: all 0.3s ease;
+}
+</style>
+
+<script>
+function toggleParentMode() {
+    const modeNew = document.getElementById('mode_new');
+    const modeExisting = document.getElementById('mode_existing');
+    const existingSection = document.getElementById('existing_parent_section');
+    const parentInfoSection = document.getElementById('parent_info_section');
+    const userAccountSection = document.getElementById('user_account_section');
+    
+    // Update visual selection
+    const allCards = document.querySelectorAll('.form-check.p-3.border');
+    allCards.forEach(card => {
+        card.style.borderColor = '#dee2e6';
+        card.style.backgroundColor = 'white';
+    });
+    
+    if (modeNew.checked) {
+        // Highlight selected card
+        modeNew.closest('.form-check.p-3.border').style.borderColor = '#198754';
+        modeNew.closest('.form-check.p-3.border').style.backgroundColor = '#f0f9f4';
+        
+        // New parent mode
+        existingSection.style.display = 'none';
+        parentInfoSection.style.display = 'block';
+        userAccountSection.style.display = 'block';
+        
+        // Make parent info fields required
+        document.querySelectorAll('#parent_info_section input[required], #parent_info_section select[required]').forEach(input => {
+            input.disabled = false;
+        });
+        
+        // Make existing parent select not required
+        const existingSelect = document.getElementById('existing_parent_select');
+        if (existingSelect) {
+            existingSelect.required = false;
+        }
+    } else {
+        // Highlight selected card
+        modeExisting.closest('.form-check.p-3.border').style.borderColor = '#0dcaf0';
+        modeExisting.closest('.form-check.p-3.border').style.backgroundColor = '#eff8fb';
+        
+        // Existing parent mode
+        existingSection.style.display = 'block';
+        parentInfoSection.style.display = 'none';
+        userAccountSection.style.display = 'block';
+        
+        // Disable and clear parent info fields
+        document.querySelectorAll('#parent_info_section input, #parent_info_section select').forEach(input => {
+            input.disabled = true;
+        });
+        
+        // Make existing parent select required
+        const existingSelect = document.getElementById('existing_parent_select');
+        if (existingSelect) {
+            existingSelect.required = true;
+        }
+        
+        // Force show user account section and check the checkbox
+        const userAccountCheckbox = document.getElementById('create_user_account');
+        if (userAccountCheckbox) {
+            userAccountCheckbox.checked = true;
+            userAccountCheckbox.disabled = true;
+            toggleUserAccountFields();
+        }
+    }
+}
+
+function toggleUserAccountFields() {
+    const checkbox = document.getElementById('create_user_account');
+    const fields = document.getElementById('user_account_fields');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    
+    if (checkbox && checkbox.checked) {
+        fields.style.display = 'block';
+        if (usernameInput) usernameInput.required = true;
+        if (passwordInput) passwordInput.required = true;
+    } else {
+        fields.style.display = 'none';
+        if (usernameInput) {
+            usernameInput.required = false;
+            usernameInput.value = '';
+        }
+        if (passwordInput) {
+            passwordInput.required = false;
+            passwordInput.value = '';
+        }
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleParentMode();
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

@@ -50,6 +50,17 @@
     height: 3rem;
 }
 
+/* Hover effects for quick links */
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+
+.hover-shadow:hover {
+    box-shadow: 0 4px 12px rgba(45, 80, 22, 0.2);
+    transform: translateY(-2px);
+    background-color: #f8f9fa;
+}
+
 /* Form Validation Styles */
 .is-invalid {
     border-color: #dc3545 !important;

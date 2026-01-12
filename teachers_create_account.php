@@ -8,10 +8,12 @@ Auth::requireAnyRole(['admin']);
 require_once 'modules/teachers/TeacherModel.php';
 require_once 'modules/users/UsersModel.php';
 require_once 'modules/roles/RolesModel.php';
+require_once 'includes/EmailService.php';
 
 $teacherModel = new TeacherModel();
 $usersModel = new UsersModel();
 $rolesModel = new RolesModel();
+$emailService = new EmailService();
 
 // Get teacher ID
 $teacherID = $_GET['id'] ?? null;
@@ -83,12 +85,24 @@ try {
         // Link user to teacher
         $teacherModel->update($teacherID, ['userID' => $newUserID]);
         
+        // Send email with credentials if enabled
+        $emailSent = false;
+        $emailMessage = '';
+        if ($emailService->isAccountEmailsEnabled() && !empty($email)) {
+            $emailResult = $emailService->sendAccountCredentials($email, $username, $generatedPassword, 'Teacher');
+            $emailSent = $emailResult['success'];
+            $emailMessage = $emailResult['message'];
+        }
+        
         // Store credentials for modal display
         echo json_encode([
             'success' => true,
             'name' => $teacher['fName'] . ' ' . $teacher['lName'],
             'username' => $username,
-            'password' => $generatedPassword
+            'password' => $generatedPassword,
+            'email' => $email,
+            'emailSent' => $emailSent,
+            'emailMessage' => $emailMessage
         ]);
     } else {
         echo json_encode(['success' => false, 'error' => 'Failed to create user account']);

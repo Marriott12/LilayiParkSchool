@@ -124,6 +124,12 @@ require_once 'includes/header.php';
             </p>
         </div>
         <div class="col-md-4 text-end">
+            <?php if (Auth::hasRole('admin')): ?>
+            <a href="examinations_schedule_form.php?examID=<?= $examID ?>" class="btn shadow-sm" 
+               style="background-color: #2d5016; color: white;">
+                <i class="bi bi-plus-circle me-1"></i> Add Schedule
+            </a>
+            <?php endif; ?>
             <a href="examinations_list.php" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i> Back to List
             </a>

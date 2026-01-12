@@ -5,7 +5,7 @@
  */
 
 class SettingsModel extends BaseModel {
-    protected $table = 'Settings';
+    protected $table = 'settings';
     protected $primaryKey = 'settingID';
     
     /**

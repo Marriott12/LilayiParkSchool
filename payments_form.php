@@ -4,10 +4,9 @@ require_once 'includes/Auth.php';
 
 Auth::requireLogin();
 
-require_once 'modules/roles/RolesModel.php';
-$rolesModel = new RolesModel();
-if (!$rolesModel->userHasPermission(Auth::id(), 'manage_payments')) {
-    Session::setFlash('error', 'You do not have permission to manage payments.');
+// Only admin can manage payments
+if (!Auth::hasRole('admin')) {
+    Session::setFlash('error', 'Only administrators can manage payments.');
     header('Location: /LilayiParkSchool/403.php');
     exit;
 }
@@ -78,7 +77,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'getPupilDetails' && isset($_G
         
         // Get previous payments
         $stmt = $db->prepare("
-            SELECT payID, pmtAmt, balance, paymentDate, remark
+            SELECT payID, pmtAmt, balance, paymentDate, paymentMode, remark
             FROM Payment
             WHERE pupilID = ? AND classID = ?
             ORDER BY paymentDate DESC
@@ -109,26 +108,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!CSRF::requireToken()) {
         $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
-        $data = [
-            'pupilID' => trim($_POST['pupilID'] ?? ''),
-            'classID' => trim($_POST['classID'] ?? ''),
-            'pmtAmt' => floatval($_POST['pmtAmt'] ?? 0),
-            'balance' => floatval($_POST['balance'] ?? 0),
-            'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
-            'remark' => trim($_POST['remark'] ?? '')
-        ];
+        $pupilID = trim($_POST['pupilID'] ?? '');
+        $classID = trim($_POST['classID'] ?? '');
+        $pmtAmt = floatval($_POST['pmtAmt'] ?? 0);
         
         // Validation
-        if (empty($data['pupilID'])) {
+        if (empty($pupilID)) {
             $error = 'Please select a pupil';
-        } elseif (empty($data['classID'])) {
+        } elseif (empty($classID)) {
             $error = 'Class information is required';
-        } elseif ($data['pmtAmt'] <= 0) {
+        } elseif ($pmtAmt <= 0) {
             $error = 'Amount paid must be greater than zero';
         }
         
         if (!isset($error)) {
             try {
+                // Calculate the balance automatically
+                // Get current term fee for this class
+                $stmt = $db->prepare("
+                    SELECT feeAmt
+                    FROM Fees
+                    WHERE classID = ? AND year = ?
+                    ORDER BY term DESC
+                    LIMIT 1
+                ");
+                $currentYear = date('Y');
+                $stmt->execute([$classID, $currentYear]);
+                $currentFee = $stmt->fetch();
+                $totalFee = $currentFee['feeAmt'] ?? 0;
+                
+                // Get all payments made by this pupil for this class
+                $stmt = $db->prepare("
+                    SELECT SUM(pmtAmt) as totalPaid
+                    FROM Payment
+                    WHERE pupilID = ? AND classID = ?
+                ");
+                $stmt->execute([$pupilID, $classID]);
+                $paymentsData = $stmt->fetch();
+                $totalPaid = $paymentsData['totalPaid'] ?? 0;
+                
+                // Calculate current balance before this payment
+                $currentBalance = $totalFee - $totalPaid;
+                
+                // Calculate new balance after this payment
+                $newBalance = $currentBalance - $pmtAmt;
+                
+                $data = [
+                    'pupilID' => $pupilID,
+                    'classID' => $classID,
+                    'pmtAmt' => $pmtAmt,
+                    'balance' => $newBalance,
+                    'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
+                    'paymentMode' => trim($_POST['paymentMode'] ?? 'Cash'),
+                    'remark' => trim($_POST['remark'] ?? '')
+                ];
+                
                 $paymentModel->create($data);
                 Session::setFlash('success', 'Payment recorded successfully');
                 
@@ -265,6 +299,17 @@ require_once 'includes/header.php';
                         </div>
                     </div>
                     
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Mode of Payment <span class="text-danger">*</span></label>
+                            <select class="form-select" name="paymentMode" required>
+                                <option value="Cash" selected>Cash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Mobile Money">Mobile Money</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Receipt/Reference Number</label>
                         <input type="text" class="form-control" name="remark" 
@@ -286,13 +331,14 @@ require_once 'includes/header.php';
                                     <th>Receipt No.</th>
                                     <th>Date</th>
                                     <th>Amount Paid</th>
+                                    <th>Payment Mode</th>
                                     <th>Balance After</th>
                                     <th>Remark</th>
                                 </tr>
                             </thead>
                             <tbody id="previousPaymentsBody">
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted">Select a pupil to view payment history</td>
+                                    <td colspan="6" class="text-center text-muted">Select a pupil to view payment history</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -322,6 +368,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const balanceInput = document.getElementById('balanceInput');
     
     let currentData = null;
+    
+    // Check if pupil is pre-selected from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const preSelectedPupil = urlParams.get('pupil');
+    if (preSelectedPupil) {
+        pupilSelect.value = preSelectedPupil;
+        pupilSelect.dispatchEvent(new Event('change'));
+    }
     
     pupilSelect.addEventListener('change', function() {
         const pupilID = this.value;
@@ -367,6 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <td>${payment.payID}</td>
                                     <td>${payment.paymentDate}</td>
                                     <td>K ${parseFloat(payment.pmtAmt).toFixed(2)}</td>
+                                    <td>${payment.paymentMode || 'Cash'}</td>
                                     <td>K ${parseFloat(payment.balance).toFixed(2)}</td>
                                     <td>${payment.remark || '-'}</td>
                                 </tr>
@@ -375,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         previousPaymentsCard.style.display = 'block';
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No previous payments</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No previous payments</td></tr>';
                         previousPaymentsCard.style.display = 'block';
                     }
                 } else {

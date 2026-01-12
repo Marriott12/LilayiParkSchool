@@ -31,17 +31,19 @@ class ReportsModel extends BaseModel {
         $stmt = $this->db->query($sql);
         $stats['recentEnrollments'] = $stmt->fetch()['total'] ?? 0;
         
-        // Total Fees
-        $sql = "SELECT COALESCE(SUM(feeAmt), 0) as total FROM Fees";
+        // Total Fees (based on enrolled pupils)
+        $sql = "SELECT COALESCE(SUM(f.feeAmt), 0) as total 
+                FROM fees f
+                 INNER JOIN pupil_class pc ON f.classID = pc.classID";
         $stmt = $this->db->query($sql);
         $stats['totalFees'] = $stmt->fetch()['total'] ?? 0;
         
         // Total Payments
-        $sql = "SELECT COALESCE(SUM(pmtAmt), 0) as total FROM Payment";
+        $sql = "SELECT COALESCE(SUM(pmtAmt), 0) as total FROM payment";
         $stmt = $this->db->query($sql);
         $stats['totalPayments'] = $stmt->fetch()['total'] ?? 0;
         
-        // Outstanding Balance
+        // Outstanding Balance (Total expected from enrolled pupils - Total payments)
         $stats['outstandingBalance'] = $stats['totalFees'] - $stats['totalPayments'];
         
         // Recent Pupils
@@ -60,12 +62,15 @@ class ReportsModel extends BaseModel {
                     c.className,
                     f.term,
                     f.year,
-                    f.feeAmt,
+                    f.feeAmt as classFee,
+                    COUNT(DISTINCT pc.pupilID) as enrolledPupils,
+                    (f.feeAmt * COUNT(DISTINCT pc.pupilID)) as totalExpected,
                     COALESCE(SUM(p.pmtAmt), 0) as totalCollected,
-                    (f.feeAmt - COALESCE(SUM(p.pmtAmt), 0)) as outstanding
-                FROM Fees f
-                JOIN Class c ON f.classID = c.classID
-                LEFT JOIN Payment p ON f.classID = p.classID
+                    ((f.feeAmt * COUNT(DISTINCT pc.pupilID)) - COALESCE(SUM(p.pmtAmt), 0)) as outstanding
+                FROM fees f
+                JOIN class c ON f.classID = c.classID
+                LEFT JOIN pupil_class pc ON f.classID = pc.classID
+                LEFT JOIN payment p ON f.classID = p.classID AND f.term = p.term AND f.year = p.academicYear
                 WHERE 1=1";
         
         $params = [];

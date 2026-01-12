@@ -105,7 +105,7 @@ require_once 'includes/header.php';
                     <?php else: ?>
                     <?php foreach ($attendanceRecords as $record): ?>
                     <tr>
-                        <td><?= htmlspecialchars($record['studentNumber']) ?></td>
+                        <td><?= htmlspecialchars($record['pupilID']) ?></td>
                         <td>
                             <strong><?= htmlspecialchars($record['firstName'] . ' ' . $record['lastName']) ?></strong>
                         </td>

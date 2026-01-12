@@ -63,15 +63,56 @@ class PupilModel extends BaseModel {
     }
     
     /**
-     * Search pupils
+     * Search pupils with optional filters
+     * @param string $term Search term
+     * @param array $filters Optional filters (classID, gender, hasParent)
      */
-    public function search($term) {
-        $sql = "SELECT * FROM {$this->table} 
-                WHERE fName LIKE ? OR lName LIKE ? OR studentNumber LIKE ?
-                ORDER BY fName, lName";
-        $searchTerm = "%{$term}%";
+    public function search($term, $filters = []) {
+        $where = [];
+        $params = [];
+        $joins = "";
+        
+        // Search term conditions
+        if (!empty($term)) {
+            $where[] = "(p.fName LIKE ? OR p.lName LIKE ? OR p.pupilID LIKE ? OR p.admNo LIKE ?)";
+            $searchTerm = "%{$term}%";
+            for ($i = 0; $i < 4; $i++) {
+                $params[] = $searchTerm;
+            }
+        }
+        
+        // Filter by class
+        if (!empty($filters['classID'])) {
+            $joins = " INNER JOIN PupilClass pc ON p.pupilID = pc.pupilID";
+            $where[] = "pc.classID = ?";
+            $params[] = $filters['classID'];
+        }
+        
+        // Filter by gender
+        if (!empty($filters['gender'])) {
+            $where[] = "p.gender = ?";
+            $params[] = $filters['gender'];
+        }
+        
+        // Filter by parent status
+        if (isset($filters['hasParent'])) {
+            if ($filters['hasParent']) {
+                $where[] = "p.parentID IS NOT NULL";
+            } else {
+                $where[] = "p.parentID IS NULL";
+            }
+        }
+        
+        $sql = "SELECT DISTINCT p.* FROM {$this->table} p" . $joins;
+        
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+        
+        $sql .= " ORDER BY p.fName, p.lName";
+        
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
     

@@ -214,7 +214,7 @@ require_once 'includes/PermissionHelper.php';
                                     <?= htmlspecialchars(($child['fName'] ?? $child['firstName'] ?? '') . ' ' . ($child['lName'] ?? $child['lastName'] ?? '')) ?>
                                 </h6>
                                 <small class="text-muted">
-                                    <i class="bi bi-hash"></i><?= htmlspecialchars($child['studentNumber'] ?? $child['pupilID'] ?? '') ?>
+                                    <i class="bi bi-hash"></i><?= htmlspecialchars($child['pupilID'] ?? '') ?>
                                 </small>
                             </div>
                         </div>

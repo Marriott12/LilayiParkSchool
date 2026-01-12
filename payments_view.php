@@ -6,7 +6,7 @@ Auth::requireLogin();
 
 require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
-if (!$rolesModel->userHasPermission(Auth::id(), 'view_payments')) {
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_fees')) {
     Session::setFlash('error', 'You do not have permission to view payments.');
     header('Location: /LilayiParkSchool/403.php');
     exit;
@@ -126,6 +126,14 @@ require_once 'includes/PermissionHelper.php';
                         <label class="text-muted small mb-1">Payment Date</label>
                         <p class="mb-0 fw-semibold">
                             <?= $payment['paymentDate'] ? date('M d, Y', strtotime($payment['paymentDate'])) : 'N/A' ?>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small mb-1">Payment Mode</label>
+                        <p class="mb-0">
+                            <span class="badge bg-info px-3 py-2">
+                                <i class="bi bi-credit-card me-1"></i><?= htmlspecialchars($payment['paymentMode'] ?? 'Cash') ?>
+                            </span>
                         </p>
                     </div>
                     <div class="col-md-6">

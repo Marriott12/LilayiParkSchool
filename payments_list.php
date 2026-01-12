@@ -49,7 +49,7 @@ require_once 'includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-credit-card"></i> Payments <?php if (Auth::isParent()): ?><small class="text-muted">(My Children)</small><?php endif; ?></h2>
-    <?php if (PermissionHelper::canManage('fees')): ?>
+    <?php if (Auth::hasRole('admin')): ?>
     <a href="payments_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> Record Payment
     </a>
@@ -99,7 +99,7 @@ require_once 'includes/header.php';
                                 K <?= number_format($payment['amount'], 2) ?>
                             </strong>
                         </td>
-                        <td><?= htmlspecialchars($payment['paymentMethod'] ?? 'Cash') ?></td>
+                        <td><?= htmlspecialchars($payment['paymentMode'] ?? 'Cash') ?></td>
                         <td>
                             <span class="badge bg-success">Paid</span>
                         </td>

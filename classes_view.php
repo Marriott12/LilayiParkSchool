@@ -177,7 +177,7 @@ require_once 'includes/PermissionHelper.php';
                                                 </a>
                                             </h6>
                                             <small class="text-muted">
-                                                <i class="bi bi-hash"></i><?= htmlspecialchars($p['studentNumber'] ?? $p['pupilID'] ?? '') ?>
+                                                <i class="bi bi-hash"></i><?= htmlspecialchars($p['pupilID'] ?? '') ?>
                                             </small>
                                         </div>
                                     </div>
@@ -271,7 +271,7 @@ document.getElementById('pupilSearchInput').addEventListener('input', function()
     const searchTerm = this.value.toLowerCase();
     const filtered = availablePupils.filter(p => 
         (p.fName + ' ' + p.lName).toLowerCase().includes(searchTerm) ||
-        p.studentNumber.toLowerCase().includes(searchTerm)
+        p.pupilID.toLowerCase().includes(searchTerm)
     );
     displayAvailablePupils(filtered);
 });
@@ -317,7 +317,7 @@ function displayAvailablePupils(pupils) {
                        onchange="updateSelection()">
                 <div class="flex-grow-1">
                     <h6 class="mb-0">${escapeHtml(p.fName + ' ' + p.lName)}</h6>
-                    <small class="text-muted"><i class="bi bi-hash"></i>${escapeHtml(p.studentNumber)}</small>
+                    <small class="text-muted"><i class="bi bi-hash"></i>${escapeHtml(p.pupilID)}</small>
                 </div>
             </label>
         `).join('') + 

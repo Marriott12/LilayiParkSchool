@@ -62,6 +62,11 @@ if (!isset($rolesModel)) {
                 <a href="<?php echo BASE_URL; ?>/parents_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'parents' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-people me-2"></i> Parents
                 </a>
+                <?php if (Auth::hasRole('admin')): ?>
+                <a href="<?php echo BASE_URL; ?>/parents_bulk_accounts.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'parents_bulk' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-person-plus me-2"></i> Bulk Accounts
+                </a>
+                <?php endif; ?>
                 <?php endif; ?>
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_classes')): ?>
@@ -76,7 +81,7 @@ if (!isset($rolesModel)) {
                 </a>
                 <?php endif; ?>
                 
-                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_payments')): ?>
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_fees')): ?>
                 <a href="<?php echo BASE_URL; ?>/payments_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'payments' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-credit-card me-2"></i> Payments
                 </a>
@@ -106,6 +111,18 @@ if (!isset($rolesModel)) {
                     <i class="bi bi-book me-2"></i> Subjects
                 </a>
                 
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_classes')): ?>
+                <a href="<?php echo BASE_URL; ?>/timetable_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'timetable' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-calendar3 me-2"></i> Timetable
+                </a>
+                <?php endif; ?>
+                
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_library')): ?>
+                <a href="<?php echo BASE_URL; ?>/library_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'library' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-book-half me-2"></i> Library
+                </a>
+                <?php endif; ?>
+                
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_reports')): ?>
                 <a href="<?php echo BASE_URL; ?>/reports.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'reports' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-bar-chart me-2"></i> Reports
@@ -130,6 +147,10 @@ if (!isset($rolesModel)) {
                 <a href="<?php echo BASE_URL; ?>/settings.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'settings' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-gear me-2"></i> Settings
                 </a>
+                
+                <a href="<?php echo BASE_URL; ?>/holidays_list.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'holidays' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-calendar-event me-2"></i> Holidays
+                </a>
                 <?php endif; ?>
             </div>
         </div>
@@ -146,14 +167,38 @@ if (!isset($rolesModel)) {
                     <h4 class="mb-0 ms-3" style="color: #2d5016; font-weight: 600;">School Management Portal</h4>
                     
                     <div class="ms-auto d-flex align-items-center">
-                        <span class="me-3" style="color: #2d5016;">
-                            <i class="bi bi-person-circle me-1"></i>
-                            <?php echo $_SESSION['user_name'] ?? Session::get('user_name', Auth::username()); ?>
-                        </span>
-                        <span class="badge me-3" style="background-color: #f0ad4e; color: #fff;"><?php echo ucfirst($_SESSION['user_role'] ?? 'user'); ?></span>
-                        <a href="<?php echo BASE_URL; ?>/logout.php" class="btn btn-sm" style="background-color: #dc3545; color: white;">
-                            <i class="bi bi-box-arrow-right me-1"></i> Logout
-                        </a>
+                        <!-- User Profile Dropdown -->
+                        <div class="dropdown me-2">
+                            <button class="btn btn-sm dropdown-toggle d-flex align-items-center" type="button" 
+                                    id="userProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                                    style="background-color: #2d5016; color: white; border: none;">
+                                <i class="bi bi-person-circle me-2"></i>
+                                <span><?php echo $_SESSION['user_name'] ?? Session::get('user_name', Auth::username()); ?></span>
+                                <span class="badge ms-2" style="background-color: #f0ad4e; color: #fff;">
+                                    <?php echo ucfirst($_SESSION['user_role'] ?? 'user'); ?>
+                                </span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userProfileDropdown">
+                                <li>
+                                    <h6 class="dropdown-header">
+                                        <i class="bi bi-person-circle me-1"></i>
+                                        <?php echo $_SESSION['user_name'] ?? Session::get('user_name', Auth::username()); ?>
+                                    </h6>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="<?php echo BASE_URL; ?>/change_password.php">
+                                        <i class="bi bi-key me-2"></i>Change Password
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="<?php echo BASE_URL; ?>/logout.php">
+                                        <i class="bi bi-box-arrow-right me-2"></i>Logout
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </nav>

@@ -43,21 +43,25 @@ require_once 'includes/header.php';
 <!-- Search Bar -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-10">
-                <input type="text" class="form-control" name="search" placeholder="Search by username or email..." value="<?= htmlspecialchars($searchTerm) ?>">
+        <div class="row g-3">
+            <div class="col-md-12">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control border-start-0 ps-0" id="liveSearchInput" 
+                           placeholder="Start typing to search by username, email, or user ID..." 
+                           value="<?= htmlspecialchars($searchTerm) ?>"
+                           autocomplete="off">
+                </div>
+                <small class="text-muted">Results update as you type</small>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn w-100" style="background-color: #2d5016; color: white;">
-                    <i class="bi bi-search"></i> Search
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <!-- Users Table -->
-<div class="card">
+<div class="card" id="resultsTable">
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -138,5 +142,69 @@ require_once 'includes/header.php';
     </div>
     <?php endif; ?>
 </div>
+
+<script src="assets/js/live-search.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    new LiveSearch({
+        searchInput: '#liveSearchInput',
+        resultsContainer: '#resultsTable',
+        apiEndpoint: '/LilayiParkSchool/api/search_users.php',
+        emptyMessage: 'No users found',
+        debounceDelay: 300,
+        renderRow: function(user) {
+            const roleColors = {
+                'Admin': '#2d5016',
+                'Teacher': '#5cb85c',
+                'Parent': '#f0ad4e'
+            };
+            const roleColor = roleColors[user.roleName] || '#6c757d';
+            const isActive = (user.isActive || 'Y') === 'Y';
+            
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(user.username)}</strong></td>
+                    <td>${escapeHtml(user.email)}</td>
+                    <td>
+                        <span class="badge" style="background-color: ${roleColor};">
+                            ${escapeHtml(user.roleName || 'No Role')}
+                        </span>
+                    </td>
+                    <td>
+                        ${isActive 
+                            ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>'
+                            : '<span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Inactive</span>'}
+                    </td>
+                    <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="users_view.php?id=${user.userID}" class="btn btn-outline-primary" title="View">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <?php if (PermissionHelper::canManage('users')): ?>
+                            <a href="users_form.php?id=${user.userID}" class="btn btn-outline-success" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="delete.php?module=users&id=${user.userID}" 
+                               class="btn btn-outline-danger" 
+                               onclick="return confirm('Are you sure you want to delete this user?');"
+                               title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

@@ -126,7 +126,7 @@ require_once 'includes/header.php';
         </a>
     </div>
     
-    <div class="col-md-3">
+    <!-- <div class="col-md-3">
         <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_subjects')): ?>
         <a href="subjects_list.php" class="text-decoration-none">
             <div class="stat-card card-yellow">
@@ -140,7 +140,7 @@ require_once 'includes/header.php';
             <p><i class="bi bi-calendar-plus me-1"></i>Recent Enrollments</p>
         </div>
         <?php endif; ?>
-    </div>
+    </div> -->
 </div>
 
 <!-- Gender Summary Cards -->
@@ -235,7 +235,7 @@ require_once 'includes/header.php';
                         </a>
                     <?php endif; ?>
                     
-                    <?php if (PermissionHelper::canManage('payments')): ?>
+                    <?php if (Auth::hasRole('admin')): ?>
                         <a href="payments_form.php" class="btn btn-warning">
                             <i class="bi bi-cash me-1"></i>Record Payment
                         </a>

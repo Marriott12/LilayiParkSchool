@@ -79,7 +79,7 @@ class ClassModel extends BaseModel {
      * Get pupils not in this class (available to add)
      */
     public function getAvailablePupils($classID) {
-        $sql = "SELECT p.pupilID, p.fName, p.lName, p.studentNumber
+        $sql = "SELECT p.pupilID, p.fName, p.lName
                 FROM Pupil p
                 WHERE p.pupilID NOT IN (
                     SELECT pupilID FROM Pupil_Class WHERE classID = ?

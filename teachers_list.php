@@ -94,41 +94,28 @@ require_once 'includes/header.php';
 <!-- Search and Filter Bar -->
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3 align-items-center">
-            <div class="col-md-9">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-12">
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="text" class="form-control border-start-0 ps-0" name="search" 
-                           placeholder="Search by name, email, phone, or TCZ number..." 
-                           value="<?= htmlspecialchars($searchTerm) ?>">
+                    <input type="text" class="form-control border-start-0 ps-0" id="liveSearchInput" 
+                           placeholder="Start typing to search by name, email, phone, TCZ, or NRC..." 
+                           value="<?= htmlspecialchars($searchTerm) ?>"
+                           autocomplete="off">
                 </div>
+                <small class="text-muted">Results update as you type</small>
             </div>
-            <div class="col-md-3">
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn" style="background-color: #2d5016; color: white;">
-                        <i class="bi bi-search me-1"></i> Search
-                    </button>
-                    <?php if ($searchTerm): ?>
-                    <a href="teachers_list.php" class="btn btn-outline-secondary">
-                        <i class="bi bi-x-circle me-1"></i> Clear
-                    </a>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <!-- Teachers Table -->
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm" id="resultsTable">
     <div class="card-header bg-white border-bottom">
         <h5 class="mb-0">
             <i class="bi bi-list-ul me-2"></i>Teachers List
-            <?php if ($searchTerm): ?>
-                <span class="badge bg-secondary ms-2"><?= count($teachers) ?> results</span>
-            <?php endif; ?>
         </h5>
     </div>
     <div class="card-body p-0">
@@ -350,6 +337,11 @@ require_once 'includes/header.php';
                     </div>
                 </div>
                 
+                <div id="emailStatusDiv" style="display: none;">
+                    <hr>
+                    <div id="emailStatusMessage"></div>
+                </div>
+                
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
                     The user will be required to change their password on first login.
@@ -392,6 +384,30 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('modalUsername').value = data.username;
                         document.getElementById('modalPassword').value = data.password;
                         
+                        // Show email status if available
+                        if (data.emailSent !== undefined) {
+                            const emailStatusDiv = document.getElementById('emailStatusDiv');
+                            const emailStatusMessage = document.getElementById('emailStatusMessage');
+                            
+                            if (data.emailSent) {
+                                emailStatusMessage.innerHTML = `
+                                    <div class="alert alert-success mb-0">
+                                        <i class="bi bi-envelope-check me-2"></i>
+                                        <strong>Email Sent!</strong> Login credentials have been sent to ${data.email}
+                                    </div>
+                                `;
+                            } else {
+                                emailStatusMessage.innerHTML = `
+                                    <div class="alert alert-warning mb-0">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>Email Not Sent:</strong> ${data.emailMessage || 'Email sending is disabled in settings'}
+                                    </div>
+                                `;
+                            }
+                            
+                            emailStatusDiv.style.display = 'block';
+                        }
+                        
                         const modal = new bootstrap.Modal(document.getElementById('credentialsModal'));
                         modal.show();
                         
@@ -428,6 +444,86 @@ function copyToClipboard(elementId) {
         button.innerHTML = originalHTML;
     }, 2000);
 }
+</script>
+
+<script src="assets/js/live-search.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    new LiveSearch({
+        searchInput: '#liveSearchInput',
+        resultsContainer: '#resultsTable',
+        apiEndpoint: '/LilayiParkSchool/api/search_teachers.php',
+        emptyMessage: 'No teachers found',
+        debounceDelay: 300,
+        renderRow: function(teacher) {
+            const hasAccount = teacher.userID;
+            const isActive = teacher.userIsActive === 'Y';
+            const fullName = `${teacher.fName} ${teacher.lName}`;
+            
+            let accountBadge = '';
+            if (hasAccount) {
+                accountBadge = isActive 
+                    ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active Account</span>'
+                    : '<span class="badge bg-warning"><i class="bi bi-exclamation-triangle me-1"></i>Inactive</span>';
+            } else {
+                accountBadge = '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>No Account</span>';
+            }
+            
+            return `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle me-2 bg-primary text-white">
+                                ${teacher.fName.charAt(0)}${teacher.lName.charAt(0)}
+                            </div>
+                            <div>
+                                <div class="fw-bold">${escapeHtml(fullName)}</div>
+                                <small class="text-muted">ID: ${escapeHtml(teacher.teacherID)}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <i class="bi bi-envelope text-muted me-1"></i>
+                        <a href="mailto:${escapeHtml(teacher.email || '')}" class="text-decoration-none">
+                            ${escapeHtml(teacher.email || 'N/A')}
+                        </a>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone text-muted me-1"></i>
+                        <a href="tel:${escapeHtml(teacher.phone || '')}" class="text-decoration-none">
+                            ${escapeHtml(teacher.phone || 'N/A')}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">${escapeHtml(teacher.tczNo || 'Not Set')}</span>
+                    </td>
+                    <td class="text-center">${accountBadge}</td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="teachers_view.php?id=${teacher.teacherID}" 
+                               class="btn btn-outline-info" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <?php if (PermissionHelper::canManage('teachers')): ?>
+                            <a href="teachers_form.php?id=${teacher.teacherID}" 
+                               class="btn btn-outline-warning" title="Edit Teacher">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

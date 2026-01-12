@@ -136,22 +136,55 @@ class UsersModel extends BaseModel {
     }
     
     /**
-     * Search users
+     * Search users with optional filters
+     * @param string $term Search term
+     * @param array $filters Optional filters (roleID, isActive, mustChangePassword)
      */
-    public function search($term) {
+    public function search($term, $filters = []) {
+        $where = [];
+        $params = [];
+        
+        // Search term conditions
+        if (!empty($term)) {
+            $where[] = "(u.username LIKE ? OR u.email LIKE ? OR u.userID LIKE ?)";
+            $searchTerm = "%{$term}%";
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+        
+        // Filter by role
+        if (!empty($filters['roleID'])) {
+            $where[] = "ur.roleID = ?";
+            $params[] = $filters['roleID'];
+        }
+        
+        // Filter by active status
+        if (isset($filters['isActive'])) {
+            $where[] = "u.isActive = ?";
+            $params[] = $filters['isActive'];
+        }
+        
+        // Filter by must change password
+        if (isset($filters['mustChangePassword'])) {
+            $where[] = "u.mustChangePassword = ?";
+            $params[] = $filters['mustChangePassword'];
+        }
+        
         $sql = "SELECT u.*, 
-                CASE 
-                    WHEN u.roleID = 1 THEN 'Admin'
-                    WHEN u.roleID = 2 THEN 'Teacher'
-                    WHEN u.roleID = 3 THEN 'Parent'
-                    ELSE 'Unknown'
-                END as roleName
+                GROUP_CONCAT(r.roleName SEPARATOR ', ') as roleName
                 FROM {$this->table} u
-                WHERE u.username LIKE ? OR u.email LIKE ?
-                ORDER BY u.username";
-        $searchTerm = "%{$term}%";
+                LEFT JOIN UserRoles ur ON u.userID = ur.userID
+                LEFT JOIN Roles r ON ur.roleID = r.roleID";
+        
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+        
+        $sql .= " GROUP BY u.userID ORDER BY u.username";
+        
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$searchTerm, $searchTerm]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
     

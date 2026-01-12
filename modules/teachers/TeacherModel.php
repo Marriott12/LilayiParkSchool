@@ -136,16 +136,55 @@ class TeacherModel extends BaseModel {
     }
     
     /**
-     * Search teachers
+     * Search teachers with optional filters
+     * @param string $term Search term
+     * @param array $filters Optional filters (hasAccount, isActive, employmentStatus)
      */
-    public function search($term) {
+    public function search($term, $filters = []) {
+        $where = [];
+        $params = [];
+        
+        // Search term conditions
+        if (!empty($term)) {
+            $where[] = "(t.fName LIKE ? OR t.lName LIKE ? OR t.email LIKE ? OR t.phone LIKE ? OR t.tczNo LIKE ? OR t.NRC LIKE ? OR t.teacherID LIKE ?)";
+            $searchTerm = "%{$term}%";
+            for ($i = 0; $i < 7; $i++) {
+                $params[] = $searchTerm;
+            }
+        }
+        
+        // Filter by account status
+        if (isset($filters['hasAccount'])) {
+            if ($filters['hasAccount']) {
+                $where[] = "t.userID IS NOT NULL";
+            } else {
+                $where[] = "t.userID IS NULL";
+            }
+        }
+        
+        // Filter by active status
+        if (isset($filters['isActive'])) {
+            $where[] = "u.isActive = ?";
+            $params[] = $filters['isActive'];
+        }
+        
+        // Filter by employment status
+        if (!empty($filters['employmentStatus'])) {
+            $where[] = "t.employmentStatus = ?";
+            $params[] = $filters['employmentStatus'];
+        }
+        
         $sql = "SELECT t.*, u.isActive as userIsActive FROM {$this->table} t
-                LEFT JOIN Users u ON t.userID = u.userID
-                WHERE fName LIKE ? OR lName LIKE ? OR email LIKE ? OR phone LIKE ? OR tczNo LIKE ?
-                ORDER BY fName, lName";
-        $searchTerm = "%{$term}%";
+                LEFT JOIN Users u ON t.userID = u.userID";
+        
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+        
+        $sql .= " ORDER BY t.fName, t.lName";
+        
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
     

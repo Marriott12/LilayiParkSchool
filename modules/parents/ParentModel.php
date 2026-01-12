@@ -76,16 +76,49 @@ class ParentModel extends BaseModel {
     }
     
     /**
-     * Search parents
+     * Search parents with optional filters
+     * @param string $term Search term
+     * @param array $filters Optional filters (hasAccount, isActive)
      */
-    public function search($term) {
+    public function search($term, $filters = []) {
+        $where = [];
+        $params = [];
+        
+        // Search term conditions
+        if (!empty($term)) {
+            $where[] = "(p.fName LIKE ? OR p.lName LIKE ? OR p.email1 LIKE ? OR p.email2 LIKE ? OR p.phone LIKE ? OR p.NRC LIKE ? OR p.parentID LIKE ?)";
+            $searchTerm = "%{$term}%";
+            for ($i = 0; $i < 7; $i++) {
+                $params[] = $searchTerm;
+            }
+        }
+        
+        // Filter by account status
+        if (isset($filters['hasAccount'])) {
+            if ($filters['hasAccount']) {
+                $where[] = "p.userID IS NOT NULL";
+            } else {
+                $where[] = "p.userID IS NULL";
+            }
+        }
+        
+        // Filter by active status
+        if (isset($filters['isActive'])) {
+            $where[] = "u.isActive = ?";
+            $params[] = $filters['isActive'];
+        }
+        
         $sql = "SELECT p.*, u.isActive as userIsActive FROM {$this->table} p
-                LEFT JOIN Users u ON p.userID = u.userID
-                WHERE fName LIKE ? OR lName LIKE ? OR email1 LIKE ? OR email2 LIKE ? OR phone LIKE ? OR NRC LIKE ?
-                ORDER BY fName, lName";
-        $searchTerm = "%{$term}%";
+                LEFT JOIN Users u ON p.userID = u.userID";
+        
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+        
+        $sql .= " ORDER BY p.fName, p.lName";
+        
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
     

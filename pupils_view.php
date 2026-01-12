@@ -49,6 +49,11 @@ require_once 'includes/PermissionHelper.php';
             <a href="pupils_list.php" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i> Back
             </a>
+            <?php if (Auth::hasRole('admin')): ?>
+            <a href="payments_form.php?pupil=<?= $pupilID ?>" class="btn btn-success">
+                <i class="bi bi-cash-coin me-1"></i> Record Payment
+            </a>
+            <?php endif; ?>
             <?php if (PermissionHelper::canManage('pupils')): ?>
             <a href="pupils_form.php?id=<?= $pupilID ?>" class="btn btn-warning">
                 <i class="bi bi-pencil me-1"></i> Edit
@@ -86,7 +91,7 @@ require_once 'includes/PermissionHelper.php';
                     <small class="text-muted d-block mb-2">Quick Info</small>
                     <div class="d-flex align-items-center mb-2">
                         <i class="bi bi-hash text-muted me-2"></i>
-                        <span class="small"><?= htmlspecialchars($pupil['studentNumber'] ?? 'N/A') ?></span>
+                        <span class="small"><?= htmlspecialchars($pupil['pupilID'] ?? 'N/A') ?></span>
                     </div>
                     <div class="d-flex align-items-center mb-2">
                         <i class="bi bi-calendar text-muted me-2"></i>
@@ -123,8 +128,8 @@ require_once 'includes/PermissionHelper.php';
                         <p class="mb-0 fw-semibold"><?= htmlspecialchars($pupil['lName'] ?? 'N/A') ?></p>
                     </div>
                     <div class="col-md-6">
-                        <label class="text-muted small mb-1">Student Number</label>
-                        <p class="mb-0 fw-semibold"><?= htmlspecialchars($pupil['studentNumber'] ?? 'N/A') ?></p>
+                        <label class="text-muted small mb-1">Pupil ID</label>
+                        <p class="mb-0 fw-semibold"><?= htmlspecialchars($pupil['pupilID'] ?? 'N/A') ?></p>
                     </div>
                     <div class="col-md-6">
                         <label class="text-muted small mb-1">Date of Birth</label>
