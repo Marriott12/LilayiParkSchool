@@ -107,10 +107,10 @@ require_once 'includes/header.php';
                             <?= htmlspecialchars($user['email']) ?>
                         </a>
                     </div>
-                    <div class="d-flex align-items-center">
+                    <!--<div class="d-flex align-items-center">
                         <i class="bi bi-hash text-muted me-2"></i>
                         <span class="small">ID: <?= htmlspecialchars($user['userID']) ?></span>
-                    </div>
+                    </div>-->
                 </div>
             </div>
         </div>
