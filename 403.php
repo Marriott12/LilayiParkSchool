@@ -16,7 +16,7 @@ require_once __DIR__ . '/includes/header.php';
                 If you believe this is an error, please contact your administrator.
             </p>
             <div class="mt-4">
-                <a href="/dashboard.php" class="btn btn-primary">Go to Dashboard</a>
+                <a href="<?php echo BASE_URL; ?>/index.php" class="btn btn-primary">Go to Dashboard</a>
                 <a href="javascript:history.back()" class="btn btn-outline-secondary">Go Back</a>
             </div>
         </div>
