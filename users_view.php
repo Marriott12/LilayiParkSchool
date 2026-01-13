@@ -88,7 +88,7 @@ require_once 'includes/header.php';
                     </span>
                 </p>
                 <div class="mb-3">
-                    <?php if (($user['isActive'] ?? 1) == 1): ?>
+                    <?php if (($user['isActive'] ?? 'Y') == 'Y'): ?>
                         <span class="badge bg-success px-3 py-2">
                             <i class="bi bi-check-circle me-1"></i>Active
                         </span>
@@ -149,7 +149,7 @@ require_once 'includes/header.php';
                     <div class="col-md-6">
                         <label class="text-muted small mb-1">Status</label>
                         <p class="mb-0">
-                            <?php if (($user['isActive'] ?? 1) == 1): ?>
+                            <?php if (($user['isActive'] ?? 'Y') == 'Y'): ?>
                                 <span class="badge bg-success px-3 py-2">
                                     <i class="bi bi-check-circle me-1"></i>Active
                                 </span>
