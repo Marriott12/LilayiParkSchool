@@ -350,36 +350,42 @@ class Auth {
      * Check if teacher can access a specific pupil
      */
     public static function canAccessPupil($pupilID) {
-        // Admin can access all pupils
-        if (self::isAdmin()) {
+        $accessibleIDs = self::getAccessiblePupilIDs();
+        
+        // null means all pupils accessible (admin)
+        if ($accessibleIDs === null) {
             return true;
         }
         
-        // Teachers can access pupils in their classes
-        if (self::isTeacher()) {
-            $teacherID = self::getTeacherID();
-            if (!$teacherID) {
-                return false;
-            }
-            
-            require_once __DIR__ . '/../modules/teachers/TeacherModel.php';
-            $teacherModel = new TeacherModel();
-            return $teacherModel->canAccessPupil($teacherID, $pupilID);
+        return in_array($pupilID, $accessibleIDs);
+    }
+    
+    /**
+     * Check if user can access a specific teacher
+     */
+    public static function canAccessTeacher($teacherID) {
+        $accessibleIDs = self::getAccessibleTeacherIDs();
+        
+        // null means all teachers accessible
+        if ($accessibleIDs === null) {
+            return true;
         }
         
-        // Parents can access their own children
-        if (self::isParent()) {
-            $parentID = self::getParentID();
-            if (!$parentID) {
-                return false;
-            }
-            
-            require_once __DIR__ . '/../modules/parents/ParentModel.php';
-            $parentModel = new ParentModel();
-            return $parentModel->isMyChild($parentID, $pupilID);
+        return in_array($teacherID, $accessibleIDs);
+    }
+    
+    /**
+     * Check if user can access a specific parent
+     */
+    public static function canAccessParent($parentID) {
+        $accessibleIDs = self::getAccessibleParentIDs();
+        
+        // null means all parents accessible
+        if ($accessibleIDs === null) {
+            return true;
         }
         
-        return false;
+        return in_array($parentID, $accessibleIDs);
     }
     
     /**
@@ -489,48 +495,6 @@ class Auth {
         }
         
         return [];
-    }
-    
-    /**
-     * Check if user can access a specific pupil
-     */
-    public static function canAccessPupil($pupilID) {
-        $accessibleIDs = self::getAccessiblePupilIDs();
-        
-        // null means all pupils accessible (admin)
-        if ($accessibleIDs === null) {
-            return true;
-        }
-        
-        return in_array($pupilID, $accessibleIDs);
-    }
-    
-    /**
-     * Check if user can access a specific teacher
-     */
-    public static function canAccessTeacher($teacherID) {
-        $accessibleIDs = self::getAccessibleTeacherIDs();
-        
-        // null means all teachers accessible
-        if ($accessibleIDs === null) {
-            return true;
-        }
-        
-        return in_array($teacherID, $accessibleIDs);
-    }
-    
-    /**
-     * Check if user can access a specific parent
-     */
-    public static function canAccessParent($parentID) {
-        $accessibleIDs = self::getAccessibleParentIDs();
-        
-        // null means all parents accessible
-        if ($accessibleIDs === null) {
-            return true;
-        }
-        
-        return in_array($parentID, $accessibleIDs);
     }
     
     /**
