@@ -348,7 +348,7 @@ require_once 'includes/header.php';
             
             <div class="d-flex gap-2">
                 <button type="submit" class="btn" style="background-color: #2d5016; color: white;">
-                    <i class="bi bi-save"></i> Record Payment
+                    <i class="bi bi-save"></i> Save Payment
                 </button>
                 <a href="payments_list.php" class="btn btn-secondary">
                     <i class="bi bi-x-circle"></i> Cancel

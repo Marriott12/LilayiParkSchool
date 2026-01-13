@@ -237,7 +237,7 @@ require_once 'includes/header.php';
                     
                     <?php if (Auth::hasRole('admin')): ?>
                         <a href="payments_form.php" class="btn btn-warning">
-                            <i class="bi bi-cash me-1"></i>Record Payment
+                            <i class="bi bi-cash me-1"></i>Add Payment
                         </a>
                     <?php endif; ?>
                     

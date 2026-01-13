@@ -51,7 +51,7 @@ require_once 'includes/header.php';
     <h2><i class="bi bi-credit-card"></i> Payments <?php if (Auth::isParent()): ?><small class="text-muted">(My Children)</small><?php endif; ?></h2>
     <?php if (Auth::hasRole('admin')): ?>
     <a href="payments_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
-        <i class="bi bi-plus-circle"></i> Record Payment
+        <i class="bi bi-plus-circle"></i> Add Payment
     </a>
     <?php endif; ?>
 </div>

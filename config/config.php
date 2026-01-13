@@ -3,9 +3,17 @@
  * Main Configuration File
  */
 
-// Error Reporting (set to 0 in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Error Reporting (environment-aware)
+$appEnv = $_ENV['APP_ENV'] ?? 'production';
+if ($appEnv === 'development' || $appEnv === 'dev') {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
+    ini_set('error_log', dirname(__DIR__) . '/logs/php-errors.log');
+}
 
 // Timezone
 date_default_timezone_set('Africa/Lusaka');
@@ -13,7 +21,11 @@ date_default_timezone_set('Africa/Lusaka');
 // Session Configuration
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_secure', 0); // Set to 1 if using HTTPS
+// Automatically enable secure cookies if HTTPS is detected
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+           (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+           (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+ini_set('session.cookie_secure', $isHttps ? 1 : 0);
 
 // Application Settings
 define('APP_NAME', 'Lilayi Park School Management System');
