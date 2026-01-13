@@ -39,35 +39,78 @@ try {
     echo "<p class='error'>Error: " . $e->getMessage() . "</p>";
 }
 
-echo "<h2>2. Users Table Check</h2>";
+echo "<h2>2. Tables Check (Case Sensitivity)</h2>";
 try {
-    $stmt = $db->query("SHOW TABLES LIKE 'Users'");
-    if ($stmt->rowCount() > 0) {
-        echo "<p class='success'>✅ Users table exists</p>";
-        
-        // Show table structure
-        echo "<h3>Users Table Structure:</h3>";
-        $stmt = $db->query("DESCRIBE Users");
-        echo "<table><tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th><th>Extra</th></tr>";
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            echo "<tr>";
-            foreach ($row as $val) {
-                echo "<td>" . htmlspecialchars($val ?? '') . "</td>";
-            }
-            echo "</tr>";
+    // First, check all tables
+    $stmt = $db->query("SHOW TABLES");
+    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    echo "<h3>All Tables in Database (" . count($tables) . " total):</h3>";
+    if (count($tables) > 0) {
+        echo "<table><tr><th>#</th><th>Table Name</th><th>Case Check</th></tr>";
+        $i = 1;
+        foreach ($tables as $table) {
+            $correctCase = in_array($table, ['Users', 'Roles', 'Permissions', 'UserRoles', 'RolePermissions', 
+                                             'Teacher', 'Parent', 'Pupil', 'Class', 'Pupil_Class', 'Fees', 
+                                             'Payment', 'Attendance', 'DailyAttendance', 'Subjects', 'Grades',
+                                             'Examinations', 'ExamSchedule', 'Timetable', 'ReportComments',
+                                             'GradingScale', 'Books', 'BorrowRecords', 'Announcements', 
+                                             'holidays', 'settings']);
+            $status = $correctCase ? "✅" : "⚠️ lowercase";
+            echo "<tr><td>$i</td><td>$table</td><td>$status</td></tr>";
+            $i++;
         }
         echo "</table>";
     } else {
-        echo "<p class='error'>❌ Users table does NOT exist!</p>";
+        echo "<p class='error'>❌ No tables found!</p>";
         echo "<p>You need to import the database schema first.</p>";
     }
+    
+    // Check for Users table specifically (both cases)
+    $stmt = $db->query("SHOW TABLES LIKE 'Users'");
+    if ($stmt->rowCount() > 0) {
+        echo "<h3>Users Table (Correct Case):</h3>";
+        echo "<p class='success'>✅ Users table exists with correct capitalization</p>";
+        $stmt = $db->query("DESCRIBE Users");
+    } else {
+        $stmt = $db->query("SHOW TABLES LIKE 'users'");
+        if ($stmt->rowCount() > 0) {
+            echo "<h3>users Table (Wrong Case):</h3>";
+            echo "<p class='error'>❌ Table exists as 'users' (lowercase) but should be 'Users' (capitalized)</p>";
+            echo "<p><strong>ACTION REQUIRED:</strong> Run fix_table_case.sql to rename tables</p>";
+            $stmt = $db->query("DESCRIBE users");
+        } else {
+            echo "<p class='error'>❌ Users/users table does NOT exist!</p>";
+            echo "<p>You need to import the database schema first.</p>";
+            throw new Exception("Users table not found");
+        }
+    }
+    
+    // Show table structure
+    echo "<table><tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th><th>Extra</th></tr>";
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        echo "<tr>";
+        foreach ($row as $val) {
+            echo "<td>" . htmlspecialchars($val ?? '') . "</td>";
+        }
+        echo "</tr>";
+    }
+    echo "</table>";
+    
 } catch (Exception $e) {
     echo "<p class='error'>Error: " . $e->getMessage() . "</p>";
 }
 
 echo "<h2>3. Admin User Check</h2>";
 try {
-    $stmt = $db->query("SELECT userID, username, email, role, isActive, SUBSTRING(password, 1, 30) as pass_preview, LENGTH(password) as pass_length FROM Users WHERE username = 'admin'");
+    // Try both cases
+    try {
+        $stmt = $db->query("SELECT userID, username, email, role, isActive, SUBSTRING(password, 1, 30) as pass_preview, LENGTH(password) as pass_length FROM Users WHERE username = 'admin'");
+    } catch (Exception $e) {
+        // Try lowercase if capitalized fails
+        $stmt = $db->query("SELECT userID, username, email, role, isActive, SUBSTRING(password, 1, 30) as pass_preview, LENGTH(password) as pass_length FROM users WHERE username = 'admin'");
+        echo "<p class='warning'>⚠️ Using 'users' (lowercase) table - should be 'Users'</p>";
+    }
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($admin) {
