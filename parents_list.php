@@ -17,6 +17,9 @@ require_once 'modules/parents/ParentModel.php';
 
 $parentModel = new ParentModel();
 
+// Get accessible parent IDs based on user role
+$accessibleParentIDs = Auth::getAccessibleParentIDs();
+
 // Handle search and pagination
 $searchTerm = $_GET['search'] ?? '';
 $page = $_GET['page'] ?? 1;
@@ -24,13 +27,41 @@ $perPage = 20;
 
 if ($searchTerm) {
     $allParents = $parentModel->search($searchTerm);
+    
+    // Filter by accessible parents if not admin/teacher
+    if ($accessibleParentIDs !== null) {
+        $allParents = array_filter($allParents, function($parent) use ($accessibleParentIDs) {
+            return in_array($parent['parentID'], $accessibleParentIDs);
+        });
+    }
+    
     $totalRecords = count($allParents);
     $pagination = new Pagination($totalRecords, $perPage, $page);
     $parents = array_slice($allParents, $pagination->getOffset(), $pagination->getLimit());
 } else {
-    $totalRecords = $parentModel->count();
-    $pagination = new Pagination($totalRecords, $perPage, $page);
-    $parents = $parentModel->getAllWithChildrenCount($pagination->getLimit(), $pagination->getOffset());
+    // Filter parents based on user context
+    if ($accessibleParentIDs === null) {
+        // Admin/Teacher - all parents
+        $totalRecords = $parentModel->count();
+        $pagination = new Pagination($totalRecords, $perPage, $page);
+        $parents = $parentModel->getAllWithChildrenCount($pagination->getLimit(), $pagination->getOffset());
+    } elseif (empty($accessibleParentIDs)) {
+        // No accessible parents
+        $totalRecords = 0;
+        $pagination = new Pagination($totalRecords, $perPage, $page);
+        $parents = [];
+    } else {
+        // Parent viewing themselves only
+        $parents = [];
+        foreach ($accessibleParentIDs as $parentID) {
+            $parent = $parentModel->getParentWithUser($parentID);
+            if ($parent) {
+                $parents[] = $parent;
+            }
+        }
+        $totalRecords = count($parents);
+        $pagination = new Pagination($totalRecords, $perPage, $page);
+    }
 }
 
 $pageTitle = 'Parents Management';

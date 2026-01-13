@@ -18,6 +18,16 @@ require_once 'modules/teachers/TeacherModel.php';
 
 $teacherModel = new TeacherModel();
 
+// Get accessible teacher IDs based on user role
+$accessibleTeacherIDs = Auth::getAccessibleTeacherIDs();
+
+// Parents cannot view teachers list
+if (is_array($accessibleTeacherIDs) && empty($accessibleTeacherIDs)) {
+    Session::setFlash('error', 'You do not have permission to view teachers.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
+
 // Handle search and pagination
 $searchTerm = $_GET['search'] ?? '';
 $page = $_GET['page'] ?? 1;

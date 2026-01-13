@@ -107,9 +107,9 @@ if (!isset($rolesModel)) {
                 </a>
                 <?php endif; ?>
                 
-                <a href="<?php echo BASE_URL; ?>/subjects_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'subjects' ? 'active' : ''; ?>" style="background: transparent;">
+                <!--<a href="<?php echo BASE_URL; ?>/subjects_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'subjects' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-book me-2"></i> Subjects
-                </a>
+                </a>-->
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_classes')): ?>
                 <a href="<?php echo BASE_URL; ?>/timetable_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'timetable' ? 'active' : ''; ?>" style="background: transparent;">

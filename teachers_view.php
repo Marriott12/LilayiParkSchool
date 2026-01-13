@@ -21,6 +21,13 @@ if (empty($teacherID)) {
     exit;
 }
 
+// Check if user can access this teacher
+if (!Auth::canAccessTeacher($teacherID)) {
+    Session::setFlash('error', 'You do not have permission to view this teacher.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
+
 $teacherModel = new TeacherModel();
 $teacher = $teacherModel->getTeacherWithUser($teacherID) ?: $teacherModel->getById($teacherID);
 $classes = method_exists($teacherModel, 'getTeacherClasses') ? $teacherModel->getTeacherClasses($teacherID) : [];

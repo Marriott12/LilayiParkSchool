@@ -20,6 +20,13 @@ if (empty($parentID)) {
     exit;
 }
 
+// Check if user can access this parent
+if (!Auth::canAccessParent($parentID)) {
+    Session::setFlash('error', 'You do not have permission to view this parent.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
+
 $parentModel = new ParentModel();
 $parent = $parentModel->getParentWithUser($parentID) ?: $parentModel->getById($parentID);
 $children = method_exists($parentModel, 'getChildren') ? $parentModel->getChildren($parentID) : [];

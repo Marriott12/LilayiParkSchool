@@ -31,6 +31,16 @@ $perPage = 20;
 
 $teacherModel = new TeacherModel();
 
+// Get accessible teacher IDs based on user role
+$accessibleTeacherIDs = Auth::getAccessibleTeacherIDs();
+
+// Block access if user cannot view teachers
+if (is_array($accessibleTeacherIDs) && empty($accessibleTeacherIDs)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Permission denied']);
+    exit;
+}
+
 try {
     if ($searchTerm) {
         $filters = [];

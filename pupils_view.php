@@ -20,6 +20,13 @@ if (empty($pupilID)) {
     exit;
 }
 
+// Check if user can access this pupil
+if (!Auth::canAccessPupil($pupilID)) {
+    Session::setFlash('error', 'You do not have permission to view this pupil.');
+    header('Location: /LilayiParkSchool/403.php');
+    exit;
+}
+
 $pupilModel = new PupilModel();
 $pupil = $pupilModel->getPupilWithParent($pupilID) ?: $pupilModel->getById($pupilID);
 

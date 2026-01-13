@@ -420,6 +420,54 @@ class Auth {
     }
     
     /**
+     * Get list of teacher IDs accessible to current user
+     */
+    public static function getAccessibleTeacherIDs() {
+        // Admin can access all teachers
+        if (self::isAdmin()) {
+            return null; // null means all teachers
+        }
+        
+        // Teachers can view all teachers
+        if (self::isTeacher()) {
+            return null; // null means all teachers
+        }
+        
+        // Parents cannot view teacher profiles directly
+        if (self::isParent()) {
+            return [];
+        }
+        
+        return [];
+    }
+    
+    /**
+     * Get list of parent IDs accessible to current user
+     */
+    public static function getAccessibleParentIDs() {
+        // Admin can access all parents
+        if (self::isAdmin()) {
+            return null; // null means all parents
+        }
+        
+        // Teachers can view all parents
+        if (self::isTeacher()) {
+            return null; // null means all parents
+        }
+        
+        // Parents can only view themselves
+        if (self::isParent()) {
+            $parentID = self::getParentID();
+            if (!$parentID) {
+                return [];
+            }
+            return [$parentID];
+        }
+        
+        return [];
+    }
+    
+    /**
      * Get list of class IDs accessible to current user
      */
     public static function getAccessibleClassIDs() {
@@ -441,6 +489,48 @@ class Auth {
         }
         
         return [];
+    }
+    
+    /**
+     * Check if user can access a specific pupil
+     */
+    public static function canAccessPupil($pupilID) {
+        $accessibleIDs = self::getAccessiblePupilIDs();
+        
+        // null means all pupils accessible (admin)
+        if ($accessibleIDs === null) {
+            return true;
+        }
+        
+        return in_array($pupilID, $accessibleIDs);
+    }
+    
+    /**
+     * Check if user can access a specific teacher
+     */
+    public static function canAccessTeacher($teacherID) {
+        $accessibleIDs = self::getAccessibleTeacherIDs();
+        
+        // null means all teachers accessible
+        if ($accessibleIDs === null) {
+            return true;
+        }
+        
+        return in_array($teacherID, $accessibleIDs);
+    }
+    
+    /**
+     * Check if user can access a specific parent
+     */
+    public static function canAccessParent($parentID) {
+        $accessibleIDs = self::getAccessibleParentIDs();
+        
+        // null means all parents accessible
+        if ($accessibleIDs === null) {
+            return true;
+        }
+        
+        return in_array($parentID, $accessibleIDs);
     }
     
     /**
