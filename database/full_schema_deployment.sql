@@ -198,10 +198,12 @@ CREATE TABLE IF NOT EXISTS Roles (
 -- UserRoles Table
 CREATE TABLE IF NOT EXISTS UserRoles (
     userRoleID INT PRIMARY KEY AUTO_INCREMENT,
-    userID VARCHAR(10) NOT NULL,
+    userID INT NOT NULL,
     roleID VARCHAR(10) NOT NULL,
-    assignedBy VARCHAR(10),
+    assignedBy INT NULL,
     assignedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userID) REFERENCES Users(userID) ON DELETE CASCADE,
+    FOREIGN KEY (roleID) REFERENCES Roles(roleID) ON DELETE CASCADE,
     UNIQUE KEY unique_user_role (userID, roleID),
     INDEX idx_user_roles (userID),
     INDEX idx_role_users (roleID)
