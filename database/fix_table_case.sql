@@ -20,6 +20,7 @@ ORDER BY TABLE_NAME;
 -- =====================================================
 
 -- Only run these if your tables are lowercase:
+-- Note: holidays and settings should stay lowercase (they're correct)
 
 RENAME TABLE `users` TO `Users`;
 RENAME TABLE `roles` TO `Roles`;
@@ -41,12 +42,12 @@ RENAME TABLE `examinations` TO `Examinations`;
 RENAME TABLE `examschedule` TO `ExamSchedule`;
 RENAME TABLE `timetable` TO `Timetable`;
 RENAME TABLE `reportcomments` TO `ReportComments`;
-RENAME TABLE `gradingscale` TO `GradingScale`;
 RENAME TABLE `books` TO `Books`;
 RENAME TABLE `borrowrecords` TO `BorrowRecords`;
 RENAME TABLE `announcements` TO `Announcements`;
-RENAME TABLE `holidays` TO `holidays`;
-RENAME TABLE `settings` TO `settings`;
+
+-- Check if classsubjects exists (not in original schema but shows in your database)
+RENAME TABLE IF EXISTS `classsubjects` TO `ClassSubjects`;
 
 -- Verify the changes
 SHOW TABLES;
