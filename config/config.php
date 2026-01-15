@@ -37,7 +37,12 @@ define('MAX_FILE_SIZE', 5242880); // 5MB
 // URL Configuration
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-$base_path = dirname($_SERVER['SCRIPT_NAME']);
+
+// Always detect and use the subdirectory for BASE_URL (works for local and production)
+$base_path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+if ($base_path === '/' || $base_path === '\\' || $base_path === '.') {
+    $base_path = '';
+}
 define('BASE_URL', $protocol . '://' . $host . $base_path);
 
 // Security Settings
