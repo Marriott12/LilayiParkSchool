@@ -1,0 +1,142 @@
+<?php
+/**
+ * Pupil Model
+ */
+
+class PupilModel extends BaseModel {
+    protected $table = 'Pupil';
+    protected $primaryKey = 'pupilID';
+    
+    /**
+     * Get pupil with parent information
+     */
+    public function getPupilWithParent($pupilID) {
+        $sql = "SELECT p.*, pr.fName as parentFirstName, pr.lName as parentLastName, 
+                       pr.phoneNumber as parentPhone, pr.email as parentEmail,
+                       c.className, c.classID
+                FROM {$this->table} p
+                LEFT JOIN Parent pr ON p.parentID = pr.parentID
+                LEFT JOIN PupilClass pc ON p.pupilID = pc.pupilID
+                LEFT JOIN Class c ON pc.classID = c.classID
+                WHERE p.pupilID = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$pupilID]);
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Get all pupils with parent info
+     */
+    public function getAllWithParents($limit = null, $offset = null) {
+        $sql = "SELECT p.*, pr.fName as parentFirstName, pr.lName as parentLastName
+                FROM {$this->table} p
+                LEFT JOIN Parent pr ON p.parentID = pr.parentID
+                ORDER BY p.fName, p.lName";
+        
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get pupils by class
+     */
+    public function getPupilsByClass($classID) {
+        $sql = "SELECT p.* FROM {$this->table} p
+                INNER JOIN PupilClass pc ON p.pupilID = pc.pupilID
+                WHERE pc.classID = ?
+                ORDER BY p.fName, p.lName";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$classID]);
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get pupils by parent
+     */
+    public function getPupilsByParent($parentID) {
+        return $this->where(['parentID' => $parentID]);
+    }
+    
+    /**
+     * Search pupils with optional filters
+     * @param string $term Search term
+     * @param array $filters Optional filters (classID, gender, hasParent)
+     */
+    public function search($term, $filters = []) {
+        $where = [];
+        $params = [];
+        $joins = "";
+        
+        // Search term conditions
+        if (!empty($term)) {
+            $where[] = "(p.fName LIKE ? OR p.lName LIKE ? OR p.pupilID LIKE ? OR p.admNo LIKE ?)";
+            $searchTerm = "%{$term}%";
+            for ($i = 0; $i < 4; $i++) {
+                $params[] = $searchTerm;
+            }
+        }
+        
+        // Filter by class
+        if (!empty($filters['classID'])) {
+            $joins = " INNER JOIN PupilClass pc ON p.pupilID = pc.pupilID";
+            $where[] = "pc.classID = ?";
+            $params[] = $filters['classID'];
+        }
+        
+        // Filter by gender
+        if (!empty($filters['gender'])) {
+            $where[] = "p.gender = ?";
+            $params[] = $filters['gender'];
+        }
+        
+        // Filter by parent status
+        if (isset($filters['hasParent'])) {
+            if ($filters['hasParent']) {
+                $where[] = "p.parentID IS NOT NULL";
+            } else {
+                $where[] = "p.parentID IS NULL";
+            }
+        }
+        
+        $sql = "SELECT DISTINCT p.* FROM {$this->table} p" . $joins;
+        
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+        
+        $sql .= " ORDER BY p.fName, p.lName";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get pupils by array of IDs (for context-based filtering)
+     */
+    public function getByIDs($pupilIDs, $limit = null, $offset = null) {
+        if (empty($pupilIDs)) {
+            return [];
+        }
+        
+        $placeholders = implode(',', array_fill(0, count($pupilIDs), '?'));
+        $sql = "SELECT p.*, pr.fName as parentFirstName, pr.lName as parentLastName
+                FROM {$this->table} p
+                LEFT JOIN Parent pr ON p.parentID = pr.parentID
+                WHERE p.pupilID IN ({$placeholders})
+                ORDER BY p.fName, p.lName";
+        
+        if ($limit !== null) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($pupilIDs);
+        return $stmt->fetchAll();
+    }
+}

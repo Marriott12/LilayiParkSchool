@@ -1,0 +1,23 @@
+# Environment files
+.env
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Cache and temporary files
+*.tmp
+*.cache
