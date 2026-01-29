@@ -111,11 +111,11 @@ require_once 'includes/header.php';
             </div>
             <div class="card-body">
                 <div class="quick-actions">
-                    <?php if (PermissionHelper::canManage('parents')): ?>
+                    <!--<?php if (PermissionHelper::canManage('parents')): ?>
                         <a href="parents_form.php" class="btn btn-secondary">
                             <i class="bi bi-plus-circle me-1"></i>Add New Parent
                         </a>
-                    <?php endif; ?>
+                    <?php endif; ?>-->
 
                     <?php if (PermissionHelper::canManage('pupils')): ?>
                         <a href="pupils_form.php" class="btn btn-primary">

@@ -82,6 +82,18 @@ try {
             'phone' => $p['phone'] ?? '',
             'email' => $p['parentEmail'] ?? ''
         ];
+        // Attach class information if available
+        try {
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare('SELECT c.classID, c.className FROM Class c JOIN Pupil_Class pc ON c.classID = pc.classID WHERE pc.pupilID = ? LIMIT 1');
+            $stmt->execute([$p['pupilID']]);
+            $row = $stmt->fetch();
+            $p['classID'] = $row['classID'] ?? null;
+            $p['className'] = $row['className'] ?? null;
+        } catch (Exception $e) {
+            $p['classID'] = null;
+            $p['className'] = null;
+        }
     }
 
     echo json_encode([

@@ -123,7 +123,7 @@ require_once 'includes/header.php';
                         <th>Name</th>
                         <th>Date of Birth</th>
                         <th>Gender</th>
-                        <th>Parent / Guardian</th>
+                        <th>Class</th>
                         <th>Enrollment Date</th>
                         <th>Actions</th>
                     </tr>
@@ -146,21 +146,22 @@ require_once 'includes/header.php';
                         <td><?= htmlspecialchars($pupil['gender']) ?></td>
                         <td>
                             <?php
-                            $parentName = htmlspecialchars($pupil['parent1'] ?? 'N/A');
-                            $parentPhone = $pupil['phone'] ?? '';
-                            $parentEmail = $pupil['parentEmail'] ?? '';
+                            // Fetch assigned class for this pupil (if any)
+                            try {
+                                $db = Database::getInstance()->getConnection();
+                                $stmt = $db->prepare('SELECT c.classID, c.className FROM Class c JOIN Pupil_Class pc ON c.classID = pc.classID WHERE pc.pupilID = ? LIMIT 1');
+                                $stmt->execute([$pupil['pupilID']]);
+                                $classRow = $stmt->fetch();
+                            } catch (Exception $e) {
+                                $classRow = null;
+                            }
+                            $className = $classRow['className'] ?? 'N/A';
+                            $classID = $classRow['classID'] ?? null;
                             ?>
-                            <div class="fw-bold"><?= $parentName ?></div>
-                            <?php if ($parentPhone || $parentEmail): ?>
-                                <div class="small text-muted">
-                                    <?php if ($parentPhone): ?>
-                                        <i class="bi bi-telephone me-1"></i><?= htmlspecialchars($parentPhone) ?>
-                                    <?php endif; ?>
-                                    <?php if ($parentPhone && $parentEmail): ?> &nbsp;&bull;&nbsp; <?php endif; ?>
-                                    <?php if ($parentEmail): ?>
-                                        <i class="bi bi-envelope me-1"></i><?= htmlspecialchars($parentEmail) ?>
-                                    <?php endif; ?>
-                                </div>
+                            <?php if ($classID): ?>
+                                <a href="classes_view.php?id=<?= htmlspecialchars($classID) ?>" class="fw-bold text-decoration-none"><?= htmlspecialchars($className) ?></a>
+                            <?php else: ?>
+                                <div class="fw-bold"><?= htmlspecialchars($className) ?></div>
                             <?php endif; ?>
                         </td>
                         <td><?= !empty($pupil['enrollDate']) ? date('M d, Y', strtotime($pupil['enrollDate'])) : 'N/A' ?></td>
@@ -207,12 +208,11 @@ document.addEventListener('DOMContentLoaded', function() {
         apiEndpoint: 'api/search_pupils.php',
         emptyMessage: 'No pupils found',
         debounceDelay: 300,
-            renderRow: function(pupil) {
+                renderRow: function(pupil) {
                 const fullName = `${pupil.fName || ''} ${pupil.lName || ''}`.trim();
                 const dob = pupil.DoB ? new Date(pupil.DoB).toLocaleDateString() : 'N/A';
-                const parentName = pupil.parent1 || pupil.parentName || (pupil.parent && (pupil.parent.fName + ' ' + pupil.parent.lName)) || 'No Parent';
-                const phone = pupil.phone || pupil.parentPhone || (pupil.parent && pupil.parent.phone) || '';
-                const email = pupil.parentEmail || pupil.parentEmail || (pupil.parent && (pupil.parent.email1 || pupil.parent.email)) || '';
+                const className = pupil.className || 'N/A';
+                const classID = pupil.classID || '';
                 const enroll = pupil.enrollDate ? new Date(pupil.enrollDate).toLocaleDateString() : 'N/A';
 
                 return `
@@ -225,8 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 : (pupil.gender === 'F' ? '<span class="badge bg-danger">Female</span>' : 'N/A')}
                         </td>
                         <td>
-                            <div class="fw-bold">${escapeHtml(parentName)}</div>
-                            ${ (phone || email) ? `<div class="small text-muted">${ phone ? '<i class="bi bi-telephone me-1"></i>' + escapeHtml(phone) : '' } ${ (phone && email) ? '&nbsp;&bull;&nbsp;' : '' } ${ email ? '<i class="bi bi-envelope me-1"></i>' + escapeHtml(email) : '' }</div>` : '' }
+                            ${ classID ? `<a href="classes_view.php?id=${encodeURIComponent(classID)}" class="fw-bold text-decoration-none">${escapeHtml(className)}</a>` : `<div class="fw-bold">${escapeHtml(className)}</div>` }
                         </td>
                         <td>${escapeHtml(enroll)}</td>
                         <td>

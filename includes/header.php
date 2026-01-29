@@ -47,16 +47,7 @@ if (!isset($rolesModel)) {
                 </a>
                 <?php endif; ?>
                 
-                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_teachers')): ?>
-                <a href="<?php echo BASE_URL; ?>/teachers_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'teachers' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-person-workspace me-2"></i> Teachers
-                </a>
-                <?php if (Auth::hasRole('admin')): ?>
-                <!--<a href="<?php echo BASE_URL; ?>/teachers_bulk_accounts.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'teachers_bulk' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-person-plus me-2"></i> Bulk Accounts
-                </a>-->
-                <?php endif; ?>
-                <?php endif; ?>
+                <!-- Teachers link moved to System section -->
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_parents')): ?>
                 <!--<a href="<?php echo BASE_URL; ?>/parents_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'parents' ? 'active' : ''; ?>" style="background: transparent;">
@@ -71,7 +62,7 @@ if (!isset($rolesModel)) {
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_classes')): ?>
                 <a href="<?php echo BASE_URL; ?>/classes_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'classes' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-building me-2"></i> Class Assignment
+                    <i class="bi bi-building me-2"></i> Class Allocation
                 </a>
                 <?php endif; ?>
                 
@@ -139,6 +130,10 @@ if (!isset($rolesModel)) {
                 
                 <a href="<?php echo BASE_URL; ?>/users_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'users' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-person-gear me-2"></i> User Management
+                </a>
+
+                <a href="<?php echo BASE_URL; ?>/teachers_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'teachers' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-person-workspace me-2"></i> Teachers
                 </a>
                 
                 <a href="<?php echo BASE_URL; ?>/announcements_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'announcements' ? 'active' : ''; ?>" style="background: transparent;">

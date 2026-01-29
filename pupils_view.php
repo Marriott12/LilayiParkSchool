@@ -17,6 +17,8 @@ if (!$rolesModel->userHasPermission(Auth::id(), 'view_pupils')) {
 }
 
 require_once 'modules/pupils/PupilModel.php';
+require_once 'modules/payments/PaymentModel.php';
+require_once 'modules/fees/FeesModel.php';
 
 $pupilID = $_GET['id'] ?? null;
 if (empty($pupilID)) {
@@ -32,6 +34,8 @@ if (!Auth::canAccessPupil($pupilID)) {
 }
 
 $pupilModel = new PupilModel();
+$paymentModel = new PaymentModel();
+$feesModel = new FeesModel();
 
 $pupil = $pupilModel->getPupilWithParent($pupilID) ?: $pupilModel->getById($pupilID);
 require_once 'modules/classes/ClassModel.php';
@@ -71,24 +75,27 @@ require_once 'includes/PermissionHelper.php';
             <a href="pupils_list.php" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i> Back
             </a>
+            <a href="pupils_pdf.php?id=<?= urlencode($pupilID) ?>&print=1" target="_blank" class="btn btn-outline-dark">
+                <i class="bi bi-printer me-1"></i> Print
+            </a>
             <?php if (Auth::hasRole('admin')): ?>
-            <a href="payments_form.php?pupil=<?= $pupilID ?>" class="btn btn-success">
+                <a href="payments_form.php?pupil=<?= $pupilID ?>" class="btn btn-sm btn-success">
                 <i class="bi bi-cash-coin me-1"></i> Add Payment
             </a>
             <?php endif; ?>
             <?php if ($rolesModel->userHasPermission(Auth::id(), 'manage_classes')): ?>
-            <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#assignClassModal">
-                <i class="bi bi-arrow-right-square me-1"></i> Assign / Change Class
+                <a href="#" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignClassModal">
+                <i class="bi bi-arrow-right-square me-1"></i> Class
             </a>
             <?php endif; ?>
             <?php if (PermissionHelper::canManage('pupils')): ?>
-            <a href="pupils_form.php?id=<?= $pupilID ?>" class="btn btn-warning">
+                <a href="pupils_form.php?id=<?= $pupilID ?>" class="btn btn-sm btn-warning">
                 <i class="bi bi-pencil me-1"></i> Edit
             </a>
             <a href="pupils_delete.php?id=<?= $pupilID ?>" 
                class="btn btn-danger"
                onclick="return confirm('Are you sure you want to delete this pupil? This action cannot be undone.');">
-                <i class="bi bi-trash me-1"></i> Delete
+                    <i class="bi bi-trash me-1"></i> Delete
             </a>
             <?php endif; ?>
         </div>
@@ -183,7 +190,115 @@ require_once 'includes/PermissionHelper.php';
                 </div>
             </div>
         </div>
+            <!-- Payments Summary and History -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="bi bi-wallet2 me-2" style="color: #2d5016;"></i>Payments & Balance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <?php
+                    // Determine pupil's current class to find applicable fees
+                    $db = Database::getInstance()->getConnection();
+                    $stmt = $db->prepare("SELECT pc.classID, c.className FROM Pupil_Class pc JOIN Class c ON pc.classID = c.classID WHERE pc.pupilID = ? LIMIT 1");
+                    $stmt->execute([$pupilID]);
+                    $pClass = $stmt->fetch();
+                    $classID = $pClass['classID'] ?? null;
 
+                    // Default values
+                    $totalFee = 0;
+                    $feeID = null;
+
+                    // If pupil has a class, load the applicable Fees row (by class and current year)
+                    if ($classID) {
+                        $currentYear = date('Y');
+                        $stmt = $db->prepare("SELECT feeID, feeAmt, term, year FROM Fees WHERE classID = ? AND year = ? ORDER BY term DESC LIMIT 1");
+                        $stmt->execute([$classID, $currentYear]);
+                        $feeRow = $stmt->fetch();
+                        if ($feeRow) {
+                            $feeID = $feeRow['feeID'] ?? null;
+                            $totalFee = $feeRow['feeAmt'] ?? 0;
+                        }
+                    }
+
+                    // Get payments for this pupil. If we found a feeID, filter payments to that feeID so
+                    // the relation between pupil and payment is determined by class -> Fees(feeID).
+                    if ($feeID) {
+                        $stmt = $db->prepare(
+                            "SELECT payID, pupilID, feeID, classID, pmtAmt, balance, paymentDate, paymentMode, remark, createdAt, updatedAt, term, academicYear
+                             FROM Payment WHERE pupilID = ? AND feeID = ? ORDER BY paymentDate DESC"
+                        );
+                        $stmt->execute([$pupilID, $feeID]);
+                    } else {
+                        // Fallback: if no fee row exists for the pupil's class/year, show all payments for pupil
+                        $stmt = $db->prepare(
+                            "SELECT payID, pupilID, feeID, classID, pmtAmt, balance, paymentDate, paymentMode, remark, createdAt, updatedAt, term, academicYear
+                             FROM Payment WHERE pupilID = ? ORDER BY paymentDate DESC"
+                        );
+                        $stmt->execute([$pupilID]);
+                    }
+                    $payments = $stmt->fetchAll();
+                    // Calculate totals and running balance (starting from total fee)
+                    $totalPaid = 0;
+                    foreach ($payments as $pay) {
+                        $totalPaid += floatval($pay['pmtAmt'] ?? 0);
+                    }
+                    $outstanding = $totalFee - $totalPaid;
+                    ?>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <small class="text-muted">Total Fee (current term)</small>
+                            <h5 class="mb-0">K <?= number_format($totalFee, 2) ?></h5>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Total Paid</small>
+                            <h5 class="mb-0 text-success">K <?= number_format($totalPaid, 2) ?></h5>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Outstanding Balance</small>
+                            <h5 class="mb-0 text-danger">K <?= number_format(max(0, $outstanding), 2) ?></h5>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Mode</th>
+                                    <th>Amount (K)</th>
+                                    <th>Balance After (K)</th>
+                                    <th>Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($payments)): ?>
+                                    <tr><td colspan="5" class="text-center text-muted">No payments recorded for this pupil</td></tr>
+                                <?php else:
+                                    // Payments returned DESC; compute running balance after each payment
+                                    $runningBalance = $totalFee;
+                                    // To show from last to first (most recent first), iterate as-is
+                                    foreach ($payments as $pay):
+                                        $amt = floatval($pay['pmtAmt'] ?? 0);
+                                        // Assuming balance in Payment record is balance after payment; if not, compute
+                                        $balanceAfter = isset($pay['balance']) ? floatval($pay['balance']) : ($runningBalance - $amt);
+                                        // Update running balance to reflect previous state when moving to next (older) record
+                                        $runningBalance = $balanceAfter;
+                                ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars(date('M d, Y', strtotime($pay['paymentDate'] ?? '')) ) ?></td>
+                                        <td><?= htmlspecialchars($pay['paymentMode'] ?? 'Cash') ?></td>
+                                        <td><?= number_format($amt, 2) ?></td>
+                                        <td><?= number_format($balanceAfter, 2) ?></td>
+                                        <td><?= htmlspecialchars($pay['remark'] ?? '') ?></td>
+                                    </tr>
+                                <?php endforeach; endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         <!-- Parent/Guardian Information -->
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white border-bottom">

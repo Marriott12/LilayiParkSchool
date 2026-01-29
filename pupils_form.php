@@ -92,6 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'Parent/guardian phone is required';
                 } elseif (empty($data['enroll_day']) || empty($data['enroll_month']) || empty($data['enroll_year'])) {
                     $error = 'Enrollment date is required';
+                } elseif (empty($_POST['classID'] ?? '')) {
+                    $error = 'Assigning a class is required';
                 }
             }
             if (!isset($error)) {
@@ -263,9 +265,10 @@ require_once 'includes/header.php';
                                 <div class="col">
                                     <select class="form-select" name="dob_month" required>
                                         <option value="">Month</option>
-                                        <?php for ($m = 1; $m <= 12; $m++): ?>
-                                            <option value="<?= $m ?>" <?= (isset($pupil['dob_month']) && $pupil['dob_month'] == $m) ? 'selected' : ((isset($pupil['DoB']) && intval(date('m', strtotime($pupil['DoB'])) == $m)) ? 'selected' : '') ?>><?= $m ?></option>
-                                        <?php endfor; ?>
+                                                <?php for ($m = 1; $m <= 12; $m++):
+                                                    $monthName = DateTime::createFromFormat('!m', $m)->format('F'); ?>
+                                                    <option value="<?= $m ?>" <?= (isset($pupil['dob_month']) && $pupil['dob_month'] == $m) ? 'selected' : ((isset($pupil['DoB']) && intval(date('m', strtotime($pupil['DoB'])) == $m)) ? 'selected' : '') ?>><?= $monthName ?></option>
+                                                <?php endfor; ?>
                                     </select>
                                 </div>
                                 <div class="col">
@@ -281,10 +284,10 @@ require_once 'includes/header.php';
                         </div>
 
                         <div class="col-md-4 mb-3">
-                            <label class="form-label">Home Address <span class="text-danger">*</span></label>
+                            <label class="form-label">Home Address</label>
                             <input type="text" class="form-control" name="homeAddress" 
                                    value="<?= htmlspecialchars($pupil['homeAddress'] ?? '') ?>" 
-                                   placeholder="Street address" required>
+                                   placeholder="Street address">
                         </div>
                         
                         <div class="col-md-4 mb-3">
@@ -306,6 +309,27 @@ require_once 'includes/header.php';
                                 foreach ($areas as $area) {
                                     $selected = ($selectedArea === $area) ? 'selected' : '';
                                     echo "<option value=\"$area\" $selected>$area</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Assign Class </label>
+                            <select name="classID" class="form-select">
+                                <option value="">-- Select Class --</option>
+                                <?php
+                                $currentClass = null;
+                                if ($isEdit && !empty($pupil['pupilID'])) {
+                                    $db = Database::getInstance()->getConnection();
+                                    $stmt = $db->prepare('SELECT classID FROM Pupil_Class WHERE pupilID = ? LIMIT 1');
+                                    $stmt->execute([$pupil['pupilID']]);
+                                    $rowC = $stmt->fetch();
+                                    $currentClass = $rowC['classID'] ?? null;
+                                }
+                                foreach ($allClasses as $c) {
+                                    $sel = ($currentClass && $currentClass === ($c['classID'] ?? '')) || (isset($_POST['classID']) && $_POST['classID'] === ($c['classID'] ?? '')) ? 'selected' : '';
+                                    echo '<option value="' . htmlspecialchars($c['classID']) . '" ' . $sel . '>' . htmlspecialchars(($c['className'] ?? '') . ' - ' . trim(($c['teacherFirstName'] ?? '') . ' ' . ($c['teacherLastName'] ?? ''))) . '</option>';
                                 }
                                 ?>
                             </select>
@@ -382,8 +406,9 @@ require_once 'includes/header.php';
                                 <div class="col">
                                     <select class="form-select" name="enroll_month" required>
                                         <option value="">Month</option>
-                                        <?php for ($m = 1; $m <= 12; $m++): ?>
-                                            <option value="<?= $m ?>" <?= (isset($pupil['enroll_month']) && $pupil['enroll_month'] == $m) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('m', strtotime($pupil['enrollDate'])) == $m) ? 'selected' : '')) ?>><?= $m ?></option>
+                                        <?php for ($m = 1; $m <= 12; $m++):
+                                            $monthName = DateTime::createFromFormat('!m', $m)->format('F'); ?>
+                                            <option value="<?= $m ?>" <?= (isset($pupil['enroll_month']) && $pupil['enroll_month'] == $m) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('m', strtotime($pupil['enrollDate'])) == $m) ? 'selected' : '')) ?>><?= $monthName ?></option>
                                         <?php endfor; ?>
                                     </select>
                                 </div>
@@ -489,7 +514,7 @@ require_once 'includes/header.php';
                             <label class="form-label">Relationship</label>
                             <select class="form-select" name="relationship">
                                 <?php
-                                $relOptions = ['Mother', 'Father', 'Guardian', 'Aunt/Uncle', 'Other'];
+                                $relOptions = ['Mother', 'Father', 'Guardian', 'Aunt/Uncle', 'Sibling', 'Grandparent'];
                                 $selRel = $pupil['relationship'] ?? '';
                                 echo '<option value="">-- Select Relationship --</option>';
                                 foreach ($relOptions as $opt) {
@@ -510,44 +535,12 @@ require_once 'includes/header.php';
                             <input type="email" class="form-control" name="parentEmail" placeholder="parent@example.com" value="<?= htmlspecialchars($pupil['parentEmail'] ?? '') ?>">
                         </div>
 
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Assign Class (optional)</label>
-                            <select name="classID" class="form-select">
-                                <option value="">-- Select Class (optional) --</option>
-                                <?php
-                                $currentClass = null;
-                                if ($isEdit && !empty($pupil['pupilID'])) {
-                                    $db = Database::getInstance()->getConnection();
-                                    $stmt = $db->prepare('SELECT classID FROM Pupil_Class WHERE pupilID = ? LIMIT 1');
-                                    $stmt->execute([$pupil['pupilID']]);
-                                    $rowC = $stmt->fetch();
-                                    $currentClass = $rowC['classID'] ?? null;
-                                }
-                                foreach ($allClasses as $c) {
-                                    $sel = ($currentClass && $currentClass === ($c['classID'] ?? '')) || (isset($_POST['classID']) && $_POST['classID'] === ($c['classID'] ?? '')) ? 'selected' : '';
-                                    echo '<option value="' . htmlspecialchars($c['classID']) . '" ' . $sel . '>' . htmlspecialchars(($c['className'] ?? '') . ' - ' . trim(($c['teacherFirstName'] ?? '') . ' ' . ($c['teacherLastName'] ?? ''))) . '</option>';
-                                }
-                                ?>
-                            </select>
-                        </div>
+                        
                     </div>
                 </div>
             </div>
-            
-                    <!-- Quick Assign to Class (visible after pupil saved) -->
-                    <div class="mb-4">
-                        <?php if ($isEdit && !empty($pupil['pupilID'])): ?>
-                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignClassModal">
-                                <i class="bi bi-arrow-right-square me-1"></i> Assign to Class
-                            </button>
-                        <?php else: ?>
-                            <button type="button" class="btn btn-sm btn-secondary" disabled title="Save the pupil first to assign to a class">
-                                <i class="bi bi-arrow-right-square me-1"></i> Assign to Class (save first)
-                            </button>
-                        <?php endif; ?>
-                    </div>
 
-                    <div class="d-flex gap-2">
+            <div class="d-flex gap-2">
                 <button type="submit" class="btn" style="background-color: #2d5016; color: white;">
                     <i class="bi bi-save"></i> <?= $isEdit ? 'Update' : 'Create' ?> Pupil
                 </button>
