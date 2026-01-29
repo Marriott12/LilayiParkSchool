@@ -55,16 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Mark attendance
-    $result = $attendanceModel->mark(
+    $result = $attendanceModel->markAttendance(
         $data['pupilID'],
         $data['date'],
         $data['status'],
-        $data['remarks'] ?? null,
-        $user['userID']
+        $data['remarks'] ?? null
     );
-    
+
     if ($result) {
-        MobileAPI::success(['attendanceID' => $result], 'Attendance marked successfully');
+        MobileAPI::success(null, 'Attendance marked successfully');
     } else {
         MobileAPI::error('Failed to mark attendance', 500);
     }

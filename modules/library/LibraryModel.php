@@ -5,7 +5,7 @@
  */
 
 class LibraryModel extends BaseModel {
-    protected $table = 'books';
+    protected $table = 'Books';
     protected $primaryKey = 'bookID';
     
     /**

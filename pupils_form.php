@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 require_once 'includes/bootstrap.php';
 require_once 'includes/Auth.php';
 
@@ -13,213 +16,166 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'manage_pupils')) {
     Session::setFlash('error', 'You do not have permission to manage pupils.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
 require_once 'modules/pupils/PupilModel.php';
-require_once 'modules/parents/ParentModel.php';
 require_once 'modules/users/UsersModel.php';
+require_once 'modules/classes/ClassModel.php';
 
 $pupilModel = new PupilModel();
-$parentModel = new ParentModel();
 $usersModel = new UsersModel();
+// Ensure class model is available for assignment within request
+$classModel = new ClassModel();
 
-// Get all parents for dropdown
-$parents = $parentModel->getAll();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validate CSRF token first
-    if (!CSRF::requireToken()) {
-        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
-    } else {
-        $parentOption = $_POST['parentOption'] ?? 'existing';
-        $parentID = null;
-    
-    // Handle parent creation/selection
-    if ($parentOption === 'new' && !$isEdit) {
-        // Validate and create new parent
-        $parentData = [
-            'fName' => trim($_POST['parent_fName'] ?? ''),
-            'lName' => trim($_POST['parent_lName'] ?? ''),
-            'relation' => trim($_POST['parent_relation'] ?? ''),
-            'gender' => $_POST['parent_gender'] ?? '',
-            'NRC' => trim($_POST['parent_NRC'] ?? ''),
-            'phone' => trim($_POST['parent_phone'] ?? ''),
-            'email1' => trim($_POST['parent_email1'] ?? ''),
-            'email2' => trim($_POST['parent_email2'] ?? ''),
-            'occupation' => trim($_POST['parent_occupation'] ?? ''),
-            'workplace' => trim($_POST['parent_workplace'] ?? '')
-        ];
-        
-        if (empty($parentData['fName'])) {
-            $error = 'Parent first name is required';
-        } elseif (empty($parentData['lName'])) {
-            $error = 'Parent last name is required';
-        } elseif (empty($parentData['relation'])) {
-            $error = 'Parent relationship is required';
-        } elseif (empty($parentData['gender'])) {
-            $error = 'Parent gender is required';
-        } elseif (empty($parentData['NRC'])) {
-            $error = 'Parent NRC is required';
-        } elseif (empty($parentData['phone'])) {
-            $error = 'Parent phone is required';
-        } elseif (empty($parentData['email1'])) {
-            $error = 'Parent email is required';
-        } elseif (!filter_var($parentData['email1'], FILTER_VALIDATE_EMAIL)) {
-            $error = 'Invalid parent email format';
-        }
-    } else {
-        $parentID = !empty($_POST['parentID']) ? $_POST['parentID'] : null;
-        if (empty($parentID) && !$isEdit) {
-            $error = 'Please select a parent or choose to add a new one';
-        }
-    }
-    
-    // Pupil data
-    $data = [
-        'fName' => trim($_POST['fName'] ?? ''),
-        'sName' => trim($_POST['sName'] ?? ''),
-        'gender' => $_POST['gender'] ?? '',
-        'DoB' => $_POST['DoB'] ?? '',
-        'homeAddress' => trim($_POST['homeAddress'] ?? ''),
-        'homeArea' => trim($_POST['homeArea'] ?? ''),
-        'medCondition' => trim($_POST['medCondition'] ?? ''),
-        'medAllergy' => trim($_POST['medAllergy'] ?? ''),
-        'restrictions' => trim($_POST['restrictions'] ?? ''),
-        'prevSch' => trim($_POST['prevSch'] ?? ''),
-        'reason' => trim($_POST['reason'] ?? ''),
-        'enrollDate' => $_POST['enrollDate'] ?? date('Y-m-d'),
-        'transport' => $_POST['transport'] ?? 'N',
-        'lunch' => $_POST['lunch'] ?? 'N',
-        'photo' => $_POST['photo'] ?? 'N',
-        'passPhoto' => '' // Will be handled by file upload
-    ];
-    
-    // Validation
-    if (!isset($error)) {
-        if (empty($data['fName'])) {
-            $error = 'Pupil first name is required';
-        } elseif (empty($data['sName'])) {
-            $error = 'Pupil last name is required';
-        } elseif (empty($data['gender'])) {
-            $error = 'Gender is required';
-        } elseif (empty($data['DoB'])) {
-            $error = 'Date of birth is required';
-        } elseif (empty($data['homeAddress'])) {
-            $error = 'Home address is required';
-        } elseif (empty($data['homeArea'])) {
-            $error = 'Home area is required';
-        }
-    }
-    
-    if (!isset($error)) {
-        try {
-            // Create parent if new
-            if ($parentOption === 'new' && !$isEdit) {
-                $parentID = $parentModel->create($parentData);
-                
-                // Automatically create user account for new parent
-                if ($parentID) {
-                    // Check if user account with this email already exists
-                    if (!$usersModel->emailExists($parentData['email1'])) {
-                        // Generate username from parent's name
-                        $username = strtolower($parentData['fName'] . '.' . $parentData['lName']);
-                        $baseUsername = $username;
-                        $counter = 1;
-                        
-                        // Ensure unique username
-                        while ($usersModel->usernameExists($username)) {
-                            $username = $baseUsername . $counter;
-                            $counter++;
+        // Validate CSRF token first
+        if (!CSRF::requireToken()) {
+            $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+        } else {
+            // Pupil data
+            $enroll_day = $_POST['enroll_day'] ?? '';
+            $enroll_month = $_POST['enroll_month'] ?? '';
+            $enroll_year = $_POST['enroll_year'] ?? '';
+            $enrollDate = '';
+            if ($enroll_year && $enroll_month && $enroll_day) {
+                $enrollDate = sprintf('%04d-%02d-%02d', (int)$enroll_year, (int)$enroll_month, (int)$enroll_day);
+            }
+
+            $data = [
+                'fName' => trim($_POST['fName'] ?? ''),
+                'lName' => trim($_POST['lName'] ?? ''),
+                'gender' => $_POST['gender'] ?? '',
+                'dob_day' => $_POST['dob_day'] ?? '',
+                'dob_month' => $_POST['dob_month'] ?? '',
+                'dob_year' => $_POST['dob_year'] ?? '',
+                'DoB' => ($_POST['dob_year'] ?? '') . '-' . str_pad($_POST['dob_month'] ?? '', 2, '0', STR_PAD_LEFT) . '-' . str_pad($_POST['dob_day'] ?? '', 2, '0', STR_PAD_LEFT),
+                'homeAddress' => trim($_POST['homeAddress'] ?? ''),
+                'homeArea' => trim($_POST['homeArea'] ?? ''),
+                // Parent details stored on the pupil record (consistent column names)
+                'parent1' => trim($_POST['parent1'] ?? ''),
+                'parent2' => trim($_POST['parent2'] ?? ''),
+                'relationship' => trim($_POST['relationship'] ?? ''),
+                'phone' => trim($_POST['phone'] ?? ''),
+                'parentEmail' => trim($_POST['parentEmail'] ?? ''),
+                'medCondition' => trim($_POST['medCondition'] ?? ''),
+                'medAllergy' => trim($_POST['medAllergy'] ?? ''),
+                'restrictions' => trim($_POST['restrictions'] ?? ''),
+                'prevSch' => trim($_POST['prevSch'] ?? ''),
+                'reason' => trim($_POST['reason'] ?? ''),
+                'enrollDate' => $enrollDate,
+                'transport' => $_POST['transport'] ?? 'N',
+                'lunch' => $_POST['lunch'] ?? 'N',
+                'photo' => $_POST['photo'] ?? 'N',
+                'passPhoto' => '' // Will be handled by file upload
+            ];
+            // Validation
+            if (!isset($error)) {
+                if (empty($data['fName'])) {
+                    $error = 'Pupil first name is required';
+                } elseif (empty($data['lName'])) {
+                    $error = 'Pupil last name is required';
+                } elseif (empty($data['gender'])) {
+                    $error = 'Gender is required';
+                } elseif (empty($data['dob_day']) || empty($data['dob_month']) || empty($data['dob_year'])) {
+                    $error = 'Date of birth is required';
+                } elseif (empty($data['homeAddress'])) {
+                    $error = 'Home address is required';
+                } elseif (empty($data['homeArea'])) {
+                    $error = 'Home area is required';
+                } elseif (empty($data['parent1'])) {
+                    $error = 'Parent/guardian name is required';
+                } elseif (empty($data['phone'])) {
+                    $error = 'Parent/guardian phone is required';
+                } elseif (empty($data['enroll_day']) || empty($data['enroll_month']) || empty($data['enroll_year'])) {
+                    $error = 'Enrollment date is required';
+                }
+            }
+            if (!isset($error)) {
+                try {
+                    // Check for duplicate pupil (same parent identifier, first name, last name, and date of birth)
+                    $parentIdentifier = $data['phone'] ?: $data['parent1'];
+                    $existingPupil = $pupilModel->findByParentAndDetails($parentIdentifier, $data['fName'], $data['lName'], $data['DoB']);
+                    if (!$isEdit && $existingPupil) {
+                        $error = 'A pupil with the same parent, name, and date of birth already exists.';
+                    } else {
+                        // Handle file upload for passport photo
+                        if (isset($_FILES['passPhotoFile']) && $_FILES['passPhotoFile']['error'] === UPLOAD_ERR_OK) {
+                            $uploadDir = 'uploads/pupils/';
+                            if (!is_dir($uploadDir)) {
+                                mkdir($uploadDir, 0777, true);
+                            }
+                            $fileExtension = pathinfo($_FILES['passPhotoFile']['name'], PATHINFO_EXTENSION);
+                            $fileName = uniqid('pupil_') . '.' . $fileExtension;
+                            $uploadPath = $uploadDir . $fileName;
+                            if (move_uploaded_file($_FILES['passPhotoFile']['tmp_name'], $uploadPath)) {
+                                $data['passPhoto'] = $uploadPath;
+                            }
                         }
-                        
-                        // Generate random password
-                        $generatedPassword = Auth::generatePassword(12);
-                        
-                        // Create user account
-                        $userData = [
-                            'username' => $username,
-                            'email' => $parentData['email1'],
-                            'password' => $generatedPassword,
-                            'role' => 'parent',
-                            'firstName' => $parentData['fName'],
-                            'lastName' => $parentData['lName'],
-                            'isActive' => 'Y'
-                        ];
-                        
-                        $userID = $usersModel->createUser($userData);
-                        
-                        // Link user account to parent
-                        if ($userID) {
-                            $parentModel->update($parentID, ['userID' => $userID]);
-                            
-                            // Store credentials to display to user
-                            Session::set('new_parent_username', $username);
-                            Session::set('new_parent_password', $generatedPassword);
-                            Session::set('new_parent_email', $parentData['email1']);
+                        if ($isEdit) {
+                            $pupilModel->update($pupilID, $data);
+                            // Assign to class if provided
+                            $selectedClass = $_POST['classID'] ?? '';
+                            if (!empty($selectedClass)) {
+                                $classModel->assignPupil($selectedClass, $pupilID);
+                            }
+                            Session::setFlash('success', 'Pupil updated successfully');
+                            header('Location: pupils_list.php');
+                            exit;
+                        } else {
+                            // Create pupil and assign to class atomically using a transaction
+                            $db = Database::getInstance()->getConnection();
+                            $selectedClass = $_POST['classID'] ?? '';
+                            try {
+                                $db->beginTransaction();
+
+                                // Create pupil - create() returns lastInsertId or the primary key
+                                $newPupilID = $pupilModel->create($data);
+                                if (!$newPupilID) {
+                                    throw new Exception('Failed to create pupil record');
+                                }
+
+                                // If a class was selected, assign within the same transaction
+                                if (!empty($selectedClass)) {
+                                    $ok = $classModel->assignPupil($selectedClass, $newPupilID);
+                                    if (!$ok) {
+                                        throw new Exception('Failed to assign pupil to class');
+                                    }
+                                }
+
+                                $db->commit();
+
+                                Session::setFlash('success', 'Pupil created successfully.');
+                                header('Location: pupils_form.php?success=1');
+                                exit;
+                            } catch (Exception $ex) {
+                                // Rollback and rethrow to outer catch for user display
+                                if ($db && $db->inTransaction()) {
+                                    $db->rollBack();
+                                }
+                                throw $ex;
+                            }
                         }
+                        CSRF::regenerateToken();
                     }
+                } catch (Exception $e) {
+                    $error = 'Database error: ' . $e->getMessage();
                 }
             }
-            
-            $data['parentID'] = $parentID;
-            
-            // Handle file upload for passport photo
-            if (isset($_FILES['passPhotoFile']) && $_FILES['passPhotoFile']['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = 'uploads/pupils/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
-                }
-                
-                $fileExtension = pathinfo($_FILES['passPhotoFile']['name'], PATHINFO_EXTENSION);
-                $fileName = uniqid('pupil_') . '.' . $fileExtension;
-                $uploadPath = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($_FILES['passPhotoFile']['tmp_name'], $uploadPath)) {
-                    $data['passPhoto'] = $uploadPath;
-                }
-            }
-            
-            if ($isEdit) {
-                $pupilModel->update($pupilID, $data);
-                Session::setFlash('success', 'Pupil updated successfully');
-            } else {
-                $pupilModel->create($data);
-                
-                // Build success message
-                $successMsg = 'Pupil created successfully.';
-                if ($parentOption === 'new') {
-                    $successMsg .= ' Parent account created.';
-                    
-                    // Add login credentials if new user was created
-                    if (Session::has('new_parent_username')) {
-                        $successMsg .= ' Login credentials: Username: ' . Session::get('new_parent_username') . 
-                                     ', Password: ' . Session::get('new_parent_password') . 
-                                     ' (Email sent to: ' . Session::get('new_parent_email') . ')';
-                        // Clear the temporary session data
-                        Session::remove('new_parent_username');
-                        Session::remove('new_parent_password');
-                        Session::remove('new_parent_email');
-                    }
-                }
-                
-                Session::setFlash('success', $successMsg);
-            }
-            
-            CSRF::regenerateToken();
-            header('Location: pupils_list.php');
-            exit;
-        } catch (Exception $e) {
-            $error = $e->getMessage();
         }
-        }
+        // If there is an error, repopulate $pupil with submitted data so the form is filled
+    if (isset($error)) {
+        $pupil = $data;
     }
 }
 
 // Get pupil data if editing
 $pupil = $isEdit ? $pupilModel->getById($pupilID) : null;
+$classModel = new ClassModel();
+$allClasses = $classModel->getAllWithDetails();
 
 $pageTitle = $isEdit ? 'Edit Pupil' : 'Add New Pupil';
 $currentPage = 'pupils';
@@ -239,143 +195,23 @@ require_once 'includes/header.php';
         </h5>
     </div>
     <div class="card-body">
-        <?php if (isset($error)): ?>
-        <div class="alert alert-danger alert-dismissible fade show">
-            <i class="bi bi-exclamation-triangle-fill"></i> <?= htmlspecialchars($error) ?>
+
+                <?php if (!empty($error)): ?>
+                <div class="alert alert-danger alert-dismissible fade show">
+                    <i class="bi bi-exclamation-triangle-fill"></i> <?= htmlspecialchars($error) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+
+        <?php if (isset($_GET['success']) && $_GET['success'] == 1): ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle-fill"></i> Pupil created successfully.
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         <?php endif; ?>
         
         <form method="POST" action="" enctype="multipart/form-data">
             <?= CSRF::field() ?>
-            
-            <!-- Parent Selection Section -->
-            <div class="card mb-4" style="border-left: 4px solid #2d5016;">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="bi bi-person-hearts"></i> Parent/Guardian Information</h6>
-                </div>
-                <div class="card-body">
-                    <?php if (!$isEdit): ?>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Parent/Guardian Option <span class="text-danger">*</span></label>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="parentOption" id="existingParent" value="existing" checked>
-                            <label class="btn btn-outline-primary" for="existingParent">
-                                <i class="bi bi-search"></i> Select Existing Parent
-                            </label>
-                            
-                            <input type="radio" class="btn-check" name="parentOption" id="newParent" value="new">
-                            <label class="btn btn-outline-success" for="newParent">
-                                <i class="bi bi-person-plus"></i> Add New Parent
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Existing Parent Selection -->
-                    <div id="existingParentSection">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Select Parent <span class="text-danger">*</span></label>
-                            <select class="form-select" name="parentID" id="parentDropdown">
-                                <option value="">-- Select Parent/Guardian --</option>
-                                <?php foreach ($parents as $parent): ?>
-                                <option value="<?= $parent['parentID'] ?>">
-                                    <?= htmlspecialchars($parent['fName'] . ' ' . $parent['lName']) ?> 
-                                    (<?= htmlspecialchars($parent['relation'] ?? 'N/A') ?>) - <?= htmlspecialchars($parent['phone']) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="form-text">Choose an existing parent/guardian from the list</div>
-                        </div>
-                    </div>
-                    
-                    <!-- New Parent Form -->
-                    <div id="newParentSection" style="display: none;">
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> Fill in the parent/guardian details below. They will be created along with the pupil.
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Forename <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="parent_fName" id="parent_fName">
-                            </div>
-                            
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="parent_lName" id="parent_lName">
-                            </div>
-                        
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Relationship <span class="text-danger">*</span></label>
-                                <select class="form-select" name="parent_relation" id="parent_relation">
-                                    <option value="">Select Relationship</option>
-                                    <option value="Father">Father</option>
-                                    <option value="Mother">Mother</option>
-                                    <option value="Guardian">Guardian</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Gender <span class="text-danger">*</span></label>
-                                <div class="btn-group w-100" role="group">
-                                    <input type="radio" class="btn-check" name="parent_gender" id="parent_gender_m" value="M">
-                                    <label class="btn btn-outline-primary" for="parent_gender_m">
-                                        <i class="bi bi-gender-male"></i> Male
-                                    </label>
-                                    
-                                    <input type="radio" class="btn-check" name="parent_gender" id="parent_gender_f" value="F">
-                                    <label class="btn btn-outline-primary" for="parent_gender_f">
-                                        <i class="bi bi-gender-female"></i> Female
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">NRC <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="parent_NRC" id="parent_NRC" 
-                                       placeholder="e.g., 123456/78/9">
-                            </div>
-                            
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Phone <span class="text-danger">*</span></label>
-                                <input type="tel" class="form-control" name="parent_phone" id="parent_phone" 
-                                       placeholder="e.g., +260 97 1234567">
-                            </div>
-                        
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Email 1 <span class="text-danger">*</span></label>
-                                <input type="email" class="form-control" name="parent_email1" id="parent_email1">
-                            </div>
-                            
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Email 2</label>
-                                <input type="email" class="form-control" name="parent_email2" id="parent_email2" 
-                                       placeholder="Secondary email (optional)">
-                            </div>
-                        
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Occupation</label>
-                                <input type="text" class="form-control" name="parent_occupation" id="parent_occupation">
-                            </div>
-                            
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Workplace</label>
-                                <input type="text" class="form-control" name="parent_workplace" id="parent_workplace" 
-                                       placeholder="Employer/Company name">
-                            </div>
-                        </div>
-                    </div>
-                    <?php else: ?>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Parent cannot be changed when editing. Current parent: 
-                        <strong><?= htmlspecialchars(($pupil['parentFName'] ?? '') . ' ' . ($pupil['parentLName'] ?? '')) ?></strong>
-                    </div>
-                    <input type="hidden" name="parentID" value="<?= htmlspecialchars($pupil['parentID'] ?? '') ?>">
-                    <input type="hidden" name="parentOption" value="existing">
-                    <?php endif; ?>
-                </div>
-            </div>
             
             <!-- Pupil Information Section -->
             <div class="card mb-4" style="border-left: 4px solid #5cb85c;">
@@ -392,8 +228,8 @@ require_once 'includes/header.php';
                         
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Last Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="sName" 
-                                   value="<?= htmlspecialchars($pupil['sName'] ?? '') ?>" required>
+                            <input type="text" class="form-control" name="lName" 
+                                value="<?= isset($pupil['lName']) ? htmlspecialchars($pupil['lName']) : '' ?>" required>
                         </div>
 
                         <div class="col-md-4 mb-3">
@@ -415,8 +251,33 @@ require_once 'includes/header.php';
                         
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="DoB" 
-                                   value="<?= htmlspecialchars($pupil['DoB'] ?? '') ?>" required>
+                            <div class="row g-1">
+                                <div class="col">
+                                    <select class="form-select" name="dob_day" required>
+                                        <option value="">Day</option>
+                                        <?php for ($d = 1; $d <= 31; $d++): ?>
+                                            <option value="<?= $d ?>" <?= (isset($pupil['dob_day']) && $pupil['dob_day'] == $d) ? 'selected' : ((isset($pupil['DoB']) && intval(date('d', strtotime($pupil['DoB'])) == $d)) ? 'selected' : '') ?>><?= $d ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="col">
+                                    <select class="form-select" name="dob_month" required>
+                                        <option value="">Month</option>
+                                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                                            <option value="<?= $m ?>" <?= (isset($pupil['dob_month']) && $pupil['dob_month'] == $m) ? 'selected' : ((isset($pupil['DoB']) && intval(date('m', strtotime($pupil['DoB'])) == $m)) ? 'selected' : '') ?>><?= $m ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="col">
+                                    <select class="form-select" name="dob_year" required>
+                                        <option value="">Year</option>
+                                        <?php $currentYear = date('Y');
+                                            for ($y = $currentYear; $y >= $currentYear - 25; $y--): ?>
+                                            <option value="<?= $y ?>" <?= (isset($pupil['dob_year']) && $pupil['dob_year'] == $y) ? 'selected' : ((isset($pupil['DoB']) && intval(date('Y', strtotime($pupil['DoB'])) == $y)) ? 'selected' : '') ?>><?= $y ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="col-md-4 mb-3">
@@ -428,9 +289,26 @@ require_once 'includes/header.php';
                         
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Home Area <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="homeArea" 
-                                   value="<?= htmlspecialchars($pupil['homeArea'] ?? '') ?>" 
-                                   placeholder="Town/District" required>
+                            <select class="form-select" name="homeArea" required>
+                                <option value="">-- Select Home Area --</option>
+                                <?php
+                                $areas = [
+                                    'Kamwala South',
+                                    'Libala South',
+                                    'Lilayi',
+                                    'Lilayi Estates',
+                                    'Lilayi Police',
+                                    'Mahopo',
+                                    'Shantumbu'
+                                ];
+                                sort($areas);
+                                $selectedArea = $pupil['homeArea'] ?? '';
+                                foreach ($areas as $area) {
+                                    $selected = ($selectedArea === $area) ? 'selected' : '';
+                                    echo "<option value=\"$area\" $selected>$area</option>";
+                                }
+                                ?>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -492,8 +370,33 @@ require_once 'includes/header.php';
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Enrollment Date</label>
-                            <input type="date" class="form-control" name="enrollDate" 
-                                   value="<?= htmlspecialchars($pupil['enrollDate'] ?? date('Y-m-d')) ?>">
+                            <div class="row g-1">
+                                <div class="col">
+                                    <select class="form-select" name="enroll_day" required>
+                                        <option value="">Day</option>
+                                        <?php for ($d = 1; $d <= 31; $d++): ?>
+                                            <option value="<?= $d ?>" <?= (isset($pupil['enroll_day']) && $pupil['enroll_day'] == $d) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('d', strtotime($pupil['enrollDate'])) == $d) ? 'selected' : '')) ?>><?= $d ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="col">
+                                    <select class="form-select" name="enroll_month" required>
+                                        <option value="">Month</option>
+                                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                                            <option value="<?= $m ?>" <?= (isset($pupil['enroll_month']) && $pupil['enroll_month'] == $m) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('m', strtotime($pupil['enrollDate'])) == $m) ? 'selected' : '')) ?>><?= $m ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="col">
+                                    <select class="form-select" name="enroll_year" required>
+                                        <option value="">Year</option>
+                                        <?php $currentYear = date('Y');
+                                            for ($y = $currentYear; $y >= $currentYear - 25; $y--): ?>
+                                            <option value="<?= $y ?>" <?= (isset($pupil['enroll_year']) && $pupil['enroll_year'] == $y) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('Y', strtotime($pupil['enrollDate'])) == $y) ? 'selected' : '')) ?>><?= $y ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="col-md-4 mb-3">
@@ -565,7 +468,86 @@ require_once 'includes/header.php';
                 </div>
             </div>
             
-            <div class="d-flex gap-2">
+            <!-- Parent/Guardian Information Section (now stored on pupil record) -->
+            <div class="card mb-4" style="border-left: 4px solid #2d5016;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-person-hearts"></i> Parent/Guardian Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Parent 1 (Primary) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="parent1" placeholder="e.g., John Banda" value="<?= htmlspecialchars($pupil['parent1'] ?? '') ?>" required>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Parent 2 (Optional)</label>
+                            <input type="text" class="form-control" name="parent2" placeholder="Optional" value="<?= htmlspecialchars($pupil['parent2'] ?? '') ?>">
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Relationship</label>
+                            <select class="form-select" name="relationship">
+                                <?php
+                                $relOptions = ['Mother', 'Father', 'Guardian', 'Aunt/Uncle', 'Other'];
+                                $selRel = $pupil['relationship'] ?? '';
+                                echo '<option value="">-- Select Relationship --</option>';
+                                foreach ($relOptions as $opt) {
+                                    $sel = ($selRel === $opt) ? 'selected' : '';
+                                    echo "<option value=\"$opt\" $sel>$opt</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Phone <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone" placeholder="e.g., +260971234567" value="<?= htmlspecialchars($pupil['phone'] ?? '') ?>" required>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Parent Email</label>
+                            <input type="email" class="form-control" name="parentEmail" placeholder="parent@example.com" value="<?= htmlspecialchars($pupil['parentEmail'] ?? '') ?>">
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Assign Class (optional)</label>
+                            <select name="classID" class="form-select">
+                                <option value="">-- Select Class (optional) --</option>
+                                <?php
+                                $currentClass = null;
+                                if ($isEdit && !empty($pupil['pupilID'])) {
+                                    $db = Database::getInstance()->getConnection();
+                                    $stmt = $db->prepare('SELECT classID FROM Pupil_Class WHERE pupilID = ? LIMIT 1');
+                                    $stmt->execute([$pupil['pupilID']]);
+                                    $rowC = $stmt->fetch();
+                                    $currentClass = $rowC['classID'] ?? null;
+                                }
+                                foreach ($allClasses as $c) {
+                                    $sel = ($currentClass && $currentClass === ($c['classID'] ?? '')) || (isset($_POST['classID']) && $_POST['classID'] === ($c['classID'] ?? '')) ? 'selected' : '';
+                                    echo '<option value="' . htmlspecialchars($c['classID']) . '" ' . $sel . '>' . htmlspecialchars(($c['className'] ?? '') . ' - ' . trim(($c['teacherFirstName'] ?? '') . ' ' . ($c['teacherLastName'] ?? ''))) . '</option>';
+                                }
+                                ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+                    <!-- Quick Assign to Class (visible after pupil saved) -->
+                    <div class="mb-4">
+                        <?php if ($isEdit && !empty($pupil['pupilID'])): ?>
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignClassModal">
+                                <i class="bi bi-arrow-right-square me-1"></i> Assign to Class
+                            </button>
+                        <?php else: ?>
+                            <button type="button" class="btn btn-sm btn-secondary" disabled title="Save the pupil first to assign to a class">
+                                <i class="bi bi-arrow-right-square me-1"></i> Assign to Class (save first)
+                            </button>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="d-flex gap-2">
                 <button type="submit" class="btn" style="background-color: #2d5016; color: white;">
                     <i class="bi bi-save"></i> <?= $isEdit ? 'Update' : 'Create' ?> Pupil
                 </button>
@@ -577,47 +559,77 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<script>
-// Toggle between existing and new parent sections
-document.addEventListener('DOMContentLoaded', function() {
-    const existingRadio = document.getElementById('existingParent');
-    const newRadio = document.getElementById('newParent');
-    const existingSection = document.getElementById('existingParentSection');
-    const newSection = document.getElementById('newParentSection');
-    const parentDropdown = document.getElementById('parentDropdown');
-    const newParentFields = ['parent_fName', 'parent_lName', 'parent_relation', 'parent_gender', 
-                             'parent_NRC', 'parent_phone', 'parent_email1'];
-    
-    function toggleSections() {
-        if (existingRadio && existingRadio.checked) {
-            existingSection.style.display = 'block';
-            newSection.style.display = 'none';
-            parentDropdown.required = true;
-            
-            // Remove required from new parent fields
-            newParentFields.forEach(id => {
-                const field = document.getElementById(id);
-                if (field) field.required = false;
-            });
-        } else if (newRadio && newRadio.checked) {
-            existingSection.style.display = 'none';
-            newSection.style.display = 'block';
-            parentDropdown.required = false;
-            
-            // Add required to new parent fields
-            newParentFields.forEach(id => {
-                const field = document.getElementById(id);
-                if (field) field.required = true;
-            });
-        }
-    }
-    
-    if (existingRadio) existingRadio.addEventListener('change', toggleSections);
-    if (newRadio) newRadio.addEventListener('change', toggleSections);
-    
-    // Initialize on page load
-    toggleSections();
-});
-</script>
+<!-- Removed parent selection JS -->
 
 <?php require_once 'includes/footer.php'; ?>
+
+<?php if ($isEdit && !empty($pupil['pupilID']) && !empty($allClasses)): ?>
+<!-- Assign Class Modal -->
+<div class="modal fade" id="assignClassModal" tabindex="-1" aria-labelledby="assignClassModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #2d5016; color: white;">
+                <h5 class="modal-title" id="assignClassModalLabel"><i class="bi bi-arrow-right-square me-2"></i>Assign to Class</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Select Class</label>
+                    <select id="assignClassSelect" class="form-select">
+                        <option value="">-- Select a class --</option>
+                        <?php foreach ($allClasses as $c): ?>
+                            <option value="<?= htmlspecialchars($c['classID']) ?>"><?= htmlspecialchars($c['className'] . ' - ' . trim(($c['teacherFirstName'] ?? '') . ' ' . ($c['teacherLastName'] ?? ''))) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div id="assignClassAlert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="assignClassBtn" onclick="assignClassToPupil()">Assign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function assignClassToPupil() {
+    const select = document.getElementById('assignClassSelect');
+    const classID = select.value;
+    const alertBox = document.getElementById('assignClassAlert');
+    const btn = document.getElementById('assignClassBtn');
+    const pupilID = '<?= htmlspecialchars($pupil['pupilID']) ?>';
+
+    alertBox.innerHTML = '';
+    if (!classID) {
+        alertBox.innerHTML = '<div class="alert alert-warning">Please select a class.</div>';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Assigning...';
+
+    try {
+        const formData = new FormData();
+        formData.append('action', 'add');
+        formData.append('classID', classID);
+        formData.append('pupilID', pupilID);
+
+        const resp = await fetch('classes_manage_pupils.php', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alertBox.innerHTML = '<div class="alert alert-danger">Error: ' + (data.error || 'Failed to assign') + '</div>';
+            btn.disabled = false;
+            btn.innerHTML = 'Assign';
+        }
+    } catch (err) {
+        console.error(err);
+        alertBox.innerHTML = '<div class="alert alert-danger">An unexpected error occurred.</div>';
+        btn.disabled = false;
+        btn.innerHTML = 'Assign';
+    }
+}
+</script>
+<?php endif; ?>

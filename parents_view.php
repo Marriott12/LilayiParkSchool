@@ -82,7 +82,15 @@ require_once 'includes/PermissionHelper.php';
                         <i class="bi bi-person-circle" style="font-size: 6rem; color: #2d5016;"></i>
                     </div>
                 </div>
-                <h4 class="mb-1"><?= htmlspecialchars($parent['fName'] ?? $parent['firstName'] ?? '') . ' ' . htmlspecialchars($parent['lName'] ?? $parent['lastName'] ?? '') ?></h4>
+                <h4 class="mb-1"><?php
+                    function sentence_case($str) {
+                        $str = strtolower($str);
+                        return ucfirst($str);
+                    }
+                    $firstName = $parent['fName'] ?? $parent['firstName'] ?? '';
+                    $lastName = $parent['lName'] ?? $parent['lastName'] ?? '';
+                    echo sentence_case($firstName) . ' ' . sentence_case($lastName);
+                ?></h4>
                 <p class="text-muted mb-3">Parent / Guardian</p>
                 <div class="mb-3">
                     <span class="badge bg-success px-3 py-2">
@@ -125,11 +133,11 @@ require_once 'includes/PermissionHelper.php';
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="text-muted small mb-1">First Name</label>
-                        <p class="mb-0 fw-semibold"><?= htmlspecialchars($parent['fName'] ?? 'N/A') ?></p>
+                        <p class="mb-0 fw-semibold"><?php echo sentence_case($parent['fName'] ?? 'N/A'); ?></p>
                     </div>
                     <div class="col-md-6">
                         <label class="text-muted small mb-1">Last Name</label>
-                        <p class="mb-0 fw-semibold"><?= htmlspecialchars($parent['lName'] ?? 'N/A') ?></p>
+                        <p class="mb-0 fw-semibold"><?php echo sentence_case($parent['lName'] ?? 'N/A'); ?></p>
                     </div>
                     <div class="col-md-6">
                         <label class="text-muted small mb-1">Gender</label>
@@ -146,7 +154,7 @@ require_once 'includes/PermissionHelper.php';
                     </div>
                     <div class="col-md-6">
                         <label class="text-muted small mb-1">Relation</label>
-                        <p class="mb-0 fw-semibold"><?= htmlspecialchars($parent['relation'] ?? 'N/A') ?></p>
+                        <p class="mb-0 fw-semibold"><?php echo sentence_case($parent['relation'] ?? 'N/A'); ?></p>
                     </div>
                 </div>
             </div>
@@ -218,7 +226,11 @@ require_once 'includes/PermissionHelper.php';
                             <div class="card-body">
                                 <h6 class="mb-1">
                                     <i class="bi bi-person-fill me-1" style="color: #2d5016;"></i>
-                                    <?= htmlspecialchars(($child['fName'] ?? $child['firstName'] ?? '') . ' ' . ($child['lName'] ?? $child['lastName'] ?? '')) ?>
+                                    <?php
+                                        $cf = $child['fName'] ?? $child['firstName'] ?? '';
+                                        $cl = $child['lName'] ?? $child['lastName'] ?? '';
+                                        echo sentence_case($cf) . ' ' . sentence_case($cl);
+                                    ?>
                                 </h6>
                                 <small class="text-muted">
                                     <i class="bi bi-hash"></i><?= htmlspecialchars($child['pupilID'] ?? '') ?>

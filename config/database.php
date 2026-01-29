@@ -32,8 +32,10 @@ class Database {
             $this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             $this->connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
         } catch(PDOException $e) {
+            // DEBUG: Show error directly in browser
+            echo '<pre style="color:red;">Database Connection Error: ' . htmlspecialchars($e->getMessage()) . '</pre>';
             error_log("Database Connection Error: " . $e->getMessage());
-            throw new Exception("Database connection failed. Please contact administrator.");
+            exit;
         }
     }
     

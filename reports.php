@@ -239,16 +239,16 @@ require_once 'includes/header.php';
                     $totalCollected = 0;
                     $totalOutstanding = 0;
                     foreach ($reportData as $row): 
-                        $totalFees += $row['feeAmt'];
+                        $totalFees += $row['classFee'];
                         $totalCollected += $row['totalCollected'];
                         $totalOutstanding += $row['outstanding'];
-                        $collectionRate = $row['feeAmt'] > 0 ? ($row['totalCollected'] / $row['feeAmt']) * 100 : 0;
+                        $collectionRate = $row['classFee'] > 0 ? ($row['totalCollected'] / $row['classFee']) * 100 : 0;
                     ?>
                     <tr>
                         <td><strong><?= htmlspecialchars($row['className']) ?></strong></td>
                         <td>Term <?= $row['term'] ?></td>
                         <td><?= $row['year'] ?></td>
-                        <td>K <?= number_format($row['feeAmt'], 2) ?></td>
+                        <td>K <?= number_format($row['classFee'], 2) ?></td>
                         <td style="color: #5cb85c;"><strong>K <?= number_format($row['totalCollected'], 2) ?></strong></td>
                         <td style="color: #f0ad4e;"><strong>K <?= number_format($row['outstanding'], 2) ?></strong></td>
                         <td>

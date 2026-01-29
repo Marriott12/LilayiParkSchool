@@ -22,8 +22,8 @@ require_once '../modules/pupils/PupilModel.php';
 $pupilModel = new PupilModel();
 $format = $_GET['format'] ?? 'csv';
 
-// Get all pupils with class information
-$pupils = $pupilModel->getAllWithClass();
+// Get all pupils (no limit)
+$pupils = $pupilModel->getAllWithParents();
 
 if (empty($pupils)) {
     Session::setFlash('error', 'No pupils data to export.');
@@ -31,43 +31,66 @@ if (empty($pupils)) {
     exit;
 }
 
-// Define columns for export
-$columns = [
+// Map of display column => data key in pupil record
+$columnMap = [
     'Pupil ID' => 'pupilID',
     'First Name' => 'fName',
     'Last Name' => 'lName',
     'Gender' => 'gender',
-    'Date of Birth' => 'dob',
-    'Admission Number' => 'admissionNumber',
-    'Class' => 'className',
-    'Parent Name' => 'parentName',
-    'Parent Phone' => 'parentPhone',
-    'Parent Email' => 'parentEmail',
-    'Status' => 'status',
-    'Admission Date' => 'admissionDate'
+    'Date of Birth' => 'DoB',
+    'Home Address' => 'homeAddress',
+    'Home Area' => 'homeArea',
+    'Medical Conditions' => 'medCondition',
+    'Medical Allergies' => 'medAllergy',
+    'Restrictions' => 'restrictions',
+    'Previous School' => 'prevSch',
+    'Reason' => 'reason',
+    'Parent ID' => 'parentID',
+    'Enrollment Date' => 'enrollDate',
+    'Transport' => 'transport',
+    'Lunch' => 'lunch',
+    'Photo' => 'photo',
+    'Passport Photo' => 'passPhoto',
+    'Parent 1' => 'parent1',
+    'Parent 2' => 'parent2',
+    'Relationship' => 'relationship',
+    'Phone' => 'phone',
+    'Parent Email' => 'parentEmail'
 ];
 
-// Prepare data
-$exportData = ExportHelper::prepareData($pupils, $columns, function($row, $original) {
-    // Format dates
-    if (!empty($row['Date of Birth'])) {
-        $row['Date of Birth'] = date('Y-m-d', strtotime($row['Date of Birth']));
+// Optional formatter to normalize gender and date formats
+$formatter = function($rowDisplay, $originalRow) {
+    // Normalize gender to M/F or empty
+    if (!empty($rowDisplay['Gender'])) {
+        $g = strtoupper(substr($rowDisplay['Gender'], 0, 1));
+        $rowDisplay['Gender'] = ($g === 'M' || $g === 'F') ? $g : $rowDisplay['Gender'];
     }
-    if (!empty($row['Admission Date'])) {
-        $row['Admission Date'] = date('Y-m-d', strtotime($row['Admission Date']));
+    // Format dates as YYYY-MM-DD for consistency
+    if (!empty($rowDisplay['Date of Birth'])) {
+        $d = date('Y-m-d', strtotime($rowDisplay['Date of Birth']));
+        $rowDisplay['Date of Birth'] = $d;
     }
-    // Format gender
-    $row['Gender'] = $row['Gender'] === 'M' ? 'Male' : 'Female';
-    // Format parent name
-    $row['Parent Name'] = $original['parentFName'] . ' ' . $original['parentLName'];
-    return $row;
-});
+    if (!empty($rowDisplay['Enrollment Date'])) {
+        $d = date('Y-m-d', strtotime($rowDisplay['Enrollment Date']));
+        $rowDisplay['Enrollment Date'] = $d;
+    }
+    return $rowDisplay;
+};
+
+// Prepare export rows using ExportHelper to ensure header/value alignment
+$exportRows = ExportHelper::prepareData($pupils, $columnMap, $formatter);
+
+if (empty($exportRows)) {
+    Session::setFlash('error', 'No pupils data to export.');
+    header('Location: ../pupils_list.php');
+    exit;
+}
 
 // Export based on format
 if ($format === 'excel') {
     $filename = ExportHelper::generateFilename('pupils_export', 'xls');
-    ExportHelper::toExcel($exportData, $filename, 'Pupils List');
+    ExportHelper::toExcel($exportRows, $filename, 'Pupils List');
 } else {
     $filename = ExportHelper::generateFilename('pupils_export', 'csv');
-    ExportHelper::toCSV($exportData, $filename);
+    ExportHelper::toCSV($exportRows, $filename);
 }

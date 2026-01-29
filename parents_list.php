@@ -196,6 +196,12 @@ require_once 'includes/header.php';
                         </td>
                     </tr>
                     <?php else: ?>
+                    <?php
+                    function sentence_case($str) {
+                        $str = strtolower($str);
+                        return ucfirst($str);
+                    }
+                    ?>
                     <?php foreach ($parents as $parent): ?>
                     <tr class="align-middle">
                         <td>
@@ -205,8 +211,12 @@ require_once 'includes/header.php';
                                     <i class="bi bi-person-circle" style="font-size: 1.5rem; color: #2d5016;"></i>
                                 </div>
                                 <div>
-                                    <strong class="d-block"><?= htmlspecialchars($parent['fName'] . ' ' . $parent['lName']) ?></strong>
-                                    <small class="text-muted"><?= htmlspecialchars($parent['relation'] ?? 'N/A') ?></small>
+                                    <?php
+                                        $firstName = $parent['fName'] ?? $parent['firstName'] ?? '';
+                                        $lastName = $parent['lName'] ?? $parent['lastName'] ?? '';
+                                    ?>
+                                    <strong class="d-block"><?php echo sentence_case($firstName) . ' ' . sentence_case($lastName); ?></strong>
+                                    <small class="text-muted"><?php echo sentence_case($parent['relation'] ?? 'N/A'); ?></small>
                                 </div>
                             </div>
                         </td>

@@ -64,6 +64,26 @@ try {
         }
     }
     
+    // The pupil rows already contain the actual DB fields (pupilID, fName, lName, gender, DoB,
+    // homeAddress, homeArea, medCondition, medAllergy, restrictions, prevSch, reason, parentID,
+    // enrollDate, transport, lunch, photo, passPhoto, parent1, parent2, relationship, phone,
+    // parentEmail, createdAt, updatedAt). Add backward-compatible fields so older front-end
+    // code continues to work (parentName, parentPhone, parentEmail, parent object).
+    foreach ($pupils as &$p) {
+        // parentName: combine parent1 & parent2 if present
+        $p['parentName'] = trim((string)($p['parent1'] ?? '') . (isset($p['parent2']) && $p['parent2'] !== '' ? ' & ' . $p['parent2'] : ''));
+        if ($p['parentName'] === '') $p['parentName'] = null;
+        $p['parentPhone'] = $p['phone'] ?? null;
+        $p['parentEmail'] = $p['parentEmail'] ?? null;
+        // Minimal parent object to satisfy legacy consumers expecting pupil.parent.fName etc.
+        $p['parent'] = [
+            'fName' => $p['parent1'] ?? '',
+            'lName' => $p['parent2'] ?? '',
+            'phone' => $p['phone'] ?? '',
+            'email' => $p['parentEmail'] ?? ''
+        ];
+    }
+
     echo json_encode([
         'success' => true,
         'data' => $pupils,
@@ -75,6 +95,6 @@ try {
         ]
     ]);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    // Return JSON with success=false to allow client to show friendly error
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }

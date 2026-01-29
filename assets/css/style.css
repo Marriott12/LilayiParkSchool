@@ -1,3 +1,6 @@
+.card-orange {
+    background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
+}
 /* Custom Styles for Lilayi Park School Management System */
 
 :root {

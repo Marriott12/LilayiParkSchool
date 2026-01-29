@@ -1,22 +1,24 @@
-# Lilayi Park School Management System - PHP/Bootstrap Version
+
+# Lilayi Park School Management System - System Documentation
 
 ## Overview
-This is a fully functional school management system built with PHP, MySQL, and Bootstrap 5. It features comprehensive RBAC (Role-Based Access Control) and a scalable modular architecture.
+Lilayi Park School Management System is a robust, modular PHP/MySQL application for managing all aspects of school operations. It features role-based access control, a dynamic settings system, RESTful mobile API, and secure email notifications.
+
+---
 
 ## Features
-- ✅ Role-Based Access Control (Admin, Teacher, Parent)
-- ✅ Dashboard with real-time statistics
-- ✅ Pupil Management
-- ✅ Teacher Management
-- ✅ Parent Management
-- ✅ Class Management
-- ✅ Fee Management
-- ✅ Payment Tracking
-- ✅ Attendance Recording
-- ✅ Reports Generation
-- ✅ Responsive Bootstrap 5 UI
-- ✅ Secure PDO database layer
-- ✅ File upload support
+- Role-Based Access Control (Admin, Teacher, Parent)
+- Dashboard with real-time statistics
+- Pupil, Teacher, Parent, Class, Fee, Payment, Attendance, and Report Management
+- Modular architecture for easy extension
+- Responsive Bootstrap 5 UI
+- Secure PDO database layer
+- File upload support
+- Dynamic settings system
+- RESTful Mobile API (JSON)
+- Email notifications (PHPMailer)
+
+---
 
 ## System Requirements
 - PHP 7.4 or higher
@@ -24,154 +26,131 @@ This is a fully functional school management system built with PHP, MySQL, and B
 - Apache/Nginx web server
 - mod_rewrite enabled (for Apache)
 
-## Installation Instructions
+---
 
-### 1. Database Setup
-1. Import the database schema:
-   ```sql
-   mysql -u root -p lilayiparkschool < ../database/schema.sql
-   ```
+## Installation & Deployment
 
-2. Run the SQL script to create the Users table:
-   ```sql
-   mysql -u root -p lilayiparkschool < ../database/add_users_table.sql
-   ```
-
-### 2. Application Setup
-1. Copy the application to your web server directory:
+### Database Setup
+1. Create database:
    ```bash
-   cp -r php-app /var/www/html/school
+   mysql -u root -p -e "CREATE DATABASE lilayiparkschool CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
    ```
-
-2. Create .env file from example:
+2. Import schema and seed data:
    ```bash
-   cp .env.example .env
+   mysql -u root -p lilayiparkschool < database/full_schema_deployment.sql
+   mysql -u root -p lilayiparkschool < database/seed_data_deployment.sql
+   mysql -u root -p lilayiparkschool < database/verify_deployment.sql
    ```
 
-3. Edit .env with your database credentials:
-   ```
-   DB_HOST=localhost
-   DB_NAME=lilayiparkschool
-   DB_USER=your_username
-   DB_PASSWORD=your_password
-   ```
+### Application Setup
+1. Copy files to web server directory
+2. Create `.env` from `.env.example` and configure database credentials
+3. Set file permissions (755 for app, 777 for uploads)
+4. Access via browser: `http://localhost/LilayiParkSchool`
 
-4. Set proper file permissions:
-   ```bash
-   chmod -R 755 php-app
-   chmod -R 777 php-app/uploads
-   ```
+### cPanel Deployment
+- Zip and upload via File Manager, or use Git Version Control
+- Create database and import SQL files via phpMyAdmin
+- Configure `.env` and permissions
 
-### 3. Access the Application
-- URL: `http://localhost/school` (or your configured path)
-- Default Admin Login:
-  - Username: `admin`
-  - Password: `admin123`
-  - **IMPORTANT:** Change this password immediately after first login!
+---
 
 ## Project Structure
 ```
-php-app/
-├── config/              # Configuration files
-│   ├── config.php      # Main configuration
-│   └── database.php    # Database connection
-├── includes/            # Core classes and utilities
-│   ├── bootstrap.php   # Application bootstrap
-│   ├── Session.php     # Session management
-│   ├── RBAC.php        # Role-based access control
-│   ├── BaseModel.php   # Base model class
-│   ├── Utils.php       # Utility functions
-│   └── layout.php      # Main layout template
-├── modules/             # Application modules
-│   ├── auth/           # Authentication
-│   ├── pupils/         # Pupil management
-│   ├── teachers/       # Teacher management
-│   ├── parents/        # Parent management
-│   ├── classes/        # Class management
-│   ├── fees/           # Fee management
-│   ├── payments/       # Payment management
-│   ├── attendance/     # Attendance management
-│   └── reports/        # Reports
-├── assets/              # Static assets
-│   ├── css/            # Stylesheets
-│   ├── js/             # JavaScript files
-│   └── images/         # Images
-├── uploads/             # File uploads directory
-├── index.php            # Dashboard/Home page
-├── login.php            # Login page
-└── logout.php           # Logout handler
+LilayiParkSchool/
+├── config/        # Configuration files
+├── includes/      # Core classes/utilities
+├── modules/       # Feature modules (pupils, teachers, parents, etc.)
+├── assets/        # Static assets (css, js, images)
+├── uploads/       # File uploads
+├── database/      # SQL and documentation
+├── api/           # API endpoints
+├── index.php      # Dashboard
+├── login.php      # Login page
+└── logout.php     # Logout handler
 ```
 
-## RBAC Permissions
+---
 
-### Admin Role
-- Full access to all modules
-- Can create, read, update, and delete all data
-- User management capabilities
+## Database Documentation
+- 26 tables: Teacher, Parent, Pupil, Class, Fees, Payment, Attendance, Users, Roles, Permissions, Subjects, Grades, Examinations, Timetable, Library, Announcements, Holidays, Settings, etc.
+- Auto-generated IDs via triggers (e.g., TCH001, PAR001)
+- Default data: roles, permissions, admin user, subjects, grading scale, system settings
+- Backup/restore via mysqldump
+- Security: change default admin password, use strong DB credentials, enable SSL, regular backups
 
-### Teacher Role
-- Read access to pupils and classes
-- Full access to attendance management
-- Read access to reports
+---
 
-### Parent Role
-- Read access to their own children's information
-- Read access to their payment records
-- Read access to their children's reports
+## Settings System
+- Dynamic settings table with categories: school, academic, grading, financial, library, notifications, email, reports, system
+- SettingsModel API: getSetting, setSetting, getAllSettings, getByCategory
+- Session caching for performance
+- Form validation and error handling
+- Security: CSRF protection, access control, SQL injection prevention, input sanitization
+- Best practices for adding new settings
+
+---
+
+## Mobile API Documentation
+- RESTful endpoints for mobile integration (JSON)
+- Bearer token authentication
+- Endpoints: pupils, teachers, parents, attendance, payments, grades, announcements, etc.
+- Example usage:
+  ```http
+  POST /api/mobile/auth.php
+  Authorization: Bearer {token}
+  ```
+- Error responses and rate limiting
+- CORS support
+
+---
+
+## Email Configuration
+- PHPMailer integration (install via Composer)
+- SMTP configuration via settings page
+- Supports Gmail, Outlook, and custom SMTP
+- Automatic account credential emails
+- Password reset and general notifications
+- Security: app-specific passwords, SMTP credentials stored securely
+
+---
 
 ## Security Features
-- Password hashing using bcrypt
-- PDO prepared statements for SQL injection prevention
+- Password hashing (bcrypt)
+- PDO prepared statements
 - CSRF token protection
-- Session timeout (30 minutes)
-- XSS prevention through input sanitization
+- Session timeout (default: 30 min)
+- XSS prevention
 - Role-based access control
 - Secure password requirements
 
-## cPanel Deployment
-
-### Option 1: Direct Upload
-1. Zip the php-app folder
-2. Upload via cPanel File Manager
-3. Extract in public_html directory
-4. Create database via cPanel MySQL Database
-5. Import SQL files via phpMyAdmin
-6. Configure .env file
-
-### Option 2: Git Deployment
-1. Use cPanel Git Version Control
-2. Clone repository
-3. Set up database
-4. Configure .env
+---
 
 ## Module Development Guide
-
 To add a new module:
-
-1. Create module directory: `modules/newmodule/`
+1. Create directory: `modules/newmodule/`
 2. Create Model: `NewmoduleModel.php` (extends BaseModel)
 3. Create Controller: `NewmoduleController.php`
 4. Create views: `index.php`, `create.php`, `edit.php`
 5. Add menu item in `includes/layout.php`
 6. Add permissions in `config/config.php`
 
+---
+
 ## Troubleshooting
+- Database connection errors: check `.env` credentials, MySQL service, database existence
+- Permission denied: check file/directory permissions
+- Session issues: check session directory and `php.ini` settings
+- Settings not saving: verify table exists, check for unique key violations, review error logs
+- Email issues: verify SMTP settings, test with "Send Test Email"
 
-### Database Connection Error
-- Check .env database credentials
-- Verify MySQL service is running
-- Ensure database exists
-
-### Permission Denied
-- Check file permissions (755 for directories, 644 for files)
-- Ensure uploads directory is writable (777)
-
-### Session Issues
-- Check session directory permissions
-- Verify session.save_path in php.ini
+---
 
 ## Support
-For issues or questions, please contact the development team.
+- Email: lilayiparkschool@gmail.com
+- Phone: +260973116866
+
+---
 
 ## License
 Proprietary - Lilayi Park School

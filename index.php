@@ -28,6 +28,11 @@ require_once __DIR__ . '/modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 $reportsModel = new ReportsModel();
 $stats = $reportsModel->getDashboardStats();
+// Add totalParents to stats if not present
+if (!isset($stats['totalParents'])) {
+    $parentCount = $db->query('SELECT COUNT(*) FROM Parent')->fetchColumn();
+    $stats['totalParents'] = $parentCount;
+}
 
 // Get gender statistics
 $db = Database::getInstance()->getConnection();
@@ -97,6 +102,68 @@ require_once 'includes/header.php';
     <i class="bi bi-speedometer2 me-2"></i>Dashboard
 </h1>
 
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="quick-actions">
+                    <?php if (PermissionHelper::canManage('parents')): ?>
+                        <a href="parents_form.php" class="btn btn-secondary">
+                            <i class="bi bi-plus-circle me-1"></i>Add New Parent
+                        </a>
+                    <?php endif; ?>
+
+                    <?php if (PermissionHelper::canManage('pupils')): ?>
+                        <a href="pupils_form.php" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Add New Pupil
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if (PermissionHelper::canManage('teachers')): ?>
+                        <a href="teachers_form.php" class="btn btn-success">
+                            <i class="bi bi-plus-circle me-1"></i>Add New Teacher
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if (Auth::hasRole('admin')): ?>
+                        <a href="payments_form.php" class="btn btn-warning">
+                            <i class="bi bi-cash me-1"></i>Add Payment
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if (PermissionHelper::canManage('attendance')): ?>
+                        <a href="attendance_form.php" class="btn btn-secondary">
+                            <i class="bi bi-calendar-check me-1"></i>Mark Attendance
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if (PermissionHelper::canManage('announcements')): ?>
+                        <a href="announcements_form.php" class="btn" style="background-color: #f0ad4e; color: white;">
+                            <i class="bi bi-megaphone me-1"></i>New Announcement
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_reports')): ?>
+                        <a href="reports.php" class="btn btn-dark">
+                            <i class="bi bi-file-earmark-text me-1"></i>View Reports
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if (PermissionHelper::canManage('classes')): ?>
+                        <!--<a href="classes_form.php" class="btn btn-info">
+                            <i class="bi bi-plus-circle me-1"></i>Create Class
+                        </a>-->
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Statistics Cards -->
 <div class="row g-4 mb-4">
     <div class="col-md-3">
@@ -107,7 +174,6 @@ require_once 'includes/header.php';
             </div>
         </a>
     </div>
-    
     <div class="col-md-3">
         <a href="teachers_list.php" class="text-decoration-none">
             <div class="stat-card card-green">
@@ -116,7 +182,14 @@ require_once 'includes/header.php';
             </div>
         </a>
     </div>
-    
+    <div class="col-md-3">
+        <a href="parents_list.php" class="text-decoration-none">
+            <div class="stat-card card-orange">
+                <h2><?php echo $stats['totalParents'] ?? 0; ?></h2>
+                <p><i class="bi bi-people me-1"></i>Total Parents</p>
+            </div>
+        </a>
+    </div>
     <div class="col-md-3">
         <a href="classes_list.php" class="text-decoration-none">
             <div class="stat-card card-purple">
@@ -125,22 +198,6 @@ require_once 'includes/header.php';
             </div>
         </a>
     </div>
-    
-    <!-- <div class="col-md-3">
-        <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_subjects')): ?>
-        <a href="subjects_list.php" class="text-decoration-none">
-            <div class="stat-card card-yellow">
-                <h2><?php echo $totalSubjects; ?></h2>
-                <p><i class="bi bi-book me-1"></i>Total Subjects</p>
-            </div>
-        </a>
-        <?php else: ?>
-        <div class="stat-card card-yellow">
-            <h2><?php echo $stats['recentEnrollments'] ?? 0; ?></h2>
-            <p><i class="bi bi-calendar-plus me-1"></i>Recent Enrollments</p>
-        </div>
-        <?php endif; ?>
-    </div> -->
 </div>
 
 <!-- Gender Summary Cards -->
@@ -207,62 +264,6 @@ require_once 'includes/header.php';
     </div>
 </div>
 <?php endif; ?>
-
-<!-- Quick Actions -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
-                <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
-            </div>
-            <div class="card-body">
-                <div class="quick-actions">
-                    <?php if (PermissionHelper::canManage('pupils')): ?>
-                        <a href="pupils_form.php" class="btn btn-primary">
-                            <i class="bi bi-plus-circle me-1"></i>Add New Pupil
-                        </a>
-                    <?php endif; ?>
-                    
-                    <?php if (PermissionHelper::canManage('teachers')): ?>
-                        <a href="teachers_form.php" class="btn btn-success">
-                            <i class="bi bi-plus-circle me-1"></i>Add New Teacher
-                        </a>
-                    <?php endif; ?>
-                    
-                    <?php if (PermissionHelper::canManage('classes')): ?>
-                        <a href="classes_form.php" class="btn btn-info">
-                            <i class="bi bi-plus-circle me-1"></i>Create Class
-                        </a>
-                    <?php endif; ?>
-                    
-                    <?php if (Auth::hasRole('admin')): ?>
-                        <a href="payments_form.php" class="btn btn-warning">
-                            <i class="bi bi-cash me-1"></i>Add Payment
-                        </a>
-                    <?php endif; ?>
-                    
-                    <?php if (PermissionHelper::canManage('attendance')): ?>
-                        <a href="attendance_form.php" class="btn btn-secondary">
-                            <i class="bi bi-calendar-check me-1"></i>Mark Attendance
-                        </a>
-                    <?php endif; ?>
-                    
-                    <?php if (PermissionHelper::canManage('announcements')): ?>
-                        <a href="announcements_form.php" class="btn" style="background-color: #f0ad4e; color: white;">
-                            <i class="bi bi-megaphone me-1"></i>New Announcement
-                        </a>
-                    <?php endif; ?>
-                    
-                    <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_reports')): ?>
-                        <a href="reports.php" class="btn btn-dark">
-                            <i class="bi bi-file-earmark-text me-1"></i>View Reports
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Upcoming Birthdays -->
 <?php if (!empty($upcomingBirthdays)): ?>

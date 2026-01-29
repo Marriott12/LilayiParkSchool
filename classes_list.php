@@ -32,9 +32,9 @@ require_once 'includes/header.php';
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-building"></i> Classes</h2>
     <?php if (PermissionHelper::canManage('classes')): ?>
-    <a href="classes_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
+    <!--<a href="classes_form.php" class="btn btn-sm" style="background-color: #2d5016; color: white;">
         <i class="bi bi-plus-circle"></i> Add New Class
-    </a>
+    </a>-->
     <?php endif; ?>
 </div>
 

@@ -73,7 +73,7 @@ class LiveSearch {
         }
         
         // Perform fetch
-        fetch(url, { signal: controller.signal })
+        fetch(url, { signal: controller.signal, credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');

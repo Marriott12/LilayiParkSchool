@@ -335,7 +335,7 @@ require_once 'includes/header.php';
             
             <?php if (!$isEdit): ?>
             <!-- Teacher Mode Selection - Always Visible -->
-            <div class="card mb-4 border-primary" style="border-width: 2px;">
+            <!--<div class="card mb-4 border-primary" style="border-width: 2px;">
                 <div class="card-header bg-primary text-white">
                     <h6 class="mb-0">
                         <i class="bi bi-person-plus-fill me-2"></i>Choose an Option
@@ -406,7 +406,7 @@ require_once 'includes/header.php';
                         </div>
                     </div>
                 </div>
-            </div>
+            </div>-->
             <?php endif; ?>
             
             <div id="teacher_info_section">

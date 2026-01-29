@@ -43,7 +43,7 @@ if (!isset($rolesModel)) {
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_pupils')): ?>
                 <a href="<?php echo BASE_URL; ?>/pupils_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupils' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-mortarboard me-2"></i> Pupils
+                    <i class="bi bi-mortarboard me-2"></i> Pupil/ Parent
                 </a>
                 <?php endif; ?>
                 
@@ -52,30 +52,31 @@ if (!isset($rolesModel)) {
                     <i class="bi bi-person-workspace me-2"></i> Teachers
                 </a>
                 <?php if (Auth::hasRole('admin')): ?>
-                <a href="<?php echo BASE_URL; ?>/teachers_bulk_accounts.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'teachers_bulk' ? 'active' : ''; ?>" style="background: transparent;">
+                <!--<a href="<?php echo BASE_URL; ?>/teachers_bulk_accounts.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'teachers_bulk' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-person-plus me-2"></i> Bulk Accounts
-                </a>
+                </a>-->
                 <?php endif; ?>
                 <?php endif; ?>
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_parents')): ?>
-                <a href="<?php echo BASE_URL; ?>/parents_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'parents' ? 'active' : ''; ?>" style="background: transparent;">
+                <!--<a href="<?php echo BASE_URL; ?>/parents_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'parents' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-people me-2"></i> Parents
                 </a>
                 <?php if (Auth::hasRole('admin')): ?>
                 <a href="<?php echo BASE_URL; ?>/parents_bulk_accounts.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'parents_bulk' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-person-plus me-2"></i> Bulk Accounts
-                </a>
+                </a>-->
                 <?php endif; ?>
                 <?php endif; ?>
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_classes')): ?>
                 <a href="<?php echo BASE_URL; ?>/classes_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'classes' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-building me-2"></i> Classes
+                    <i class="bi bi-building me-2"></i> Class Assignment
                 </a>
                 <?php endif; ?>
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_fees')): ?>
+                <hr class="my-2 border-light opacity-25">
                 <a href="<?php echo BASE_URL; ?>/fees_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'fees' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-cash-coin me-2"></i> Fees
                 </a>

@@ -10,15 +10,13 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'view_pupils')) {
     Session::setFlash('error', 'You do not have permission to view pupils.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
 require_once 'modules/pupils/PupilModel.php';
-require_once 'modules/parents/ParentModel.php';
 
 $pupilModel = new PupilModel();
-$parentModel = new ParentModel();
 
 // Handle search and pagination
 $searchTerm = $_GET['search'] ?? '';
@@ -55,9 +53,9 @@ if ($searchTerm) {
         $pupils = [];
     } else {
         // Teachers or parents - filtered pupils
-        $pupils = $pupilModel->getByIDs($accessiblePupilIDs, $pagination->getLimit(), $pagination->getOffset());
         $totalRecords = count($accessiblePupilIDs);
         $pagination = new Pagination($totalRecords, $perPage, $page);
+        $pupils = $pupilModel->getByIDs($accessiblePupilIDs, $pagination->getLimit(), $pagination->getOffset());
     }
 }
 
@@ -122,19 +120,18 @@ require_once 'includes/header.php';
             <table class="table table-hover">
                 <thead style="background-color: #f8f9fa;">
                     <tr>
-                        <th>Student #</th>
                         <th>Name</th>
                         <th>Date of Birth</th>
                         <th>Gender</th>
-                        <th>Parent</th>
-                        <th>Contact</th>
+                        <th>Parent / Guardian</th>
+                        <th>Enrollment Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($pupils)): ?>
                     <tr>
-                        <td colspan="7" class="text-center py-4">
+                        <td colspan="6" class="text-center py-4">
                             <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                             <p class="text-muted mt-2">No pupils found</p>
                         </td>
@@ -142,16 +139,31 @@ require_once 'includes/header.php';
                     <?php else: ?>
                     <?php foreach ($pupils as $pupil): ?>
                     <tr>
-                        <td><?= htmlspecialchars($pupil['pupilID']) ?></td>
                         <td>
-                            <strong><?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName']) ?></strong>
+                            <strong><?= ucwords(strtolower(htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName']))) ?></strong>
                         </td>
-                        <td><?= date('M d, Y', strtotime($pupil['dateOfBirth'])) ?></td>
+                        <td><?= !empty($pupil['DoB']) ? date('M d, Y', strtotime($pupil['DoB'])) : 'N/A' ?></td>
                         <td><?= htmlspecialchars($pupil['gender']) ?></td>
                         <td>
-                            <?= htmlspecialchars(($pupil['parentFirstName'] ?? '') . ' ' . ($pupil['parentLastName'] ?? '')) ?>
+                            <?php
+                            $parentName = htmlspecialchars($pupil['parent1'] ?? 'N/A');
+                            $parentPhone = $pupil['phone'] ?? '';
+                            $parentEmail = $pupil['parentEmail'] ?? '';
+                            ?>
+                            <div class="fw-bold"><?= $parentName ?></div>
+                            <?php if ($parentPhone || $parentEmail): ?>
+                                <div class="small text-muted">
+                                    <?php if ($parentPhone): ?>
+                                        <i class="bi bi-telephone me-1"></i><?= htmlspecialchars($parentPhone) ?>
+                                    <?php endif; ?>
+                                    <?php if ($parentPhone && $parentEmail): ?> &nbsp;&bull;&nbsp; <?php endif; ?>
+                                    <?php if ($parentEmail): ?>
+                                        <i class="bi bi-envelope me-1"></i><?= htmlspecialchars($parentEmail) ?>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                         </td>
-                        <td><?= htmlspecialchars($pupil['address'] ?? 'N/A') ?></td>
+                        <td><?= !empty($pupil['enrollDate']) ? date('M d, Y', strtotime($pupil['enrollDate'])) : 'N/A' ?></td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
                                 <a href="pupils_view.php?id=<?= $pupil['pupilID'] ?>" class="btn btn-outline-info btn-sm" title="View Details">
@@ -192,57 +204,46 @@ document.addEventListener('DOMContentLoaded', function() {
     new LiveSearch({
         searchInput: '#liveSearchInput',
         resultsContainer: '#resultsTable',
-        apiEndpoint: '/LilayiParkSchool/api/search_pupils.php',
+        apiEndpoint: 'api/search_pupils.php',
         emptyMessage: 'No pupils found',
         debounceDelay: 300,
-        renderRow: function(pupil) {
-            const fullName = `${pupil.fName} ${pupil.lName}`;
-            const dob = pupil.DOB ? new Date(pupil.DOB).toLocaleDateString() : 'N/A';
-            const parentName = (pupil.parentFirstName && pupil.parentLastName) 
-                ? `${pupil.parentFirstName} ${pupil.parentLastName}` 
-                : 'No Parent';
-            const phone = pupil.parentPhone || pupil.phone || 'N/A';
-            
-            return `
-                <tr>
-                    <td><strong>${escapeHtml(pupil.admNo || pupil.pupilID)}</strong></td>
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <div class="avatar-circle me-2 bg-primary text-white">
-                                ${pupil.fName.charAt(0)}${pupil.lName.charAt(0)}
+            renderRow: function(pupil) {
+                const fullName = `${pupil.fName || ''} ${pupil.lName || ''}`.trim();
+                const dob = pupil.DoB ? new Date(pupil.DoB).toLocaleDateString() : 'N/A';
+                const parentName = pupil.parent1 || pupil.parentName || (pupil.parent && (pupil.parent.fName + ' ' + pupil.parent.lName)) || 'No Parent';
+                const phone = pupil.phone || pupil.parentPhone || (pupil.parent && pupil.parent.phone) || '';
+                const email = pupil.parentEmail || pupil.parentEmail || (pupil.parent && (pupil.parent.email1 || pupil.parent.email)) || '';
+                const enroll = pupil.enrollDate ? new Date(pupil.enrollDate).toLocaleDateString() : 'N/A';
+
+                return `
+                    <tr>
+                        <td><strong>${escapeHtml(fullName || pupil.pupilID)}</strong></td>
+                        <td>${escapeHtml(dob)}</td>
+                        <td>
+                            ${pupil.gender === 'M' 
+                                ? '<span class="badge bg-primary">Male</span>' 
+                                : (pupil.gender === 'F' ? '<span class="badge bg-danger">Female</span>' : 'N/A')}
+                        </td>
+                        <td>
+                            <div class="fw-bold">${escapeHtml(parentName)}</div>
+                            ${ (phone || email) ? `<div class="small text-muted">${ phone ? '<i class="bi bi-telephone me-1"></i>' + escapeHtml(phone) : '' } ${ (phone && email) ? '&nbsp;&bull;&nbsp;' : '' } ${ email ? '<i class="bi bi-envelope me-1"></i>' + escapeHtml(email) : '' }</div>` : '' }
+                        </td>
+                        <td>${escapeHtml(enroll)}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="pupils_view.php?id=${pupil.pupilID}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <?php if (PermissionHelper::canManage('pupils')): ?>
+                                <a href="pupils_form.php?id=${pupil.pupilID}" class="btn btn-outline-success" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <?php endif; ?>
                             </div>
-                            <div>
-                                <div class="fw-bold">${escapeHtml(fullName)}</div>
-                                <small class="text-muted">ID: ${escapeHtml(pupil.pupilID)}</small>
-                            </div>
-                        </div>
-                    </td>
-                    <td>${dob}</td>
-                    <td>
-                        ${pupil.gender === 'M' 
-                            ? '<span class="badge bg-primary">Male</span>' 
-                            : '<span class="badge bg-danger">Female</span>'}
-                    </td>
-                    <td>${escapeHtml(parentName)}</td>
-                    <td>
-                        <i class="bi bi-telephone text-muted me-1"></i>
-                        ${escapeHtml(phone)}
-                    </td>
-                    <td>
-                        <div class="btn-group btn-group-sm">
-                            <a href="pupils_view.php?id=${pupil.pupilID}" class="btn btn-outline-primary" title="View">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                            <?php if (PermissionHelper::canManage('pupils')): ?>
-                            <a href="pupils_form.php?id=${pupil.pupilID}" class="btn btn-outline-success" title="Edit">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <?php endif; ?>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
+                        </td>
+                    </tr>
+                `;
+            }
     });
     
     function escapeHtml(text) {
