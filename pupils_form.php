@@ -2,6 +2,14 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+// Log every request to this page
+error_log('=== pupils_form.php REQUEST ===');
+error_log('Method: ' . ($_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN'));
+error_log('GET params: ' . json_encode($_GET));
+error_log('POST params: ' . json_encode(array_keys($_POST)));
+error_log('Content-Type: ' . ($_SERVER['CONTENT_TYPE'] ?? 'NOT SET'));
+
 require_once 'includes/bootstrap.php';
 require_once 'includes/Auth.php';
 
@@ -32,18 +40,24 @@ $classModel = new ClassModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        error_log('=== POST REQUEST RECEIVED ===');
+        error_log('POST data keys: ' . implode(', ', array_keys($_POST)));
         // Validate CSRF token first
         if (!CSRF::requireToken()) {
             $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+            error_log('CSRF validation failed: ' . $error);
         } else {
+            error_log('CSRF validation passed');
             // Pupil data
             $enroll_day = $_POST['enroll_day'] ?? '';
             $enroll_month = $_POST['enroll_month'] ?? '';
             $enroll_year = $_POST['enroll_year'] ?? '';
+            error_log('Enrollment date parts: day=' . $enroll_day . ', month=' . $enroll_month . ', year=' . $enroll_year);
             $enrollDate = '';
             if ($enroll_year && $enroll_month && $enroll_day) {
                 $enrollDate = sprintf('%04d-%02d-%02d', (int)$enroll_year, (int)$enroll_month, (int)$enroll_day);
             }
+            error_log('Enrollment date formatted: ' . $enrollDate);
 
             $data = [
                 'fName' => trim($_POST['fName'] ?? ''),
@@ -72,31 +86,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'photo' => $_POST['photo'] ?? 'N',
                 'passPhoto' => '' // Will be handled by file upload
             ];
+            // Keep a copy of raw form data so we can repopulate the form on error
+            $formData = $data;
             // Validation
             if (!isset($error)) {
+                error_log('Starting validation...');
                 if (empty($data['fName'])) {
                     $error = 'Pupil first name is required';
+                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['lName'])) {
                     $error = 'Pupil last name is required';
+                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['gender'])) {
                     $error = 'Gender is required';
+                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['dob_day']) || empty($data['dob_month']) || empty($data['dob_year'])) {
                     $error = 'Date of birth is required';
-                } elseif (empty($data['homeAddress'])) {
-                    $error = 'Home address is required';
+                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['homeArea'])) {
                     $error = 'Home area is required';
+                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['parent1'])) {
                     $error = 'Parent/guardian name is required';
+                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['phone'])) {
                     $error = 'Parent/guardian phone is required';
-                } elseif (empty($data['enroll_day']) || empty($data['enroll_month']) || empty($data['enroll_year'])) {
+                    error_log('Validation error: ' . $error);
+                } elseif (empty($enroll_day) || empty($enroll_month) || empty($enroll_year)) {
                     $error = 'Enrollment date is required';
+                    error_log('Validation error: ' . $error . ' (day=' . var_export($enroll_day, true) . ', month=' . var_export($enroll_month, true) . ', year=' . var_export($enroll_year, true) . ')');
                 } elseif (empty($_POST['classID'] ?? '')) {
                     $error = 'Assigning a class is required';
+                    error_log('Validation error: ' . $error);
+                } else {
+                    error_log('All validations passed');
                 }
             }
             if (!isset($error)) {
+                error_log('Proceeding to duplicate check and DB operations...');
                 try {
                     // Check for duplicate pupil (same parent identifier, first name, last name, and date of birth)
                     $parentIdentifier = $data['phone'] ?: $data['parent1'];
@@ -118,7 +145,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
                         if ($isEdit) {
-                            $pupilModel->update($pupilID, $data);
+                            // Use a filtered copy for DB update (remove form-only fields)
+                            $updateData = $data;
+                            $removeKeys = ['dob_day','dob_month','dob_year','enroll_day','enroll_month','enroll_year'];
+                            foreach ($removeKeys as $rk) { if (isset($updateData[$rk])) { unset($updateData[$rk]); } }
+                            $pupilModel->update($pupilID, $updateData);
                             // Assign to class if provided
                             $selectedClass = $_POST['classID'] ?? '';
                             if (!empty($selectedClass)) {
@@ -134,14 +165,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             try {
                                 $db->beginTransaction();
 
+                                // Prepare insert data (remove form-only fields before DB insert)
+                                $insertData = $data;
+                                $removeKeys = ['dob_day','dob_month','dob_year','enroll_day','enroll_month','enroll_year'];
+                                foreach ($removeKeys as $rk) { if (isset($insertData[$rk])) { unset($insertData[$rk]); } }
+
                                 // Create pupil - create() returns lastInsertId or the primary key
-                                $newPupilID = $pupilModel->create($data);
+                                $newPupilID = $pupilModel->create($insertData);
+                                error_log('Pupil created with ID: ' . ($newPupilID ?: 'NULL/0'));
+
                                 if (!$newPupilID) {
-                                    throw new Exception('Failed to create pupil record');
+                                    throw new Exception('Failed to create pupil record - no ID returned');
                                 }
 
                                 // If a class was selected, assign within the same transaction
                                 if (!empty($selectedClass)) {
+                                    error_log('Assigning pupil ' . $newPupilID . ' to class ' . $selectedClass);
                                     $ok = $classModel->assignPupil($selectedClass, $newPupilID);
                                     if (!$ok) {
                                         throw new Exception('Failed to assign pupil to class');
@@ -151,31 +190,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $db->commit();
 
                                 Session::setFlash('success', 'Pupil created successfully.');
-                                header('Location: pupils_form.php?success=1');
+                                header('Location: pupils_list.php');
                                 exit;
                             } catch (Exception $ex) {
                                 // Rollback and rethrow to outer catch for user display
                                 if ($db && $db->inTransaction()) {
                                     $db->rollBack();
                                 }
+                                error_log('Pupil creation error: ' . $ex->getMessage() . ' | File: ' . $ex->getFile() . ' | Line: ' . $ex->getLine());
                                 throw $ex;
                             }
                         }
                         CSRF::regenerateToken();
                     }
                 } catch (Exception $e) {
+                    error_log('Pupil form error: ' . $e->getMessage() . ' | File: ' . $e->getFile() . ' | Line: ' . $e->getLine());
                     $error = 'Database error: ' . $e->getMessage();
                 }
             }
         }
-        // If there is an error, repopulate $pupil with submitted data so the form is filled
-    if (isset($error)) {
-        $pupil = $data;
-    }
 }
 
 // Get pupil data if editing
 $pupil = $isEdit ? $pupilModel->getById($pupilID) : null;
+
+// If there is an error from POST, repopulate $pupil with submitted data so the form is filled
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($error)) {
+    // Restore submitted form values so the user doesn't lose input on error
+    $pupil = isset($formData) ? $formData : (isset($data) ? $data : null);
+}
 $classModel = new ClassModel();
 $allClasses = $classModel->getAllWithDetails();
 
@@ -212,7 +255,7 @@ require_once 'includes/header.php';
         </div>
         <?php endif; ?>
         
-        <form method="POST" action="" enctype="multipart/form-data">
+        <form id="pupilForm" method="POST" action="" enctype="multipart/form-data">
             <?= CSRF::field() ?>
             
             <!-- Pupil Information Section -->
@@ -258,7 +301,7 @@ require_once 'includes/header.php';
                                     <select class="form-select" name="dob_day" required>
                                         <option value="">Day</option>
                                         <?php for ($d = 1; $d <= 31; $d++): ?>
-                                            <option value="<?= $d ?>" <?= (isset($pupil['dob_day']) && $pupil['dob_day'] == $d) ? 'selected' : ((isset($pupil['DoB']) && intval(date('d', strtotime($pupil['DoB'])) == $d)) ? 'selected' : '') ?>><?= $d ?></option>
+                                            <option value="<?= $d ?>" <?= (isset($pupil['dob_day']) && $pupil['dob_day'] == $d) ? 'selected' : ((isset($pupil['DoB']) && intval(date('d', strtotime($pupil['DoB']))) == $d) ? 'selected' : '') ?>><?= $d ?></option>
                                         <?php endfor; ?>
                                     </select>
                                 </div>
@@ -267,7 +310,7 @@ require_once 'includes/header.php';
                                         <option value="">Month</option>
                                                 <?php for ($m = 1; $m <= 12; $m++):
                                                     $monthName = DateTime::createFromFormat('!m', $m)->format('F'); ?>
-                                                    <option value="<?= $m ?>" <?= (isset($pupil['dob_month']) && $pupil['dob_month'] == $m) ? 'selected' : ((isset($pupil['DoB']) && intval(date('m', strtotime($pupil['DoB'])) == $m)) ? 'selected' : '') ?>><?= $monthName ?></option>
+                                                    <option value="<?= $m ?>" <?= (isset($pupil['dob_month']) && $pupil['dob_month'] == $m) ? 'selected' : ((isset($pupil['DoB']) && intval(date('m', strtotime($pupil['DoB']))) == $m) ? 'selected' : '') ?>><?= $monthName ?></option>
                                                 <?php endfor; ?>
                                     </select>
                                 </div>
@@ -276,7 +319,7 @@ require_once 'includes/header.php';
                                         <option value="">Year</option>
                                         <?php $currentYear = date('Y');
                                             for ($y = $currentYear; $y >= $currentYear - 25; $y--): ?>
-                                            <option value="<?= $y ?>" <?= (isset($pupil['dob_year']) && $pupil['dob_year'] == $y) ? 'selected' : ((isset($pupil['DoB']) && intval(date('Y', strtotime($pupil['DoB'])) == $y)) ? 'selected' : '') ?>><?= $y ?></option>
+                                            <option value="<?= $y ?>" <?= (isset($pupil['dob_year']) && $pupil['dob_year'] == $y) ? 'selected' : ((isset($pupil['DoB']) && intval(date('Y', strtotime($pupil['DoB']))) == $y) ? 'selected' : '') ?>><?= $y ?></option>
                                         <?php endfor; ?>
                                     </select>
                                 </div>
@@ -315,8 +358,8 @@ require_once 'includes/header.php';
                         </div>
                         
                         <div class="col-md-4 mb-3">
-                            <label class="form-label">Assign Class </label>
-                            <select name="classID" class="form-select">
+                            <label class="form-label">Assign Class <span class="text-danger">*</span></label>
+                            <select name="classID" class="form-select" required>
                                 <option value="">-- Select Class --</option>
                                 <?php
                                 $currentClass = null;
@@ -399,7 +442,7 @@ require_once 'includes/header.php';
                                     <select class="form-select" name="enroll_day" required>
                                         <option value="">Day</option>
                                         <?php for ($d = 1; $d <= 31; $d++): ?>
-                                            <option value="<?= $d ?>" <?= (isset($pupil['enroll_day']) && $pupil['enroll_day'] == $d) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('d', strtotime($pupil['enrollDate'])) == $d) ? 'selected' : '')) ?>><?= $d ?></option>
+                                            <option value="<?= $d ?>" <?= (isset($pupil['enroll_day']) && $pupil['enroll_day'] == $d) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('d', strtotime($pupil['enrollDate']))) == $d) ? 'selected' : '') ?>><?= $d ?></option>
                                         <?php endfor; ?>
                                     </select>
                                 </div>
@@ -408,7 +451,7 @@ require_once 'includes/header.php';
                                         <option value="">Month</option>
                                         <?php for ($m = 1; $m <= 12; $m++):
                                             $monthName = DateTime::createFromFormat('!m', $m)->format('F'); ?>
-                                            <option value="<?= $m ?>" <?= (isset($pupil['enroll_month']) && $pupil['enroll_month'] == $m) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('m', strtotime($pupil['enrollDate'])) == $m) ? 'selected' : '')) ?>><?= $monthName ?></option>
+                                            <option value="<?= $m ?>" <?= (isset($pupil['enroll_month']) && $pupil['enroll_month'] == $m) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('m', strtotime($pupil['enrollDate']))) == $m) ? 'selected' : '') ?>><?= $monthName ?></option>
                                         <?php endfor; ?>
                                     </select>
                                 </div>
@@ -417,7 +460,7 @@ require_once 'includes/header.php';
                                         <option value="">Year</option>
                                         <?php $currentYear = date('Y');
                                             for ($y = $currentYear; $y >= $currentYear - 25; $y--): ?>
-                                            <option value="<?= $y ?>" <?= (isset($pupil['enroll_year']) && $pupil['enroll_year'] == $y) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('Y', strtotime($pupil['enrollDate'])) == $y) ? 'selected' : '')) ?>><?= $y ?></option>
+                                            <option value="<?= $y ?>" <?= (isset($pupil['enroll_year']) && $pupil['enroll_year'] == $y) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('Y', strtotime($pupil['enrollDate']))) == $y) ? 'selected' : '') ?>><?= $y ?></option>
                                         <?php endfor; ?>
                                     </select>
                                 </div>
@@ -553,6 +596,58 @@ require_once 'includes/header.php';
 </div>
 
 <!-- Removed parent selection JS -->
+
+<!-- Confirm Add Modal + handler -->
+<div class="modal fade" id="confirmAddModal" tabindex="-1" aria-labelledby="confirmAddModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmAddModalLabel">Confirm Add</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmAddMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAddYes">Yes, Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Bootstrap modal confirmation for adding pupil to class
+(function(){
+        var isEdit = <?= $isEdit ? 'true' : 'false' ?>;
+        var form = document.getElementById('pupilForm');
+        var modalEl = document.getElementById('confirmAddModal');
+        var msgEl = document.getElementById('confirmAddMessage');
+        var yesBtn = document.getElementById('confirmAddYes');
+        if (!form || !modalEl || !msgEl || !yesBtn) return;
+        var bsModal = new bootstrap.Modal(modalEl);
+
+        form.addEventListener('submit', function(e){
+                if (isEdit) return; // no confirmation on edit
+                var sel = document.querySelector('select[name="classID"]');
+                if (!sel || !sel.value) return; // let validation handle missing class
+
+                e.preventDefault();
+                var f = (document.querySelector('input[name="fName"]') || {}).value || '';
+                var l = (document.querySelector('input[name="lName"]') || {}).value || '';
+                var full = (f + ' ' + l).trim() || 'this pupil';
+                var className = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'the selected class';
+                msgEl.textContent = 'Are you sure you want to add ' + full + ' to ' + className + '?';
+                bsModal.show();
+        });
+
+        yesBtn.addEventListener('click', function(){
+                bsModal.hide();
+                // submit without triggering submit handlers
+                form.submit();
+        });
+})();
+</script>
 
 <?php require_once 'includes/footer.php'; ?>
 

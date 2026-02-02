@@ -15,8 +15,8 @@ This file helps AI coding agents become productive quickly in the LilayiParkScho
 - **Auth helper:** [includes/Auth.php](includes/Auth.php)
 - **Feature pages:** root-level pattern `*_form.php`, `*_list.php`, `*_view.php`, `*_delete.php` (e.g., [pupils_form.php](pupils_form.php), [pupils_list.php](pupils_list.php))
 - **APIs:** [api/](api/) and subfolder [api/mobile/](api/mobile/)
-- **Database assets:** [database/](database/) and [migrations/](migrations/)
-- **Utilities:** [clear_cache.php](clear_cache.php), [debug_error.php](debug_error.php), [logs/](logs/)
+- **Database assets:** [database/](database/) (deployment scripts)
+- **Utilities:** [clear_cache.php](clear_cache.php), [logs/](logs/)
 - **Composer:** [composer.json](composer.json) and `vendor/` — run `composer install` if dependencies are missing.
 
 **Common Conventions & Patterns**
@@ -28,11 +28,13 @@ This file helps AI coding agents become productive quickly in the LilayiParkScho
 **Developer Workflows (discoverable steps)**
 - Local run: place repository in WAMP `www` directory (e.g., `C:\wamp64\www\LilayiParkSchool`) and start Apache + MySQL from WAMP UI.
 - PHP dependencies: run `composer install` in the repo root if `vendor/` is absent.
-- Database setup: import SQL under [database/](database/) (examples: `complete_reset_users.sql`) via phpMyAdmin or MySQL CLI:  
+- Database setup: import SQL from [database/](database/) - use `full_schema_deployment.sql` then `seed_data_deployment.sql` via phpMyAdmin or MySQL CLI:  
 ```
-mysql -u <user> -p <dbname> < database/complete_reset_users.sql
+mysql -u <user> -p <dbname> < database/full_schema_deployment.sql
+mysql -u <user> -p <dbname> < database/seed_data_deployment.sql
 ```
-- Debugging: use [debug_error.php](debug_error.php) and check `logs/` for runtime errors; enable PHP error display in php.ini for local debugging.
+- Verify setup: run `database/verify_deployment.sql` to check database structure
+- Debugging: check `logs/` for runtime errors; enable PHP error display in php.ini for local debugging.
 - Clear caches: run or open [clear_cache.php](clear_cache.php) to reset application caches.
 
 **Integration & External Dependencies**

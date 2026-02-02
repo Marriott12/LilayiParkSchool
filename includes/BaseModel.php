@@ -61,27 +61,49 @@ class BaseModel {
     
     /**
      * Create new record
+     * Filters input data to actual table columns to avoid unknown-column errors
      */
     public function create($data) {
+        // Determine actual columns for this table and filter $data
+        try {
+            $currentDb = $this->db->query('SELECT DATABASE()')->fetchColumn();
+            $colStmt = $this->db->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?");
+            $colStmt->execute([$currentDb, $this->table]);
+            $cols = $colStmt->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($cols)) {
+                $colsLower = array_map('strtolower', $cols);
+                $filtered = [];
+                foreach ($data as $k => $v) {
+                    if (in_array(strtolower($k), $colsLower, true)) {
+                        $filtered[$k] = $v;
+                    }
+                }
+                $data = $filtered;
+            }
+        } catch (Exception $e) {
+            // If metadata query fails, continue with original data (best-effort)
+            error_log('BaseModel:create - failed to read table columns: ' . $e->getMessage());
+        }
+
+        if (empty($data)) {
+            throw new Exception('No valid data provided for insert');
+        }
+
         $fields = array_keys($data);
-        $values = array_values($data);
-        
         $placeholders = array_map(function($field) { return ":{$field}"; }, $fields);
-        
-        $sql = "INSERT INTO {$this->table} (" . implode(', ', $fields) . ") 
-                VALUES (" . implode(', ', $placeholders) . ")";
-        
+
+        $sql = "INSERT INTO {$this->table} (" . implode(', ', $fields) . ") VALUES (" . implode(', ', $placeholders) . ")";
         $stmt = $this->db->prepare($sql);
-        
+
         foreach ($data as $key => $value) {
             $stmt->bindValue(":{$key}", $value);
         }
-        
+
         $stmt->execute();
-        
+
         // Try to get last insert ID (works for auto-increment)
         $lastId = $this->db->lastInsertId();
-        
+
         // If lastInsertId returns 0, it means we're using triggers for ID generation
         // Try to get the ID from the inserted record using unique field
         if ($lastId == 0) {
@@ -93,8 +115,10 @@ class BaseModel {
                 $uniqueField = 'NRC';
             } elseif (isset($data['SSN'])) {
                 $uniqueField = 'SSN';
+            } elseif (isset($data['phone'])) {
+                $uniqueField = 'phone';
             }
-            
+
             if ($uniqueField && isset($data[$uniqueField])) {
                 $sql = "SELECT {$this->primaryKey} FROM {$this->table} WHERE {$uniqueField} = ? LIMIT 1";
                 $stmt = $this->db->prepare($sql);
@@ -104,8 +128,21 @@ class BaseModel {
                     return $result[$this->primaryKey];
                 }
             }
+
+            // Fallback: try using multiple fields for Pupil table
+            if ($this->table === 'Pupil' && isset($data['fName'], $data['lName'], $data['DoB'])) {
+                $sql = "SELECT {$this->primaryKey} FROM {$this->table} 
+                        WHERE fName = ? AND lName = ? AND DoB = ? 
+                        ORDER BY {$this->primaryKey} DESC LIMIT 1";
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([$data['fName'], $data['lName'], $data['DoB']]);
+                $result = $stmt->fetch();
+                if ($result) {
+                    return $result[$this->primaryKey];
+                }
+            }
         }
-        
+
         return $lastId;
     }
     

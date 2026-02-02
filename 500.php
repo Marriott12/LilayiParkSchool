@@ -122,10 +122,10 @@
             <h3>Troubleshooting Steps:</h3>
             <ul>
                 <li>Check server error logs for details</li>
-                <li>Verify database connection settings</li>
+                <li>Verify database connection settings in config/database.php</li>
                 <li>Ensure all required PHP extensions are installed</li>
                 <li>Check file permissions on uploads and logs folders</li>
-                <li>Run debug_error.php for detailed diagnostics</li>
+                <li>Review logs/php-errors.log for detailed diagnostics</li>
             </ul>
         </div>
         <?php endif; ?>

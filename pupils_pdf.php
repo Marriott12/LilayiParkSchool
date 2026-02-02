@@ -221,29 +221,33 @@ ob_start();
     </div>
 
     <div style="margin-top:20px;font-size:11px;color:#666">Generated: <?= date('d-m-Y H:i') ?></div>
-    // Server-side PDF generation using Dompdf if available
-    $dompdfClass = '\Dompdf\Dompdf';
-    if (!class_exists($dompdfClass)) {
-        // try to load Composer autoloader from common locations
+</div>
+</body>
+</html>
+<?php
+$html = ob_get_clean();
+
+if ($isDownload) {
+    // Ensure Dompdf is available (try Composer autoload)
+    if (!class_exists('Dompdf\\Dompdf')) {
         if (file_exists(__DIR__ . '/vendor/autoload.php')) {
             require_once __DIR__ . '/vendor/autoload.php';
         } elseif (file_exists(__DIR__ . '/../vendor/autoload.php')) {
             require_once __DIR__ . '/../vendor/autoload.php';
         }
     }
-    if (!class_exists($dompdfClass)) {
+
+    if (!class_exists('Dompdf\\Dompdf')) {
         echo '<h3>PDF generator not installed</h3><p>Run <code>composer install</code> to install dependencies (dompdf).</p>';
         exit;
     }
 
     try {
-        $dompdfClass = '\Dompdf\Dompdf';
-        $dompdf = new $dompdfClass();
+        $dompdf = new \Dompdf\Dompdf();
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->loadHtml($html);
         $dompdf->render();
         $filename = 'pupil_' . preg_replace('/[^A-Za-z0-9_-]/', '_', ($pupil['pupilID'] ?? $pupilID)) . '.pdf';
-        // Stream the PDF as a download
         $dompdf->stream($filename, ['Attachment' => 1]);
         exit;
     } catch (Exception $e) {
@@ -251,13 +255,7 @@ ob_start();
         echo '<h3>Unable to generate PDF</h3><p>See server logs for details.</p>';
         exit;
     }
-        $dompdf->stream($filename, ['Attachment' => 1]);
-        exit;
-    } catch (Exception $e) {
-        error_log('Dompdf error: ' . $e->getMessage());
-        echo '<h3>Unable to generate PDF</h3><p>See server logs for details.</p>';
-        exit;
-    }
+
 } else {
     // Normal HTML output; auto-print handled by ?print=1 param
     echo $html;
