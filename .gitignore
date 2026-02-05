@@ -1,0 +1,33 @@
+# Environment files
+.env
+
+# Logs
+*.log
+logs/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Development/Testing (should not be in production)
+.venv/
+scripts/
+debug_error.php
+diagnose_db.php
+install.php
+reset_admin_password.php
+*.sql.backup
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Cache and temporary files
+*.tmp
+*.cache
