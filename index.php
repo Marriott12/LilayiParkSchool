@@ -44,6 +44,22 @@ while ($row = $genderStmt->fetch()) {
 $maleCount = $genderStats['M'] ?? 0;
 $femaleCount = $genderStats['F'] ?? 0;
 
+// Get class distribution by gender
+$classDistStmt = $db->query("
+    SELECT 
+        c.classID,
+        c.className,
+        COUNT(CASE WHEN p.gender = 'M' THEN 1 END) as maleCount,
+        COUNT(CASE WHEN p.gender = 'F' THEN 1 END) as femaleCount,
+        COUNT(p.pupilID) as totalCount
+    FROM Class c
+    LEFT JOIN Pupil_Class pc ON c.classID = pc.classID
+    LEFT JOIN Pupil p ON pc.pupilID = p.pupilID
+    GROUP BY c.classID, c.className
+    ORDER BY c.className ASC
+");
+$classDistribution = $classDistStmt->fetchAll();
+
 // Get upcoming birthdays (next 7 days)
 $upcomingBirthdays = $db->query("
     SELECT pupilID, fName, lName, DoB,
@@ -232,6 +248,84 @@ require_once 'includes/header.php';
                         <i class="bi bi-gender-female"></i>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Class Distribution by Gender -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+                <h6 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Class Distribution by Gender</h6>
+            </div>
+            <div class="card-body">
+                <?php if (empty($classDistribution)): ?>
+                    <p class="text-muted mb-0">No classes found.</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Class</th>
+                                    <th class="text-center"><i class="bi bi-gender-male text-primary"></i> Male</th>
+                                    <th class="text-center"><i class="bi bi-gender-female" style="color: #d63384;"></i> Female</th>
+                                    <th class="text-center">Total</th>
+                                    <th>Distribution</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($classDistribution as $class): 
+                                    $total = $class['totalCount'] ?? 0;
+                                    $male = $class['maleCount'] ?? 0;
+                                    $female = $class['femaleCount'] ?? 0;
+                                    $malePercent = $total > 0 ? ($male / $total) * 100 : 0;
+                                    $femalePercent = $total > 0 ? ($female / $total) * 100 : 0;
+                                ?>
+                                <tr>
+                                    <td><strong><?= htmlspecialchars($class['className']) ?></strong></td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary"><?= $male ?></span>
+                                        <small class="text-muted">(<?= number_format($malePercent, 1) ?>%)</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge" style="background-color: #d63384;"><?= $female ?></span>
+                                        <small class="text-muted">(<?= number_format($femalePercent, 1) ?>%)</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary"><?= $total ?></span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 25px;">
+                                            <?php if ($male > 0): ?>
+                                            <div class="progress-bar bg-primary" 
+                                                 role="progressbar" 
+                                                 style="width: <?= $malePercent ?>%" 
+                                                 aria-valuenow="<?= $malePercent ?>" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                <?php if ($malePercent > 15): ?><?= $male ?> M<?php endif; ?>
+                                            </div>
+                                            <?php endif; ?>
+                                            <?php if ($female > 0): ?>
+                                            <div class="progress-bar" 
+                                                 style="background-color: #d63384; width: <?= $femalePercent ?>%" 
+                                                 role="progressbar" 
+                                                 aria-valuenow="<?= $femalePercent ?>" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                <?php if ($femalePercent > 15): ?><?= $female ?> F<?php endif; ?>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

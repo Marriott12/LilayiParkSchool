@@ -67,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'dob_month' => $_POST['dob_month'] ?? '',
                 'dob_year' => $_POST['dob_year'] ?? '',
                 'DoB' => ($_POST['dob_year'] ?? '') . '-' . str_pad($_POST['dob_month'] ?? '', 2, '0', STR_PAD_LEFT) . '-' . str_pad($_POST['dob_day'] ?? '', 2, '0', STR_PAD_LEFT),
+                'nationality' => trim($_POST['nationality'] ?? ''),
                 'homeAddress' => trim($_POST['homeAddress'] ?? ''),
                 'homeArea' => trim($_POST['homeArea'] ?? ''),
                 // Parent details stored on the pupil record (consistent column names)
@@ -268,13 +269,13 @@ require_once 'includes/header.php';
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Forename <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="fName" 
-                                   value="<?= htmlspecialchars($pupil['fName'] ?? '') ?>" required>
+                                   value="<?= htmlspecialchars($pupil['fName'] ?? '') ?>" required style="text-transform: capitalize;">
                         </div>
                         
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Last Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="lName" 
-                                value="<?= isset($pupil['lName']) ? htmlspecialchars($pupil['lName']) : '' ?>" required>
+                                value="<?= isset($pupil['lName']) ? htmlspecialchars($pupil['lName']) : '' ?>" required style="text-transform: capitalize;">
                         </div>
 
                         <div class="col-md-4 mb-3">
@@ -327,6 +328,35 @@ require_once 'includes/header.php';
                         </div>
 
                         <div class="col-md-4 mb-3">
+                            <label class="form-label">Nationality</label>
+                            <select class="form-select" name="nationality">
+                                <option value="">-- Select Nationality --</option>
+                                <?php
+                                $nationalities = [
+                                    'Zambia',
+                                    'Angola',
+                                    'Botswana',
+                                    'Congo',
+                                    'Kenya',
+                                    'Malawi',
+                                    'Mozambique',
+                                    'Namibia',
+                                    'South Africa',
+                                    'Tanzania',
+                                    'Uganda',
+                                    'Zimbabwe',
+                                    'Other'
+                                ];
+                                $selectedNationality = $pupil['nationality'] ?? '';
+                                foreach ($nationalities as $nationality) {
+                                    $selected = ($selectedNationality === $nationality) ? 'selected' : '';
+                                    echo "<option value=\"$nationality\" $selected>$nationality</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Home Address</label>
                             <input type="text" class="form-control" name="homeAddress" 
                                    value="<?= htmlspecialchars($pupil['homeAddress'] ?? '') ?>" 
@@ -339,12 +369,18 @@ require_once 'includes/header.php';
                                 <option value="">-- Select Home Area --</option>
                                 <?php
                                 $areas = [
+                                    'Bonaventure',
+                                    'Chalala',
+                                    'Chawama',
+                                    'Chilanga',
+                                    'Jack',
                                     'Kamwala South',
                                     'Libala South',
                                     'Lilayi',
                                     'Lilayi Estates',
                                     'Lilayi Police',
                                     'Mahopo',
+                                    'Mimosa',
                                     'Shantumbu'
                                 ];
                                 sort($areas);
@@ -380,6 +416,54 @@ require_once 'includes/header.php';
                     </div>
                 </div>
             </div>
+            
+            <!-- Parent/Guardian Information Section (now stored on pupil record) -->
+            <div class="card mb-4" style="border-left: 4px solid #2d5016;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-person-hearts"></i> Parent/Guardian Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Parent 1 (Primary) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="parent1" placeholder="e.g., John Banda" value="<?= htmlspecialchars($pupil['parent1'] ?? '') ?>" required style="text-transform: capitalize;">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Parent 2 (Optional)</label>
+                            <input type="text" class="form-control" name="parent2" placeholder="Optional" value="<?= htmlspecialchars($pupil['parent2'] ?? '') ?>" style="text-transform: capitalize;">
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Relationship</label>
+                            <select class="form-select" name="relationship">
+                                <?php
+                                $relOptions = ['Mother', 'Father', 'Guardian', 'Aunt/Uncle', 'Sibling', 'Grandparent'];
+                                $selRel = $pupil['relationship'] ?? '';
+                                echo '<option value="">-- Select Relationship --</option>';
+                                foreach ($relOptions as $opt) {
+                                    $sel = ($selRel === $opt) ? 'selected' : '';
+                                    echo "<option value=\"$opt\" $sel>$opt</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Phone <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone" placeholder="e.g., +260971234567" value="<?= htmlspecialchars($pupil['phone'] ?? '') ?>" required>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Parent Email</label>
+                            <input type="email" class="form-control" name="parentEmail" placeholder="parent@example.com" value="<?= htmlspecialchars($pupil['parentEmail'] ?? '') ?>">
+                        </div>
+
+                        
+                    </div>
+                </div>
+            </div>
+
             
             <!-- Medical Information Section -->
             <div class="card mb-4" style="border-left: 4px solid #d9534f;">
@@ -459,7 +543,7 @@ require_once 'includes/header.php';
                                     <select class="form-select" name="enroll_year" required>
                                         <option value="">Year</option>
                                         <?php $currentYear = date('Y');
-                                            for ($y = $currentYear; $y >= $currentYear - 25; $y--): ?>
+                                            for ($y = $currentYear; $y >= 2024; $y--): ?>
                                             <option value="<?= $y ?>" <?= (isset($pupil['enroll_year']) && $pupil['enroll_year'] == $y) ? 'selected' : ((isset($pupil['enrollDate']) && intval(date('Y', strtotime($pupil['enrollDate']))) == $y) ? 'selected' : '') ?>><?= $y ?></option>
                                         <?php endfor; ?>
                                     </select>
@@ -532,53 +616,6 @@ require_once 'includes/header.php';
                             </div>
                             <?php endif; ?>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Parent/Guardian Information Section (now stored on pupil record) -->
-            <div class="card mb-4" style="border-left: 4px solid #2d5016;">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="bi bi-person-hearts"></i> Parent/Guardian Information</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Parent 1 (Primary) <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="parent1" placeholder="e.g., John Banda" value="<?= htmlspecialchars($pupil['parent1'] ?? '') ?>" required>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Parent 2 (Optional)</label>
-                            <input type="text" class="form-control" name="parent2" placeholder="Optional" value="<?= htmlspecialchars($pupil['parent2'] ?? '') ?>">
-                        </div>
-
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Relationship</label>
-                            <select class="form-select" name="relationship">
-                                <?php
-                                $relOptions = ['Mother', 'Father', 'Guardian', 'Aunt/Uncle', 'Sibling', 'Grandparent'];
-                                $selRel = $pupil['relationship'] ?? '';
-                                echo '<option value="">-- Select Relationship --</option>';
-                                foreach ($relOptions as $opt) {
-                                    $sel = ($selRel === $opt) ? 'selected' : '';
-                                    echo "<option value=\"$opt\" $sel>$opt</option>";
-                                }
-                                ?>
-                            </select>
-                        </div>
-
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Phone <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="phone" placeholder="e.g., +260971234567" value="<?= htmlspecialchars($pupil['phone'] ?? '') ?>" required>
-                        </div>
-
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Parent Email</label>
-                            <input type="email" class="form-control" name="parentEmail" placeholder="parent@example.com" value="<?= htmlspecialchars($pupil['parentEmail'] ?? '') ?>">
-                        </div>
-
-                        
                     </div>
                 </div>
             </div>

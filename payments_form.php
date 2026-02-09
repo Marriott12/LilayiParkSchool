@@ -35,70 +35,74 @@ $pupils = $stmt->fetchAll();
 if (isset($_GET['action']) && $_GET['action'] === 'getPupilDetails' && isset($_GET['pupilID'])) {
     header('Content-Type: application/json');
     
-    $pupilID = $_GET['pupilID'];
-    
-    // Get pupil's class
-    $stmt = $db->prepare("
-        SELECT pc.classID, c.className
-        FROM Pupil_Class pc
-        INNER JOIN Class c ON pc.classID = c.classID
-        WHERE pc.pupilID = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$pupilID]);
-    $pupilClass = $stmt->fetch();
-    
-    if ($pupilClass) {
-        // Get current term fee for this class
+    try {
+        $pupilID = $_GET['pupilID'];
+        
+        // Get pupil's class
         $stmt = $db->prepare("
-            SELECT feeAmt, term, year
-            FROM Fees
-            WHERE classID = ? AND year = ?
-            ORDER BY term DESC
+            SELECT pc.classID, c.className
+            FROM Pupil_Class pc
+            INNER JOIN Class c ON pc.classID = c.classID
+            WHERE pc.pupilID = ?
             LIMIT 1
         ");
-        $currentYear = date('Y');
-        $stmt->execute([$pupilClass['classID'], $currentYear]);
-        $currentFee = $stmt->fetch();
+        $stmt->execute([$pupilID]);
+        $pupilClass = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Get all payments made by this pupil
-        $stmt = $db->prepare("
-            SELECT SUM(pmtAmt) as totalPaid
-            FROM Payment
-            WHERE pupilID = ? AND classID = ?
-        ");
-        $stmt->execute([$pupilID, $pupilClass['classID']]);
-        $paymentsData = $stmt->fetch();
-        $totalPaid = $paymentsData['totalPaid'] ?? 0;
-        
-        // Calculate balance
-        $totalFee = $currentFee['feeAmt'] ?? 0;
-        $balance = $totalFee - $totalPaid;
-        
-        // Get previous payments
-        $stmt = $db->prepare("
-            SELECT payID, pmtAmt, balance, paymentDate, paymentMode, remark
-            FROM Payment
-            WHERE pupilID = ? AND classID = ?
-            ORDER BY paymentDate DESC
-            LIMIT 5
-        ");
-        $stmt->execute([$pupilID, $pupilClass['classID']]);
-        $previousPayments = $stmt->fetchAll();
-        
-        echo json_encode([
-            'success' => true,
-            'classID' => $pupilClass['classID'],
-            'className' => $pupilClass['className'],
-            'totalFee' => $totalFee,
-            'totalPaid' => $totalPaid,
-            'balance' => $balance,
-            'currentTerm' => $currentFee['term'] ?? 'N/A',
-            'currentYear' => $currentFee['year'] ?? date('Y'),
-            'previousPayments' => $previousPayments
-        ]);
-    } else {
-        echo json_encode(['success' => false, 'error' => 'Pupil not enrolled in any class']);
+        if ($pupilClass) {
+            // Get current term fee for this class
+            $stmt = $db->prepare("
+                SELECT feeID, feeAmt, term, year
+                FROM Fees
+                WHERE classID = ? AND year = ?
+                ORDER BY term DESC
+                LIMIT 1
+            ");
+            $currentYear = date('Y');
+            $stmt->execute([$pupilClass['classID'], $currentYear]);
+            $currentFee = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Get all payments made by this pupil
+            $stmt = $db->prepare("
+                SELECT SUM(pmtAmt) as totalPaid
+                FROM Payment
+                WHERE pupilID = ? AND classID = ?
+            ");
+            $stmt->execute([$pupilID, $pupilClass['classID']]);
+            $paymentsData = $stmt->fetch(PDO::FETCH_ASSOC);
+            $totalPaid = $paymentsData['totalPaid'] ?? 0;
+            
+            // Calculate balance
+            $totalFee = $currentFee['feeAmt'] ?? 0;
+            $balance = $totalFee - $totalPaid;
+            
+            // Get previous payments
+            $stmt = $db->prepare("
+                SELECT payID, pmtAmt, balance, paymentDate, paymentMode, remark
+                FROM Payment
+                WHERE pupilID = ? AND classID = ?
+                ORDER BY paymentDate DESC
+                LIMIT 5
+            ");
+            $stmt->execute([$pupilID, $pupilClass['classID']]);
+            $previousPayments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode([
+                'success' => true,
+                'classID' => $pupilClass['classID'],
+                'className' => $pupilClass['className'],
+                'totalFee' => $totalFee,
+                'totalPaid' => $totalPaid,
+                'balance' => $balance,
+                'currentTerm' => $currentFee['term'] ?? 'N/A',
+                'currentYear' => $currentFee['year'] ?? date('Y'),
+                'previousPayments' => $previousPayments
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Pupil not enrolled in any class. Please assign the pupil to a class first.']);
+        }
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
     }
     exit;
 }
@@ -126,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Calculate the balance automatically
                 // Get current term fee for this class
                 $stmt = $db->prepare("
-                    SELECT feeAmt
+                    SELECT feeID, feeAmt
                     FROM Fees
                     WHERE classID = ? AND year = ?
                     ORDER BY term DESC
@@ -136,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$classID, $currentYear]);
                 $currentFee = $stmt->fetch();
                 $totalFee = $currentFee['feeAmt'] ?? 0;
+                $feeID = $currentFee['feeID'] ?? null;
                 
                 // Get all payments made by this pupil for this class
                 $stmt = $db->prepare("
@@ -155,12 +160,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $data = [
                     'pupilID' => $pupilID,
+                    'feeID' => $feeID,
                     'classID' => $classID,
                     'pmtAmt' => $pmtAmt,
                     'balance' => $newBalance,
                     'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
                     'paymentMode' => trim($_POST['paymentMode'] ?? 'Cash'),
-                    'remark' => trim($_POST['remark'] ?? '')
+                    'remark' => trim($_POST['remark'] ?? ''),
+                    'term' => $currentFee['term'] ?? null,
+                    'academicYear' => $currentYear
                 ];
                 
                 $paymentModel->create($data);
@@ -239,34 +247,28 @@ require_once 'includes/header.php';
             </div>
             
             <!-- Fee Summary -->
-            <div class="card mb-4" style="border-left: 4px solid #5cb85c;" id="feeSummary" style="display: none;">
+            <div class="card mb-4" style="border-left: 4px solid #5cb85c; display: none;" id="feeSummary">
                 <div class="card-header bg-light">
                     <h6 class="mb-0"><i class="bi bi-calculator-fill"></i> Fee Summary</h6>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="text-center p-3 bg-light rounded">
                                 <small class="text-muted">Total Fee</small>
                                 <h4 class="mb-0 text-primary">K <span id="totalFee">0.00</span></h4>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="text-center p-3 bg-light rounded">
                                 <small class="text-muted">Total Paid</small>
                                 <h4 class="mb-0 text-success">K <span id="totalPaid">0.00</span></h4>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="text-center p-3 bg-light rounded">
                                 <small class="text-muted">Current Balance</small>
                                 <h4 class="mb-0 text-warning">K <span id="currentBalance">0.00</span></h4>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center p-3 bg-light rounded">
-                                <small class="text-muted">New Balance</small>
-                                <h4 class="mb-0 text-danger">K <span id="newBalance">0.00</span></h4>
                             </div>
                         </div>
                     </div>
@@ -280,19 +282,13 @@ require_once 'includes/header.php';
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Amount Paid (K) <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" name="pmtAmt" id="pmtAmt"
                                    placeholder="0.00" required>
                         </div>
                         
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Balance (K) <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" class="form-control" name="balance" id="balanceInput"
-                                   readonly style="background-color: #f8f9fa;">
-                        </div>
-                        
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Payment Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" name="paymentDate" 
                                    value="<?= date('Y-m-d') ?>" required>
@@ -319,7 +315,7 @@ require_once 'includes/header.php';
             </div>
             
             <!-- Previous Payments -->
-            <div class="card mb-4" style="border-left: 4px solid #5bc0de;" id="previousPaymentsCard" style="display: none;">
+            <div class="card mb-4" style="border-left: 4px solid #5bc0de; display: none;" id="previousPaymentsCard">
                 <div class="card-header bg-light">
                     <h6 class="mb-0"><i class="bi bi-clock-history"></i> Recent Payments (Last 5)</h6>
                 </div>
@@ -365,7 +361,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const feeSummary = document.getElementById('feeSummary');
     const previousPaymentsCard = document.getElementById('previousPaymentsCard');
     const pmtAmtInput = document.getElementById('pmtAmt');
-    const balanceInput = document.getElementById('balanceInput');
     
     let currentData = null;
     
@@ -389,27 +384,38 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Fetch pupil details via AJAX
         fetch(`?action=getPupilDetails&pupilID=${pupilID}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Pupil details:', data); // Debug log
+                
                 if (data.success) {
                     currentData = data;
                     
-                    // Update pupil details
-                    document.getElementById('displayClass').textContent = data.className;
-                    document.getElementById('classID').value = data.classID;
-                    document.getElementById('displayTerm').textContent = data.currentTerm;
-                    document.getElementById('displayYear').textContent = data.currentYear;
+                    // Update pupil details with null checks
+                    const displayClass = document.getElementById('displayClass');
+                    const classIDInput = document.getElementById('classID');
+                    const displayTerm = document.getElementById('displayTerm');
+                    const displayYear = document.getElementById('displayYear');
+                    const totalFeeEl = document.getElementById('totalFee');
+                    const totalPaidEl = document.getElementById('totalPaid');
+                    const currentBalanceEl = document.getElementById('currentBalance');
+                    
+                    if (displayClass) displayClass.textContent = data.className;
+                    if (classIDInput) classIDInput.value = data.classID;
+                    if (displayTerm) displayTerm.textContent = data.currentTerm;
+                    if (displayYear) displayYear.textContent = data.currentYear;
                     pupilDetails.style.display = 'block';
                     
                     // Update fee summary
-                    document.getElementById('totalFee').textContent = parseFloat(data.totalFee).toFixed(2);
-                    document.getElementById('totalPaid').textContent = parseFloat(data.totalPaid).toFixed(2);
-                    document.getElementById('currentBalance').textContent = parseFloat(data.balance).toFixed(2);
-                    document.getElementById('newBalance').textContent = parseFloat(data.balance).toFixed(2);
+                    if (totalFeeEl) totalFeeEl.textContent = parseFloat(data.totalFee).toFixed(2);
+                    if (totalPaidEl) totalPaidEl.textContent = parseFloat(data.totalPaid).toFixed(2);
+                    if (currentBalanceEl) currentBalanceEl.textContent = parseFloat(data.balance).toFixed(2);
                     feeSummary.style.display = 'block';
-                    
-                    // Update balance input
-                    balanceInput.value = parseFloat(data.balance).toFixed(2);
                     
                     // Update previous payments
                     const tbody = document.getElementById('previousPaymentsBody');
@@ -434,23 +440,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         previousPaymentsCard.style.display = 'block';
                     }
                 } else {
-                    alert('Error: ' + data.error);
+                    alert('Error: ' + (data.error || 'Unknown error occurred'));
+                    pupilDetails.style.display = 'none';
+                    feeSummary.style.display = 'none';
+                    previousPaymentsCard.style.display = 'none';
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to fetch pupil details');
+                console.error('Error fetching pupil details:', error);
+                alert('Failed to fetch pupil details: ' + error.message);
+                pupilDetails.style.display = 'none';
+                feeSummary.style.display = 'none';
+                previousPaymentsCard.style.display = 'none';
             });
-    });
-    
-    // Calculate new balance when amount changes
-    pmtAmtInput.addEventListener('input', function() {
-        if (currentData) {
-            const amountPaid = parseFloat(this.value) || 0;
-            const newBalance = currentData.balance - amountPaid;
-            document.getElementById('newBalance').textContent = newBalance.toFixed(2);
-            balanceInput.value = newBalance.toFixed(2);
-        }
     });
 });
 </script>
