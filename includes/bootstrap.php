@@ -7,17 +7,21 @@
 // Load configuration
 require_once __DIR__ . '/../config/config.php';
 
-// Load core classes
+// Load database first to ensure $db is available globally
 require_once __DIR__ . '/../config/database.php';
+
+// Load session management
 require_once __DIR__ . '/Session.php';
+
+// Start session BEFORE loading Auth (Auth may check session)
+Session::start();
+
+// Load core classes (these may use session or database)
 require_once __DIR__ . '/Auth.php';
 require_once __DIR__ . '/BaseModel.php';
 require_once __DIR__ . '/Utils.php';
 require_once __DIR__ . '/CSRF.php';
 require_once __DIR__ . '/Pagination.php';
-
-// Start session
-Session::start();
 
 // Set security headers
 header('X-Frame-Options: SAMEORIGIN');

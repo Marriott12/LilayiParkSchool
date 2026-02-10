@@ -8,6 +8,26 @@ class Session {
     
     public static function start() {
         if (session_status() === PHP_SESSION_NONE) {
+            // Fix empty session save path (common on shared hosting)
+            $savePath = session_save_path();
+            if (empty($savePath)) {
+                // Try common locations
+                $possiblePaths = [
+                    '/tmp',
+                    sys_get_temp_dir(),
+                    __DIR__ . '/../tmp',
+                    ini_get('upload_tmp_dir')
+                ];
+                
+                foreach ($possiblePaths as $path) {
+                    if (!empty($path) && is_dir($path) && is_writable($path)) {
+                        session_save_path($path);
+                        error_log('Session save path set to: ' . $path);
+                        break;
+                    }
+                }
+            }
+            
             // Configure session before starting
             @ini_set('session.cookie_httponly', '1');
             @ini_set('session.use_strict_mode', '1');
