@@ -19,13 +19,40 @@ if ($appEnv === 'development' || $appEnv === 'dev') {
 date_default_timezone_set('Africa/Lusaka');
 
 // Session Configuration
+// CRITICAL: Disable output buffering completely for sessions to work
+ini_set('output_buffering', '0');
+ini_set('implicit_flush', '1');
+
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
+ini_set('session.cookie_lifetime', 0); // Session cookie (expires when browser closes)
+ini_set('session.gc_maxlifetime', 86400); // 24 hours server-side storage
+
+// Set cookie path to root for simplicity (works for all subdirectories)
+ini_set('session.cookie_path', '/');
+
+// Don't set cookie domain - let browser handle it (works better for production)
+ini_set('session.cookie_domain', '');
+
+// Try without SameSite for compatibility (some servers have issues with it)
+if (version_compare(PHP_VERSION, '7.3.0', '>=')) {
+    ini_set('session.cookie_samesite', '');
+}
+
 // Automatically enable secure cookies if HTTPS is detected
 $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
            (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
 ini_set('session.cookie_secure', $isHttps ? 1 : 0);
+
+// Use PHP's default session save path or temp directory
+// Don't override unless you have a specific writable path
+if (!is_writable(session_save_path())) {
+    $tempDir = sys_get_temp_dir();
+    if (is_writable($tempDir)) {
+        ini_set('session.save_path', $tempDir);
+    }
+}
 
 // Application Settings
 define('APP_NAME', 'Lilayi Park School Management System');

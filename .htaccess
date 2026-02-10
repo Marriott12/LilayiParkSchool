@@ -14,6 +14,10 @@
     php_flag log_errors On
     php_value error_log logs/php-errors.log
     
+    # CRITICAL: Disable output buffering for session cookies
+    php_flag output_buffering Off
+    php_flag implicit_flush On
+    
     # Session Settings
     php_value session.cookie_httponly 1
     php_value session.use_only_cookies 1
@@ -32,6 +36,10 @@
     php_flag display_errors Off
     php_flag log_errors On
     php_value error_log logs/php-errors.log
+    
+    # CRITICAL: Disable output buffering for session cookies
+    php_flag output_buffering Off
+    php_flag implicit_flush On
 </IfModule>
 
 # Prevent directory browsing

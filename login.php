@@ -3,9 +3,12 @@ require_once __DIR__ . '/includes/bootstrap.php';
 
 // Redirect if already logged in
 if (Auth::check()) {
+    error_log('User already logged in, redirecting to index');
     header('Location: ' . BASE_URL . '/index.php');
     exit;
 }
+
+error_log('Login page loaded. Session ID: ' . session_id() . ', User logged in: ' . (Auth::check() ? 'YES' : 'NO'));
 
 $error = '';
 
@@ -24,6 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($_SESSION['redirect_after_login']);
             
             Session::setFlash('success', 'Welcome back, ' . Auth::username() . '!');
+            
+            // Log the redirect for debugging
+            error_log("Login redirect to: " . $redirect);
             
             header('Location: ' . $redirect);
             exit;

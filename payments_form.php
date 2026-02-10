@@ -108,21 +108,30 @@ if (isset($_GET['action']) && $_GET['action'] === 'getPupilDetails' && isset($_G
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Log all POST data for debugging
+    error_log('=== PAYMENT FORM SUBMISSION ===' . PHP_EOL . print_r($_POST, true));
+    
     // Validate CSRF token first
     if (!CSRF::requireToken()) {
         $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+        error_log('PAYMENT FORM ERROR: CSRF validation failed - ' . $error);
     } else {
         $pupilID = trim($_POST['pupilID'] ?? '');
         $classID = trim($_POST['classID'] ?? '');
         $pmtAmt = floatval($_POST['pmtAmt'] ?? 0);
         
+        error_log("Payment form data: pupilID={$pupilID}, classID={$classID}, pmtAmt={$pmtAmt}");
+        
         // Validation
         if (empty($pupilID)) {
             $error = 'Please select a pupil';
+            error_log('PAYMENT FORM ERROR: No pupil selected');
         } elseif (empty($classID)) {
             $error = 'Class information is required';
+            error_log('PAYMENT FORM ERROR: No classID');
         } elseif ($pmtAmt <= 0) {
             $error = 'Amount paid must be greater than zero';
+            error_log('PAYMENT FORM ERROR: Invalid amount - ' . $pmtAmt);
         }
         
         if (!isset($error)) {
@@ -219,8 +228,28 @@ require_once 'includes/header.php';
     <div class="card-body">
         <?php if (isset($error)): ?>
         <div class="alert alert-danger alert-dismissible fade show">
-            <i class="bi bi-exclamation-triangle-fill"></i> <?= htmlspecialchars($error) ?>
+            <i class="bi bi-exclamation-triangle-fill"></i> <strong>Error:</strong> <?= htmlspecialchars($error) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <?php endif; ?>
+        
+        <?php if (Session::getFlash('error')): ?>
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle-fill"></i> <strong>Error:</strong> <?= htmlspecialchars(Session::getFlash('error')) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <?php endif; ?>
+        
+        <?php if (Session::getFlash('success')): ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle-fill"></i> <?= htmlspecialchars(Session::getFlash('success')) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <?php endif; ?>
+        
+        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($error)): ?>
+        <div class="alert alert-info">
+            <strong>Debug:</strong> Form submitted successfully but may have failed during save. Check browser console and error logs.
         </div>
         <?php endif; ?>
         
@@ -243,6 +272,7 @@ require_once 'includes/header.php';
                             </option>
                             <?php endforeach; ?>
                         </select>
+                        <input type="hidden" name="classID" id="classID" value="">
                     </div>
                     
                     <div id="pupilDetails" style="display: none;">
@@ -250,7 +280,6 @@ require_once 'includes/header.php';
                             <div class="row">
                                 <div class="col-md-6">
                                     <strong>Class:</strong> <span id="displayClass"></span>
-                                    <input type="hidden" name="classID" id="classID">
                                 </div>
                                 <div class="col-md-6">
                                     <strong>Term:</strong> <span id="displayTerm"></span> / <span id="displayYear"></span>
@@ -394,7 +423,22 @@ document.addEventListener('DOMContentLoaded', function() {
             pupilDetails.style.display = 'none';
             feeSummary.style.display = 'none';
             previousPaymentsCard.style.display = 'none';
+            // Clear the hidden classID field
+            const classIDInput = document.getElementById('classID');
+            if (classIDInput) classIDInput.value = '';
             return;
+        }
+        
+        // IMMEDIATELY get classID from the selected option's data attribute
+        const selectedOption = this.options[this.selectedIndex];
+        const classID = selectedOption.getAttribute('data-classid');
+        const classIDInput = document.getElementById('classID');
+        
+        if (classIDInput && classID) {
+            classIDInput.value = classID;
+            console.log('Set classID from dropdown:', classID);
+        } else {
+            console.warn('Could not set classID. Input exists:', !!classIDInput, 'ClassID value:', classID);
         }
         
         // Fetch pupil details via AJAX
@@ -421,7 +465,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     const currentBalanceEl = document.getElementById('currentBalance');
                     
                     if (displayClass) displayClass.textContent = data.className;
-                    if (classIDInput) classIDInput.value = data.classID;
+                    if (classIDInput && data.classID) {
+                        classIDInput.value = data.classID;
+                        console.log('Set classID from AJAX:', data.classID);
+                    } else {
+                        console.error('Cannot set classID from AJAX. Input exists:', !!classIDInput, 'Data classID:', data.classID);
+                    }
                     if (displayTerm) displayTerm.textContent = data.currentTerm;
                     if (displayYear) displayYear.textContent = data.currentYear;
                     pupilDetails.style.display = 'block';
@@ -469,6 +518,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 previousPaymentsCard.style.display = 'none';
             });
     });
+    
+    // Add form submission validation
+    const paymentForm = document.getElementById('paymentForm');
+    if (paymentForm) {
+        paymentForm.addEventListener('submit', function(e) {
+            const classIDInput = document.querySelector('input[name="classID"]');
+            const pupilIDInput = document.getElementById('pupilSelect');
+            
+            console.log('Form submitting...');
+            console.log('Pupil ID:', pupilIDInput ? pupilIDInput.value : 'NOT FOUND');
+            console.log('Class ID input element:', classIDInput);
+            console.log('Class ID value:', classIDInput ? classIDInput.value : 'NOT FOUND');
+            
+            if (!classIDInput || !classIDInput.value) {
+                e.preventDefault();
+                alert('Error: Class information is missing. Please select a pupil and wait for their details to load before submitting.');
+                console.error('Form submission blocked: classID is empty or not found');
+                return false;
+            }
+            
+            console.log('Form validation passed, submitting...');
+        });
+    }
 });
 </script>
 

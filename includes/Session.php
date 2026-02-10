@@ -8,11 +8,28 @@ class Session {
     
     public static function start() {
         if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+            // Try to start session and log if it fails
+            $started = @session_start();
+            
+            if (!$started) {
+                error_log('CRITICAL: Session failed to start!');
+                error_log('Session save path: ' . session_save_path());
+                error_log('Session name: ' . session_name());
+                return false;
+            }
+            
+            // CRITICAL: Flush output buffer to force session cookie to be sent
+            if (ob_get_level() > 0) {
+                @ob_flush();
+                @flush();
+            }
+            
+            error_log('Session started. ID: ' . session_id() . ', Save path: ' . session_save_path());
             
             // Regenerate session ID periodically for security
             if (!isset($_SESSION['created'])) {
                 $_SESSION['created'] = time();
+                error_log('New session created at: ' . date('Y-m-d H:i:s'));
             } else if (time() - $_SESSION['created'] > 1800) {
                 // Preserve CSRF token during regeneration
                 $csrfToken = $_SESSION['csrf_token'] ?? null;
@@ -25,10 +42,15 @@ class Session {
                 if ($csrfToken !== null) {
                     $_SESSION['csrf_token'] = $csrfToken;
                 }
+                
+                error_log('Session regenerated at: ' . date('Y-m-d H:i:s'));
             }
             
-            // Validate IP address
-            if (isset($_SESSION['ip_address']) && $_SESSION['ip_address'] !== $_SERVER['REMOTE_ADDR']) {
+            // Validate IP address (disabled for production proxy compatibility)
+            // Strict IP validation can fail with load balancers, proxies, and CDNs
+            // If needed, enable this only in development environments
+            if (false && isset($_SESSION['ip_address']) && $_SESSION['ip_address'] !== $_SERVER['REMOTE_ADDR']) {
+                error_log('Session IP mismatch: ' . $_SESSION['ip_address'] . ' vs ' . $_SERVER['REMOTE_ADDR']);
                 self::destroy();
                 return false;
             }
@@ -37,11 +59,18 @@ class Session {
         
         // Check session timeout
         if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > SESSION_TIMEOUT)) {
+            error_log('Session timeout detected. Last activity: ' . date('Y-m-d H:i:s', $_SESSION['last_activity']));
             self::destroy();
             return false;
         }
         
         $_SESSION['last_activity'] = time();
+        
+        // Log session data for debugging (only if user is logged in)
+        if (isset($_SESSION['user_id'])) {
+            error_log('Active session for user_id: ' . $_SESSION['user_id'] . ', username: ' . ($_SESSION['username'] ?? 'unknown'));
+        }
+        
         return true;
     }
     
