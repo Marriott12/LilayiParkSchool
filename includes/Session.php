@@ -8,6 +8,11 @@ class Session {
     
     public static function start() {
         if (session_status() === PHP_SESSION_NONE) {
+            // Configure session before starting
+            @ini_set('session.cookie_httponly', '1');
+            @ini_set('session.use_strict_mode', '1');
+            @ini_set('session.cookie_samesite', 'Lax');
+            
             // Try to start session and log if it fails
             $started = @session_start();
             
@@ -18,28 +23,35 @@ class Session {
                 return false;
             }
             
-            // CRITICAL: Flush output buffer to force session cookie to be sent
-            // Use try-catch to prevent 500 errors if flushing fails
-            // Limit iterations to prevent infinite loops
+            // Handle output buffering safely - completely optional
+            // Skip buffer handling if it causes issues
+            $bufferHandled = false;
             try {
-                $maxFlushAttempts = 10;
-                $attempts = 0;
-                while (ob_get_level() > 0 && $attempts < $maxFlushAttempts) {
-                    @ob_end_flush();
-                    $attempts++;
+                $initialLevel = @ob_get_level();
+                if ($initialLevel > 0) {
+                    // Try to flush buffers, but don't fail if it doesn't work
+                    $maxAttempts = 5;
+                    $attempts = 0;
+                    while (@ob_get_level() > 0 && $attempts < $maxAttempts) {
+                        $flushed = @ob_end_flush();
+                        if ($flushed === false) {
+                            break; // Can't flush this buffer, stop trying
+                        }
+                        $attempts++;
+                    }
+                    @flush();
+                    $bufferHandled = true;
                 }
-                @flush();
-            } catch (Exception $e) {
-                // Silently continue if flush fails
-                error_log('Buffer flush warning: ' . $e->getMessage());
+            } catch (Throwable $e) {
+                // Complete failure is OK - session still works
+                error_log('Buffer handling skipped: ' . $e->getMessage());
             }
             
-            error_log('Session started. ID: ' . session_id() . ', Save path: ' . session_save_path());
+            error_log('Session started. ID: ' . session_id() . ', Buffer handled: ' . ($bufferHandled ? 'yes' : 'no'));
             
             // Regenerate session ID periodically for security
             if (!isset($_SESSION['created'])) {
                 $_SESSION['created'] = time();
-                error_log('New session created at: ' . date('Y-m-d H:i:s'));
             } else if (time() - $_SESSION['created'] > 1800) {
                 // Preserve CSRF token during regeneration
                 $csrfToken = $_SESSION['csrf_token'] ?? null;
@@ -52,19 +64,10 @@ class Session {
                 if ($csrfToken !== null) {
                     $_SESSION['csrf_token'] = $csrfToken;
                 }
-                
-                error_log('Session regenerated at: ' . date('Y-m-d H:i:s'));
             }
             
-            // Validate IP address (disabled for production proxy compatibility)
-            // Strict IP validation can fail with load balancers, proxies, and CDNs
-            // If needed, enable this only in development environments
-            if (false && isset($_SESSION['ip_address']) && $_SESSION['ip_address'] !== $_SERVER['REMOTE_ADDR']) {
-                error_log('Session IP mismatch: ' . $_SESSION['ip_address'] . ' vs ' . $_SERVER['REMOTE_ADDR']);
-                self::destroy();
-                return false;
-            }
-            $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'];
+            // Store IP for reference (not validated to support proxies/load balancers)
+            $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
         }
         
         // Check session timeout
