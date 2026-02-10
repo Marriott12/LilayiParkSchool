@@ -141,6 +141,19 @@ class BaseModel {
                     return $result[$this->primaryKey];
                 }
             }
+
+            // Fallback: try using multiple fields for Payment table
+            if ($this->table === 'Payment' && isset($data['pupilID'], $data['paymentDate'], $data['pmtAmt'])) {
+                $sql = "SELECT {$this->primaryKey} FROM {$this->table} 
+                        WHERE pupilID = ? AND paymentDate = ? AND pmtAmt = ? 
+                        ORDER BY createdAt DESC LIMIT 1";
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([$data['pupilID'], $data['paymentDate'], $data['pmtAmt']]);
+                $result = $stmt->fetch();
+                if ($result) {
+                    return $result[$this->primaryKey];
+                }
+            }
         }
 
         return $lastId;
