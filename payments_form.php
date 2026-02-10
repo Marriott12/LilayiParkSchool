@@ -119,8 +119,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pupilID = trim($_POST['pupilID'] ?? '');
         $classID = trim($_POST['classID'] ?? '');
         $pmtAmt = floatval($_POST['pmtAmt'] ?? 0);
-        
+
         error_log("Payment form data: pupilID={$pupilID}, classID={$classID}, pmtAmt={$pmtAmt}");
+
+        // Server-side fallback: if classID wasn't provided by the form (JS failed),
+        // attempt to determine it from the database using the pupilID.
+        if (empty($classID) && !empty($pupilID)) {
+            try {
+                $stmt = $db->prepare("SELECT pc.classID FROM Pupil_Class pc WHERE pc.pupilID = ? LIMIT 1");
+                $stmt->execute([$pupilID]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row && !empty($row['classID'])) {
+                    $classID = $row['classID'];
+                    error_log("PAYMENT FORM: populated missing classID from DB for pupil {$pupilID} => classID={$classID}");
+                } else {
+                    error_log("PAYMENT FORM: unable to determine classID from DB for pupil {$pupilID}");
+                }
+            } catch (Exception $e) {
+                error_log('PAYMENT FORM: error fetching classID fallback: ' . $e->getMessage());
+            }
+        }
         
         // Validation
         if (empty($pupilID)) {
