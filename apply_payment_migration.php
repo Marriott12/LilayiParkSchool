@@ -23,14 +23,29 @@ try {
     
     // Check if columns already exist
     $existingCols = array_column($currentColumns, 'Field');
-    $needsMigration = !in_array('feeID', $existingCols) || 
-                      !in_array('term', $existingCols) || 
-                      !in_array('academicYear', $existingCols);
+    $hasFeeID = in_array('feeID', $existingCols);
+    $hasTerm = in_array('term', $existingCols);
+    $hasAcademicYear = in_array('academicYear', $existingCols);
+    
+    $needsMigration = !$hasFeeID || !$hasTerm || !$hasAcademicYear;
     
     if (!$needsMigration) {
-        echo "<p style='color: green;'>✓ Migration already applied. All columns exist.</p>\n";
+        echo "<p style='color: green;'>✓ All required columns already exist. No migration needed.</p>\n";
+        echo "<ul>";
+        echo "<li>feeID: " . ($hasFeeID ? "✓ EXISTS" : "✗ MISSING") . "</li>";
+        echo "<li>term: " . ($hasTerm ? "✓ EXISTS" : "✗ MISSING") . "</li>";
+        echo "<li>academicYear: " . ($hasAcademicYear ? "✓ EXISTS" : "✗ MISSING") . "</li>";
+        echo "</ul>";
+        echo "<p><strong>Payment table is ready to use!</strong></p>\n";
         exit;
     }
+    
+    echo "<p style='color: orange;'>⚠️ Missing columns detected:</p>\n";
+    echo "<ul>";
+    if (!$hasFeeID) echo "<li>feeID - will be added</li>";
+    if (!$hasTerm) echo "<li>term - will be added</li>";
+    if (!$hasAcademicYear) echo "<li>academicYear - will be added</li>";
+    echo "</ul>";
     
     echo "<h3>Applying Migration...</h3>\n";
     
