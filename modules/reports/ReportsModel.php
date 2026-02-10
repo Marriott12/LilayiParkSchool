@@ -34,12 +34,12 @@ class ReportsModel extends BaseModel {
         // Total Fees (based on enrolled pupils)
         $sql = "SELECT COALESCE(SUM(f.feeAmt), 0) as total 
                 FROM Fees f
-                 INNER JOIN pupil_class pc ON f.classID = pc.classID";
+                 INNER JOIN Pupil_Class pc ON f.classID = pc.classID";
         $stmt = $this->db->query($sql);
         $stats['totalFees'] = $stmt->fetch()['total'] ?? 0;
         
         // Total Payments
-        $sql = "SELECT COALESCE(SUM(pmtAmt), 0) as total FROM payment";
+        $sql = "SELECT COALESCE(SUM(pmtAmt), 0) as total FROM Payment";
         $stmt = $this->db->query($sql);
         $stats['totalPayments'] = $stmt->fetch()['total'] ?? 0;
         
@@ -68,9 +68,9 @@ class ReportsModel extends BaseModel {
                     COALESCE(SUM(p.pmtAmt), 0) as totalCollected,
                     ((f.feeAmt * COUNT(DISTINCT pc.pupilID)) - COALESCE(SUM(p.pmtAmt), 0)) as outstanding
                 FROM Fees f
-                JOIN class c ON f.classID = c.classID
-                LEFT JOIN pupil_class pc ON f.classID = pc.classID
-                LEFT JOIN payment p ON f.classID = p.classID AND f.term = p.term AND f.year = p.academicYear
+                JOIN Class c ON f.classID = c.classID
+                LEFT JOIN Pupil_Class pc ON f.classID = pc.classID
+                LEFT JOIN Payment p ON f.classID = p.classID AND f.term = p.term AND f.year = p.academicYear
                 WHERE 1=1";
         
         $params = [];
