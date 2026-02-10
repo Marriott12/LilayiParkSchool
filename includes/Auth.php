@@ -160,6 +160,11 @@ class Auth {
     public static function attempt($username, $password) {
         global $db;
         
+        // Ensure database connection exists (defensive fix for edge cases)
+        if ($db === null) {
+            $db = Database::getInstance()->getConnection();
+        }
+        
         try {
             error_log("Login attempt for username: " . $username);
             
