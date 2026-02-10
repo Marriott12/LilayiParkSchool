@@ -9,7 +9,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'view_parents')) {
     Session::setFlash('error', 'You do not have permission to view parents.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
@@ -449,7 +449,7 @@ document.addEventListener('DOMContentLoaded', function() {
     new LiveSearch({
         searchInput: '#liveSearchInput',
         resultsContainer: '#resultsTable',
-        apiEndpoint: '/LilayiParkSchool/api/search_parents.php',
+        apiEndpoint: 'api/search_parents.php',
         emptyMessage: 'No parents found',
         debounceDelay: 300,
         renderRow: function(parent) {

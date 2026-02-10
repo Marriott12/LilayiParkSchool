@@ -8,7 +8,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'manage_examinations')) {
     Session::setFlash('error', 'You do not have permission to manage examinations.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 

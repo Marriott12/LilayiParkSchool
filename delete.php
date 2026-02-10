@@ -103,7 +103,7 @@ $rolesModel = new RolesModel();
 $permissionName = 'manage_' . $config['permission'];
 if (!$rolesModel->userHasPermission(Auth::id(), $permissionName)) {
     Session::setFlash('error', 'You do not have permission to delete this item.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 

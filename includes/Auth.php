@@ -20,7 +20,7 @@ class Auth {
         if (!self::check()) {
             $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
             Session::setFlash('warning', 'Please log in to access this page.');
-            header('Location: /LilayiParkSchool/login.php');
+            header('Location: login.php');
             exit;
         }
     }

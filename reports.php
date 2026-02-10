@@ -8,7 +8,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'view_reports')) {
     Session::setFlash('error', 'You do not have permission to view reports.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 

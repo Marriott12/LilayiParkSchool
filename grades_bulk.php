@@ -8,7 +8,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'manage_grades')) {
     Session::setFlash('error', 'You do not have permission to manage grades.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 

@@ -66,7 +66,7 @@ class PermissionHelper {
     public static function requirePupilAccess($pupilID, $message = 'You do not have permission to access this pupil.') {
         if (!Auth::canAccessPupil($pupilID)) {
             Session::setFlash('error', $message);
-            header('Location: /LilayiParkSchool/403.php');
+            header('Location: 403.php');
             exit;
         }
     }
@@ -77,7 +77,7 @@ class PermissionHelper {
     public static function requireClassAccess($classID, $message = 'You do not have permission to access this class.') {
         if (!Auth::canAccessClass($classID)) {
             Session::setFlash('error', $message);
-            header('Location: /LilayiParkSchool/403.php');
+            header('Location: 403.php');
             exit;
         }
     }
@@ -88,7 +88,7 @@ class PermissionHelper {
     public static function requireFeeAccess($pupilID, $message = 'You do not have permission to view fees for this pupil.') {
         if (!Auth::canAccessPupilFees($pupilID)) {
             Session::setFlash('error', $message);
-            header('Location: /LilayiParkSchool/403.php');
+            header('Location: 403.php');
             exit;
         }
     }

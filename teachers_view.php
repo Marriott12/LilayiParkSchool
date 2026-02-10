@@ -9,7 +9,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'view_teachers')) {
     Session::setFlash('error', 'You do not have permission to view teachers.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
@@ -24,7 +24,7 @@ if (empty($teacherID)) {
 // Check if user can access this teacher
 if (!Auth::canAccessTeacher($teacherID)) {
     Session::setFlash('error', 'You do not have permission to view this teacher.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 

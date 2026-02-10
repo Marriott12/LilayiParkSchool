@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
     new LiveSearch({
         searchInput: '#liveSearchInput',
         resultsContainer: '#resultsTable',
-        apiEndpoint: '/LilayiParkSchool/api/search_users.php',
+        apiEndpoint: 'api/search_users.php',
         emptyMessage: 'No users found',
         debounceDelay: 300,
         renderRow: function(user) {

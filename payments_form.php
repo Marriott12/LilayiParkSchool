@@ -7,7 +7,7 @@ Auth::requireLogin();
 // Only admin can manage payments
 if (!Auth::hasRole('admin')) {
     Session::setFlash('error', 'Only administrators can manage payments.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Calculate the balance automatically
                 // Get current term fee for this class
                 $stmt = $db->prepare("
-                    SELECT feeID, feeAmt
+                    SELECT feeID, feeAmt, term
                     FROM Fees
                     WHERE classID = ? AND year = ?
                     ORDER BY term DESC
@@ -138,7 +138,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $currentYear = date('Y');
                 $stmt->execute([$classID, $currentYear]);
-                $currentFee = $stmt->fetch();
+                $currentFee = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$currentFee) {
+                    throw new Exception("No fee record found for this class and year. Please create a fee record first.");
+                }
+                
                 $totalFee = $currentFee['feeAmt'] ?? 0;
                 $feeID = $currentFee['feeID'] ?? null;
                 
@@ -171,13 +176,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'academicYear' => $currentYear
                 ];
                 
-                $paymentModel->create($data);
+                // Log payment data for debugging
+                error_log("Attempting to create payment: " . json_encode($data));
+                
+                $result = $paymentModel->create($data);
+                
+                if (!$result) {
+                    throw new Exception("Failed to create payment record. Please check the logs.");
+                }
+                
+                error_log("Payment created successfully with ID: " . $result);
                 Session::setFlash('success', 'Payment recorded successfully');
                 
                 CSRF::regenerateToken();
                 header('Location: payments_list.php');
                 exit;
             } catch (Exception $e) {
+                error_log("Payment creation error: " . $e->getMessage());
                 $error = $e->getMessage();
             }
         }

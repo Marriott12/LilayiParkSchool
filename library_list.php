@@ -9,7 +9,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'view_library')) {
     Session::setFlash('error', 'You do not have permission to view library.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
     new LiveSearch({
         searchInput: '#liveSearchInput',
         resultsContainer: '#resultsTable',
-        apiEndpoint: '/LilayiParkSchool/api/search_library.php',
+        apiEndpoint: 'api/search_library.php',
         emptyMessage: 'No books found',
         debounceDelay: 300,
         renderRow: function(book) {

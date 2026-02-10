@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
     new LiveSearch({
         searchInput: '#liveSearchInput',
         resultsContainer: '#resultsTable',
-        apiEndpoint: '/LilayiParkSchool/api/search_subjects.php',
+        apiEndpoint: 'api/search_subjects.php',
         emptyMessage: 'No subjects found',
         debounceDelay: 300,
         renderRow: function(subject) {

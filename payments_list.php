@@ -12,7 +12,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'view_fees')) {
     Session::setFlash('error', 'You do not have permission to view payments.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
@@ -28,7 +28,7 @@ if (Auth::isParent()) {
     $parentID = Auth::getParentID();
     if (!$parentID) {
         Session::setFlash('error', 'Parent account not properly linked.');
-        header('Location: /LilayiParkSchool/index.php');
+        header('Location: index.php');
         exit;
     }
     $allPayments = $paymentModel->getPaymentsByParent($parentID);

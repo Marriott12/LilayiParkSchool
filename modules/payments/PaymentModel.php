@@ -13,11 +13,11 @@ class PaymentModel extends BaseModel {
     public function getPaymentWithDetails($paymentID) {
         $sql = "SELECT p.*, pu.fName as pupilFirstName, pu.lName as pupilLastName,
                        pr.fName as parentFirstName, pr.lName as parentLastName,
-                       f.term, f.feeAmount
+                       f.term, f.feeAmt
                 FROM {$this->table} p
                 LEFT JOIN Pupil pu ON p.pupilID = pu.pupilID
                 LEFT JOIN Parent pr ON pu.parentID = pr.parentID
-                LEFT JOIN fees f ON p.feeID = f.feeID
+                LEFT JOIN Fees f ON p.feeID = f.feeID
                 WHERE p.paymentID = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$paymentID]);
@@ -35,7 +35,7 @@ class PaymentModel extends BaseModel {
                 LEFT JOIN Pupil pu ON p.pupilID = pu.pupilID
                 LEFT JOIN Parent pr ON pu.parentID = pr.parentID
                 LEFT JOIN Fees f ON p.feeID = f.feeID
-                ORDER BY p.paymentDate DESC";
+                ORDER BY p.paymentDate DESC, p.paymentID DESC";
         
         if ($limit !== null) {
             $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
@@ -50,11 +50,11 @@ class PaymentModel extends BaseModel {
      * Get payments by pupil
      */
     public function getPaymentsByPupil($pupilID) {
-        $sql = "SELECT p.*, f.term, f.feeAmount
+        $sql = "SELECT p.*, f.term, f.feeAmt
                 FROM {$this->table} p
                 LEFT JOIN Fees f ON p.feeID = f.feeID
                 WHERE p.pupilID = ?
-                ORDER BY p.paymentDate DESC";
+                ORDER BY p.paymentDate DESC, p.paymentID DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$pupilID]);
         return $stmt->fetchAll();
@@ -65,12 +65,12 @@ class PaymentModel extends BaseModel {
      */
     public function getPaymentsByParent($parentID) {
         $sql = "SELECT p.*, pu.fName as pupilFirstName, pu.lName as pupilLastName,
-                       f.term, f.feeAmount
+                       f.term, f.feeAmt
                 FROM {$this->table} p
                 INNER JOIN Pupil pu ON p.pupilID = pu.pupilID
                 LEFT JOIN Fees f ON p.feeID = f.feeID
                 WHERE pu.parentID = ?
-                ORDER BY p.paymentDate DESC";
+                ORDER BY p.paymentDate DESC, p.paymentID DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$parentID]);
         return $stmt->fetchAll();

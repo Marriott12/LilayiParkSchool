@@ -8,7 +8,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'view_parents')) {
     Session::setFlash('error', 'You do not have permission to view parents.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
@@ -23,7 +23,7 @@ if (empty($parentID)) {
 // Check if user can access this parent
 if (!Auth::canAccessParent($parentID)) {
     Session::setFlash('error', 'You do not have permission to view this parent.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 

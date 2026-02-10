@@ -10,7 +10,7 @@ require_once 'modules/roles/RolesModel.php';
 $rolesModel = new RolesModel();
 if (!$rolesModel->userHasPermission(Auth::id(), 'view_teachers')) {
     Session::setFlash('error', 'You do not have permission to view teachers.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
@@ -24,7 +24,7 @@ $accessibleTeacherIDs = Auth::getAccessibleTeacherIDs();
 // Parents cannot view teachers list
 if (is_array($accessibleTeacherIDs) && empty($accessibleTeacherIDs)) {
     Session::setFlash('error', 'You do not have permission to view teachers.');
-    header('Location: /LilayiParkSchool/403.php');
+    header('Location: 403.php');
     exit;
 }
 
@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
     new LiveSearch({
         searchInput: '#liveSearchInput',
         resultsContainer: '#resultsTable',
-        apiEndpoint: '/LilayiParkSchool/api/search_teachers.php',
+        apiEndpoint: 'api/search_teachers.php',
         emptyMessage: 'No teachers found',
         debounceDelay: 300,
         renderRow: function(teacher) {
