@@ -19,9 +19,18 @@ class Session {
             }
             
             // CRITICAL: Flush output buffer to force session cookie to be sent
-            if (ob_get_level() > 0) {
-                @ob_flush();
+            // Use try-catch to prevent 500 errors if flushing fails
+            try {
+                while (ob_get_level() > 0) {
+                    $flushed = @ob_flush();
+                    if ($flushed === false) {
+                        break; // Can't flush this buffer, stop trying
+                    }
+                }
                 @flush();
+            } catch (Exception $e) {
+                // Silently continue if flush fails
+                error_log('Buffer flush warning: ' . $e->getMessage());
             }
             
             error_log('Session started. ID: ' . session_id() . ', Save path: ' . session_save_path());

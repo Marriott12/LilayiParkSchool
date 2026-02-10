@@ -1,0 +1,24 @@
+# Commands to find your production directory on the server
+
+# First, check your home directory
+pwd
+
+# List directories in your home folder
+ls -la ~
+
+# Check common cPanel/Hostinger locations
+ls -la ~/public_html 2>/dev/null || echo "Not in ~/public_html"
+ls -la ~/domains 2>/dev/null || echo "No ~/domains folder"
+ls -la ~/htdocs 2>/dev/null || echo "No ~/htdocs folder"
+
+# Search for the website files
+find ~ -name "login.php" -type f 2>/dev/null | head -10
+
+# Or search for the config directory
+find ~ -name "config.php" -path "*/config/*" 2>/dev/null | head -10
+
+# Common locations (try these):
+# cd ~/public_html
+# cd ~/domains/lps.envisagezm.com/public_html
+# cd ~/lps.envisagezm.com
+# cd ~/public_html/lps
