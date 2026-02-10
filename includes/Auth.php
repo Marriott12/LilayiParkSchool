@@ -19,8 +19,10 @@ class Auth {
     public static function requireLogin() {
         if (!self::check()) {
             error_log('Auth::requireLogin - User not logged in. Session user_id: ' . ($_SESSION['user_id'] ?? 'NOT SET'));
-            error_log('Redirecting to login from: ' . $_SERVER['REQUEST_URI']);
-            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
+            // Safely determine current request URI (handles CLI or missing server vars)
+            $redirectFrom = $_SERVER['REQUEST_URI'] ?? ($_SERVER['PHP_SELF'] ?? '/');
+            error_log('Redirecting to login from: ' . $redirectFrom);
+            $_SESSION['redirect_after_login'] = $redirectFrom;
             Session::setFlash('warning', 'Please log in to access this page.');
             header('Location: ' . BASE_URL . '/login.php');
             exit;

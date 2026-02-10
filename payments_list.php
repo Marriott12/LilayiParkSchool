@@ -3,7 +3,8 @@ require_once 'includes/bootstrap.php';
 require_once 'includes/Auth.php';
 require_once 'includes/PermissionHelper.php';
 
-Auth::requireLogin();
+try {
+    Auth::requireLogin();
 
 require_once 'modules/payments/PaymentModel.php';
 require_once 'modules/roles/RolesModel.php';
@@ -16,7 +17,11 @@ if (!$rolesModel->userHasPermission(Auth::id(), 'view_fees')) {
     exit;
 }
 
+error_log('payments_list: user has permission to view payments. UserID=' . Auth::id());
+
 $paymentModel = new PaymentModel();
+
+error_log('payments_list: PaymentModel initialized');
 
 // Pagination
 $page = $_GET['page'] ?? 1;
@@ -35,16 +40,26 @@ if (Auth::isParent()) {
     $totalRecords = count($allPayments);
     $pagination = new Pagination($totalRecords, $perPage, $page);
     $payments = array_slice($allPayments, $pagination->getOffset(), $pagination->getLimit());
+    error_log('payments_list: parent payments loaded count=' . count($payments));
 } else {
     // Admin and accountant can see all payments
     $totalRecords = $paymentModel->count();
     $pagination = new Pagination($totalRecords, $perPage, $page);
     $payments = $paymentModel->getAllWithDetails($pagination->getLimit(), $pagination->getOffset());
+    error_log('payments_list: admin payments loaded count=' . count($payments));
 }
 
 $pageTitle = 'Payments Management';
 $currentPage = 'payments';
 require_once 'includes/header.php';
+}
+catch (Throwable $e) {
+    // Log and show a simple error message for diagnostics
+    error_log('Fatal error in payments_list.php: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
+    http_response_code(500);
+    echo '<h1>Server error</h1><p>' . htmlspecialchars($e->getMessage()) . '</p>';
+    exit;
+}
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
