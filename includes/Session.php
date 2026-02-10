@@ -20,12 +20,13 @@ class Session {
             
             // CRITICAL: Flush output buffer to force session cookie to be sent
             // Use try-catch to prevent 500 errors if flushing fails
+            // Limit iterations to prevent infinite loops
             try {
-                while (ob_get_level() > 0) {
-                    $flushed = @ob_flush();
-                    if ($flushed === false) {
-                        break; // Can't flush this buffer, stop trying
-                    }
+                $maxFlushAttempts = 10;
+                $attempts = 0;
+                while (ob_get_level() > 0 && $attempts < $maxFlushAttempts) {
+                    @ob_end_flush();
+                    $attempts++;
                 }
                 @flush();
             } catch (Exception $e) {
