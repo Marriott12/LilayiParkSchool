@@ -75,10 +75,10 @@ require_once 'includes/PermissionHelper.php';
                     </div>
                 </div>
                 <h4 class="mb-1">Payment Record</h4>
-                <p class="text-muted mb-3">Payment #<?= htmlspecialchars($payment['paymentID'] ?? '') ?></p>
+                <p class="text-muted mb-3">Payment #<?= htmlspecialchars($payment['payID'] ?? '') ?></p>
                 <div class="mb-3">
                     <div class="display-6 fw-bold text-success">
-                        K <?= number_format($payment['amount'] ?? $payment['feeAmount'] ?? 0, 2) ?>
+                        K <?= number_format($payment['pmtAmt'] ?? 0, 2) ?>
                     </div>
                 </div>
                 <div class="mb-3">
@@ -114,12 +114,12 @@ require_once 'includes/PermissionHelper.php';
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="text-muted small mb-1">Payment ID</label>
-                        <p class="mb-0 fw-semibold"><?= htmlspecialchars($payment['paymentID'] ?? 'N/A') ?></p>
+                        <p class="mb-0 fw-semibold"><?= htmlspecialchars($payment['payID'] ?? 'N/A') ?></p>
                     </div>
                     <div class="col-md-6">
                         <label class="text-muted small mb-1">Amount Paid</label>
                         <p class="mb-0 fw-semibold text-success">
-                            K <?= number_format($payment['amount'] ?? $payment['feeAmount'] ?? 0, 2) ?>
+                            K <?= number_format($payment['pmtAmt'] ?? 0, 2) ?>
                         </p>
                     </div>
                     <div class="col-md-6">

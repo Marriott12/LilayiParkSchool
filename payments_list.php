@@ -96,7 +96,7 @@ require_once 'includes/header.php';
                         </td>
                         <td>
                             <strong style="color: #2d5016;">
-                                K <?= number_format($payment['amount'], 2) ?>
+                                K <?= number_format($payment['pmtAmt'], 2) ?>
                             </strong>
                         </td>
                         <td><?= htmlspecialchars($payment['paymentMode'] ?? 'Cash') ?></td>
@@ -105,14 +105,14 @@ require_once 'includes/header.php';
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <a href="payments_view.php?id=<?= $payment['paymentID'] ?>" class="btn btn-outline-info btn-sm">
+                                <a href="payments_view.php?id=<?= $payment['payID'] ?>" class="btn btn-outline-info btn-sm">
                                     <i class="bi bi-receipt"></i> View
                                 </a>
                                 <?php if (PermissionHelper::canManage('fees')): ?>
-                                <a href="payments_form.php?id=<?= $payment['paymentID'] ?>" class="btn btn-outline-warning btn-sm">
+                                <a href="payments_form.php?id=<?= $payment['payID'] ?>" class="btn btn-outline-warning btn-sm">
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
-                                <a href="delete.php?module=payments&id=<?= $payment['paymentID'] ?>" 
+                                <a href="delete.php?module=payments&id=<?= $payment['payID'] ?>" 
                                    class="btn btn-outline-danger btn-sm" 
                                    onclick="return confirm('Are you sure you want to delete this payment?');">
                                     <i class="bi bi-trash"></i> Delete
