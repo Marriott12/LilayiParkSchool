@@ -61,6 +61,14 @@ echo "Bootstrap.php loads DB first: " . ($dbBeforeSession ? '<span class="succes
 echo "<h2>DATABASE CONNECTION</h2>";
 try {
     require_once __DIR__ . '/config/config.php';
+    
+    // Check if .env was loaded
+    echo "ENV variables after config.php load:\n";
+    echo "  DB_HOST: " . ($_ENV['DB_HOST'] ?? '<span class="error">NOT SET</span>') . "\n";
+    echo "  DB_NAME: " . ($_ENV['DB_NAME'] ?? '<span class="error">NOT SET</span>') . "\n";
+    echo "  DB_USER: " . ($_ENV['DB_USER'] ?? '<span class="error">NOT SET</span>') . "\n";
+    echo "  DB_PASSWORD: " . (isset($_ENV['DB_PASSWORD']) ? '***SET***' : '<span class="error">NOT SET</span>') . "\n\n";
+    
     require_once __DIR__ . '/config/database.php';
     
     $db = Database::getInstance()->getConnection();
@@ -88,9 +96,9 @@ try {
     unset($_SESSION['user_id']);
     unset($_SESSION['user_role']);
     
-    // Try login
-    echo "Attempting login with admin/admin123...\n";
-    $loginResult = Auth::attempt('admin', 'admin123');
+    // Try login with production credentials
+    echo "Attempting login with Admin/Admin@2026...\n";
+    $loginResult = Auth::attempt('Admin', 'Admin@2026');
     
     if ($loginResult === true) {
         echo '<span class="success">✓ Login successful!</span>' . "\n";
