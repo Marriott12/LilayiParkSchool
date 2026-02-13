@@ -19,15 +19,6 @@ class Database {
         $this->username = $_ENV['DB_USER'] ?? 'root';
         $this->password = $_ENV['DB_PASSWORD'] ?? '';
         
-        // Debug logging
-        error_log("Database constructor called");
-        error_log("  DB_HOST from ENV: " . ($_ENV['DB_HOST'] ?? 'NOT SET'));
-        error_log("  DB_NAME from ENV: " . ($_ENV['DB_NAME'] ?? 'NOT SET'));
-        error_log("  DB_USER from ENV: " . ($_ENV['DB_USER'] ?? 'NOT SET'));
-        error_log("  Using host: " . $this->host);
-        error_log("  Using database: " . $this->db_name);
-        error_log("  Using username: " . $this->username);
-        
         $this->connect();
     }
     
@@ -36,26 +27,14 @@ class Database {
         
         try {
             $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8mb4";
-            error_log("Attempting database connection with DSN: mysql:host=" . $this->host . ";dbname=" . $this->db_name);
             
             $this->connection = new PDO($dsn, $this->username, $this->password);
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             $this->connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-            
-            error_log("Database connection successful!");
         } catch(PDOException $e) {
-            // Log the full error
-            error_log("Database Connection FAILED: " . $e->getMessage());
-            error_log("  Tried to connect to: " . $this->host . "/" . $this->db_name);
-            error_log("  With username: " . $this->username);
-            
-            // DEBUG: Show error directly in browser
-            echo '<pre style="color:red;">Database Connection Error: ' . htmlspecialchars($e->getMessage()) . '</pre>';
-            echo '<pre>Host: ' . htmlspecialchars($this->host) . '</pre>';
-            echo '<pre>Database: ' . htmlspecialchars($this->db_name) . '</pre>';
-            echo '<pre>Username: ' . htmlspecialchars($this->username) . '</pre>';
-            exit;
+            error_log("Database Connection Error: " . $e->getMessage());
+            die('Database connection failed. Please contact the administrator.');
         }
     }
     
