@@ -1,15 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Log every request to this page
-error_log('=== pupils_form.php REQUEST ===');
-error_log('Method: ' . ($_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN'));
-error_log('GET params: ' . json_encode($_GET));
-error_log('POST params: ' . json_encode(array_keys($_POST)));
-error_log('Content-Type: ' . ($_SERVER['CONTENT_TYPE'] ?? 'NOT SET'));
-
 require_once 'includes/bootstrap.php';
 require_once 'includes/Auth.php';
 
