@@ -45,29 +45,8 @@ class Session {
             
             error_log('Session started. ID: ' . session_id());
             
-            // Handle output buffering safely - completely optional
-            // Only do this if there's actually buffering to handle
-            $bufferHandled = false;
-            try {
-                $initialLevel = @ob_get_level();
-                if ($initialLevel > 0) {
-                    // Try to flush buffers, but don't fail if it doesn't work
-                    $maxAttempts = 5;
-                    $attempts = 0;
-                    while (@ob_get_level() > 0 && $attempts < $maxAttempts) {
-                        $flushed = @ob_end_flush();
-                        if ($flushed === false) {
-                            break; // Can't flush this buffer, stop trying
-                        }
-                        $attempts++;
-                    }
-                    @flush();
-                    $bufferHandled = true;
-                }
-            } catch (Throwable $e) {
-                // Complete failure is OK - session still works
-                error_log('Buffer handling skipped: ' . $e->getMessage());
-            }
+            // Note: Output buffer flushing disabled - caused header issues
+            // Sessions work fine without it on most servers
             
             // Regenerate session ID periodically for security
             if (!isset($_SESSION['created'])) {
