@@ -22,7 +22,6 @@ class Session {
                 foreach ($possiblePaths as $path) {
                     if (!empty($path) && is_dir($path) && is_writable($path)) {
                         session_save_path($path);
-                        error_log('Session save path set to: ' . $path);
                         break;
                     }
                 }
@@ -33,17 +32,12 @@ class Session {
             @ini_set('session.use_strict_mode', '1');
             @ini_set('session.cookie_samesite', 'Lax');
             
-            // Try to start session and log if it fails
+            // Try to start session
             $started = @session_start();
             
             if (!$started) {
-                error_log('CRITICAL: Session failed to start!');
-                error_log('Session save path: ' . session_save_path());
-                error_log('Session name: ' . session_name());
                 return false;
             }
-            
-            error_log('Session started. ID: ' . session_id());
             
             // Note: Output buffer flushing disabled - caused header issues
             // Sessions work fine without it on most servers
@@ -71,7 +65,6 @@ class Session {
         
         // Check session timeout
         if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > SESSION_TIMEOUT)) {
-            error_log('Session timeout detected. Last activity: ' . date('Y-m-d H:i:s', $_SESSION['last_activity']));
             self::destroy();
             return false;
         }
