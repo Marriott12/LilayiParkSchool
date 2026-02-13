@@ -43,8 +43,10 @@ class Session {
                 return false;
             }
             
+            error_log('Session started. ID: ' . session_id());
+            
             // Handle output buffering safely - completely optional
-            // Skip buffer handling if it causes issues
+            // Only do this if there's actually buffering to handle
             $bufferHandled = false;
             try {
                 $initialLevel = @ob_get_level();
@@ -66,8 +68,6 @@ class Session {
                 // Complete failure is OK - session still works
                 error_log('Buffer handling skipped: ' . $e->getMessage());
             }
-            
-            error_log('Session started. ID: ' . session_id() . ', Buffer handled: ' . ($bufferHandled ? 'yes' : 'no'));
             
             // Regenerate session ID periodically for security
             if (!isset($_SESSION['created'])) {
