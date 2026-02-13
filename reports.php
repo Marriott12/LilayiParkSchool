@@ -1,0 +1,611 @@
+<?php
+require_once 'includes/bootstrap.php';
+require_once 'includes/Auth.php';
+
+Auth::requireLogin();
+
+require_once 'modules/roles/RolesModel.php';
+$rolesModel = new RolesModel();
+if (!$rolesModel->userHasPermission(Auth::id(), 'view_reports')) {
+    Session::setFlash('error', 'You do not have permission to view reports.');
+    header('Location: 403.php');
+    exit;
+}
+
+require_once 'modules/reports/ReportsModel.php';
+require_once 'modules/classes/ClassModel.php';
+
+$reportsModel = new ReportsModel();
+$classModel = new ClassModel();
+
+// Get filter parameters
+$reportType = $_GET['type'] ?? 'dashboard';
+$term = $_GET['term'] ?? null;
+$year = $_GET['year'] ?? date('Y');
+$classID = $_GET['class_id'] ?? null;
+$exportFormat = $_GET['export'] ?? null;
+
+// Handle export requests
+if ($exportFormat === 'pdf' || $exportFormat === 'excel') {
+    require_once 'modules/reports/export_handler.php';
+    handleReportExport($reportType, $exportFormat, $term, $year, $classID);
+    exit;
+}
+
+// Fetch data based on report type
+$reportData = [];
+switch ($reportType) {
+    case 'dashboard':
+        $reportData = $reportsModel->getDashboardStats();
+        break;
+    case 'fees':
+        $reportData = $reportsModel->getFeeCollectionReport($term, $year);
+        break;
+    case 'attendance':
+        $reportData = $reportsModel->getAttendanceReport($term, $year);
+        break;
+    case 'enrollment':
+        $reportData = $reportsModel->getClassEnrollmentReport();
+        break;
+    case 'class_roster':
+        $reportData = $reportsModel->getClassRosterReport($classID);
+        break;
+    case 'payment_by_class':
+        $reportData = $reportsModel->getPaymentReportByClass($term, $year);
+        break;
+}
+
+// Get all classes for filters
+$classes = $classModel->all();
+
+$pageTitle = 'Reports & Analytics';
+$currentPage = 'reports';
+require_once 'includes/header.php';
+?>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-graph-up"></i> Reports & Analytics</h2>
+    <div>
+        <?php if ($reportType !== 'dashboard'): ?>
+        <button onclick="exportReport('pdf')" class="btn btn-sm me-2" style="background-color: #d9534f; color: white;">
+            <i class="bi bi-file-pdf"></i> Export PDF
+        </button>
+        <button onclick="exportReport('excel')" class="btn btn-sm me-2" style="background-color: #5cb85c; color: white;">
+            <i class="bi bi-file-excel"></i> Export Excel
+        </button>
+        <?php endif; ?>
+        <button onclick="window.print()" class="btn btn-sm" style="background-color: #2d5016; color: white;">
+            <i class="bi bi-printer"></i> Print Report
+        </button>
+    </div>
+</div>
+
+<!-- Report Type Selector -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Report Type</label>
+                <select class="form-select" id="reportType" onchange="changeReportType(this.value)">
+                    <option value="dashboard" <?= $reportType === 'dashboard' ? 'selected' : '' ?>>Dashboard Overview</option>
+                    <option value="fees" <?= $reportType === 'fees' ? 'selected' : '' ?>>Fee Collection</option>
+                    <option value="attendance" <?= $reportType === 'attendance' ? 'selected' : '' ?>>Attendance Report</option>
+                    <option value="enrollment" <?= $reportType === 'enrollment' ? 'selected' : '' ?>>Class Enrollment</option>
+                    <option value="class_roster" <?= $reportType === 'class_roster' ? 'selected' : '' ?>>Class Roster</option>
+                    <option value="payment_by_class" <?= $reportType === 'payment_by_class' ? 'selected' : '' ?>>Payment by Class</option>
+                </select>
+            </div>
+            
+            <?php if ($reportType !== 'dashboard' && $reportType !== 'enrollment'): ?>
+            <?php if ($reportType === 'class_roster'): ?>
+            <div class="col-md-3">
+                <label class="form-label">Class</label>
+                <select class="form-select" name="class_id" id="class_id" onchange="applyFilters()">
+                    <option value="">All Classes</option>
+                    <?php foreach ($classes as $class): ?>
+                    <option value="<?= $class['classID'] ?>" <?= $classID == $class['classID'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($class['className']) ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button onclick="applyFilters()" class="btn w-100" style="background-color: #5cb85c; color: white;">
+                    <i class="bi bi-filter"></i> Apply Filters
+                </button>
+            </div>
+            <?php else: ?>
+            <div class="col-md-3">
+                <label class="form-label">Term</label>
+                <select class="form-select" name="term" id="term" onchange="applyFilters()">
+                    <option value="">All Terms</option>
+                    <option value="1" <?= $term == '1' ? 'selected' : '' ?>>Term 1</option>
+                    <option value="2" <?= $term == '2' ? 'selected' : '' ?>>Term 2</option>
+                    <option value="3" <?= $term == '3' ? 'selected' : '' ?>>Term 3</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Year</label>
+                <select class="form-select" name="year" id="year" onchange="applyFilters()">
+                    <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
+                    <option value="<?= $y ?>" <?= $year == $y ? 'selected' : '' ?>><?= $y ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button onclick="applyFilters()" class="btn w-100" style="background-color: #5cb85c; color: white;">
+                    <i class="bi bi-filter"></i> Apply Filters
+                </button>
+            </div>
+            <?php endif; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Report -->
+<?php if ($reportType === 'dashboard'): ?>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%);">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-people-fill"></i> Total Pupils</h5>
+                <h2 class="mb-0"><?= number_format($reportData['totalPupils'] ?? 0) ?></h2>
+                <small>Enrolled Students</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white" style="background: linear-gradient(135deg, #5cb85c 0%, #f0ad4e 100%);">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-person-workspace"></i> Teachers</h5>
+                <h2 class="mb-0"><?= number_format($reportData['totalTeachers'] ?? 0) ?></h2>
+                <small>Active Staff</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white" style="background: linear-gradient(135deg, #f0ad4e 0%, #2d5016 100%);">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-building"></i> Classes</h5>
+                <h2 class="mb-0"><?= number_format($reportData['totalClasses'] ?? 0) ?></h2>
+                <small>Active Classes</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-person-plus"></i> New Enrollments</h5>
+                <h2 class="mb-0"><?= number_format($reportData['recentEnrollments'] ?? 0) ?></h2>
+                <small>Last 30 Days</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Summary -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 style="color: #2d5016;"><i class="bi bi-cash-stack"></i> Total Fees</h5>
+                <h3 class="mb-0">K <?= number_format($reportData['totalFees'] ?? 0, 2) ?></h3>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 style="color: #5cb85c;"><i class="bi bi-credit-card"></i> Collected</h5>
+                <h3 class="mb-0">K <?= number_format($reportData['totalPayments'] ?? 0, 2) ?></h3>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 style="color: #f0ad4e;"><i class="bi bi-exclamation-triangle"></i> Outstanding</h5>
+                <h3 class="mb-0">K <?= number_format($reportData['outstandingBalance'] ?? 0, 2) ?></h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Pupils -->
+<?php if (!empty($reportData['recentPupils'])): ?>
+<div class="card">
+    <div class="card-header" style="background-color: #f8f9fa;">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Enrollments</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Pupil ID</th>
+                        <th>Name</th>
+                        <th>Enrollment Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($reportData['recentPupils'] as $pupil): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($pupil['pupilID']) ?></td>
+                        <td><?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName']) ?></td>
+                        <td><?= $pupil['enrollDate'] ? date('M d, Y', strtotime($pupil['enrollDate'])) : 'N/A' ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+<?php endif; ?>
+
+<!-- Fee Collection Report -->
+<?php if ($reportType === 'fees'): ?>
+<div class="card">
+    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+        <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Fee Collection Report <?= $term ? "- Term $term" : '' ?> <?= $year ?></h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($reportData)): ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="text-muted mt-2">No fee data available for the selected period</p>
+        </div>
+        <?php else: ?>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th>Class</th>
+                        <th>Term</th>
+                        <th>Year</th>
+                        <th>Total Fee (ZMW)</th>
+                        <th>Collected (ZMW)</th>
+                        <th>Outstanding (ZMW)</th>
+                        <th>Collection %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $totalFees = 0;
+                    $totalCollected = 0;
+                    $totalOutstanding = 0;
+                    foreach ($reportData as $row): 
+                        $totalFees += $row['classFee'];
+                        $totalCollected += $row['totalCollected'];
+                        $totalOutstanding += $row['outstanding'];
+                        $collectionRate = $row['classFee'] > 0 ? ($row['totalCollected'] / $row['classFee']) * 100 : 0;
+                    ?>
+                    <tr>
+                        <td><strong><?= htmlspecialchars($row['className']) ?></strong></td>
+                        <td>Term <?= $row['term'] ?></td>
+                        <td><?= $row['year'] ?></td>
+                        <td>K <?= number_format($row['classFee'], 2) ?></td>
+                        <td style="color: #5cb85c;"><strong>K <?= number_format($row['totalCollected'], 2) ?></strong></td>
+                        <td style="color: #f0ad4e;"><strong>K <?= number_format($row['outstanding'], 2) ?></strong></td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar" style="background-color: #5cb85c; width: <?= $collectionRate ?>%">
+                                    <?= number_format($collectionRate, 1) ?>%
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot style="background-color: #f8f9fa; font-weight: bold;">
+                    <tr>
+                        <td colspan="3">TOTAL</td>
+                        <td>K <?= number_format($totalFees, 2) ?></td>
+                        <td style="color: #5cb85c;">K <?= number_format($totalCollected, 2) ?></td>
+                        <td style="color: #f0ad4e;">K <?= number_format($totalOutstanding, 2) ?></td>
+                        <td><?= $totalFees > 0 ? number_format(($totalCollected / $totalFees) * 100, 1) : 0 ?>%</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Attendance Report -->
+<?php if ($reportType === 'attendance'): ?>
+<div class="card">
+    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+        <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Attendance Report <?= $term ? "- Term $term" : '' ?> <?= $year ?></h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($reportData)): ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="text-muted mt-2">No attendance data available for the selected period</p>
+        </div>
+        <?php else: ?>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th>Pupil ID</th>
+                        <th>Name</th>
+                        <th>Term</th>
+                        <th>Year</th>
+                        <th>Days Present</th>
+                        <th>Days Absent</th>
+                        <th>Total Days</th>
+                        <th>Attendance Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($reportData as $row): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($row['pupilID']) ?></td>
+                        <td><strong><?= htmlspecialchars($row['fName'] . ' ' . $row['sName']) ?></strong></td>
+                        <td>Term <?= $row['term'] ?></td>
+                        <td><?= $row['year'] ?></td>
+                        <td style="color: #5cb85c;"><strong><?= $row['daysPresent'] ?></strong></td>
+                        <td style="color: #f0ad4e;"><strong><?= $row['daysAbsent'] ?></strong></td>
+                        <td><?= $row['totalDays'] ?></td>
+                        <td>
+                            <?php 
+                            $rate = $row['attendanceRate'];
+                            $badgeClass = $rate >= 90 ? 'bg-success' : ($rate >= 75 ? 'bg-warning' : 'bg-danger');
+                            ?>
+                            <span class="badge <?= $badgeClass ?>"><?= $rate ?>%</span>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Class Enrollment Report -->
+<?php if ($reportType === 'enrollment'): ?>
+<div class="card">
+    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+        <h5 class="mb-0"><i class="bi bi-building"></i> Class Enrollment Report</h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($reportData)): ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="text-muted mt-2">No class enrollment data available</p>
+        </div>
+        <?php else: ?>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th>Class Name</th>
+                        <th>Class Teacher</th>
+                        <th>Total Pupils</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $totalPupils = 0;
+                    foreach ($reportData as $row): 
+                        $totalPupils += $row['totalPupils'];
+                        $capacity = $row['totalPupils'];
+                        $statusBadge = $capacity == 0 ? 'bg-secondary' : ($capacity < 20 ? 'bg-warning' : 'bg-success');
+                        $statusText = $capacity == 0 ? 'Empty' : ($capacity < 20 ? 'Low' : 'Good');
+                    ?>
+                    <tr>
+                        <td><strong><?= htmlspecialchars($row['className']) ?></strong></td>
+                        <td><?= htmlspecialchars(($row['teacherFirstName'] ?? '') . ' ' . ($row['teacherLastName'] ?? 'Not Assigned')) ?></td>
+                        <td>
+                            <span class="badge" style="background-color: #2d5016; font-size: 1rem;">
+                                <?= $row['totalPupils'] ?> pupils
+                            </span>
+                        </td>
+                        <td><span class="badge <?= $statusBadge ?>"><?= $statusText ?></span></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot style="background-color: #f8f9fa; font-weight: bold;">
+                    <tr>
+                        <td colspan="2">TOTAL ENROLLMENT</td>
+                        <td colspan="2"><?= $totalPupils ?> pupils across <?= count($reportData) ?> classes</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Class Roster Report -->
+<?php if ($reportType === 'class_roster'): ?>
+<div class="card">
+    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+        <h5 class="mb-0"><i class="bi bi-list-ul"></i> Class Roster Report</h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($reportData)): ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="text-muted mt-2">No class roster data available</p>
+        </div>
+        <?php else: 
+            // Group by class
+            $groupedData = [];
+            foreach ($reportData as $row) {
+                $className = $row['className'];
+                if (!isset($groupedData[$className])) {
+                    $groupedData[$className] = [];
+                }
+                $groupedData[$className][] = $row;
+            }
+            
+            foreach ($groupedData as $className => $pupils):
+        ?>
+        <h6 class="mb-3" style="color: #2d5016; border-bottom: 2px solid #5cb85c; padding-bottom: 5px;">
+            <?= htmlspecialchars($className) ?> (<?= count($pupils) ?> pupils)
+        </h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-hover table-sm">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th>Pupil</th>
+                        <th>Gender</th>
+                        <th>Age</th>
+                        <th>Parent Contact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($pupils as $pupil): ?>
+                    <tr>
+                        <td><strong><?= htmlspecialchars($pupil['pupilName']) ?></strong></td>
+                        <td><?= htmlspecialchars($pupil['gender'] ?? 'N/A') ?></td>
+                        <td><?= $pupil['age'] ?? 'N/A' ?></td>
+                        <td><?= htmlspecialchars($pupil['parentContact'] ?? 'N/A') ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php 
+            endforeach;
+        endif; 
+        ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Payment by Class Report -->
+<?php if ($reportType === 'payment_by_class'): ?>
+<div class="card">
+    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Payment Report by Class <?= $term ? "- Term $term" : '' ?> <?= $year ?></h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($reportData)): ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="text-muted mt-2">No payment data available</p>
+        </div>
+        <?php else: 
+            // Group by class
+            $groupedData = [];
+            foreach ($reportData as $row) {
+                $className = $row['className'];
+                if (!isset($groupedData[$className])) {
+                    $groupedData[$className] = [
+                        'pupils' => [],
+                        'totalBalance' => 0
+                    ];
+                }
+                $groupedData[$className]['pupils'][] = $row;
+                $groupedData[$className]['totalBalance'] += $row['balance'];
+            }
+            
+            // Sort by total balance (highest first)
+            uasort($groupedData, function($a, $b) {
+                return $b['totalBalance'] <=> $a['totalBalance'];
+            });
+            
+            foreach ($groupedData as $className => $classInfo):
+        ?>
+        <h6 class="mb-3" style="color: #2d5016; border-bottom: 2px solid #5cb85c; padding-bottom: 5px;">
+            <?= htmlspecialchars($className) ?> - Total Balance: K <?= number_format($classInfo['totalBalance'], 2) ?>
+        </h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-hover table-sm">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th>Pupil Name</th>
+                        <th>Class</th>
+                        <th>Total Paid</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($classInfo['pupils'] as $pupil): ?>
+                    <tr>
+                        <td><strong><?= htmlspecialchars($pupil['pupilName']) ?></strong></td>
+                        <td><?= htmlspecialchars($pupil['className']) ?></td>
+                        <td style="color: #5cb85c;"><strong>K <?= number_format($pupil['totalPaid'], 2) ?></strong></td>
+                        <td style="color: <?= $pupil['balance'] > 0 ? '#f0ad4e' : '#5cb85c' ?>;">
+                            <strong>K <?= number_format($pupil['balance'], 2) ?></strong>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php 
+            endforeach;
+        endif; 
+        ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<script>
+function changeReportType(type) {
+    window.location.href = 'reports.php?type=' + type;
+}
+
+function applyFilters() {
+    const reportType = document.getElementById('reportType').value;
+    let url = 'reports.php?type=' + reportType;
+    
+    if (reportType === 'class_roster') {
+        const classID = document.getElementById('class_id')?.value || '';
+        if (classID) url += '&class_id=' + classID;
+    } else if (reportType !== 'dashboard' && reportType !== 'enrollment') {
+        const term = document.getElementById('term')?.value || '';
+        const year = document.getElementById('year')?.value || '';
+        if (term) url += '&term=' + term;
+        if (year) url += '&year=' + year;
+    }
+    
+    window.location.href = url;
+}
+
+function exportReport(format) {
+    const reportType = document.getElementById('reportType').value;
+    let url = 'reports.php?type=' + reportType + '&export=' + format;
+    
+    if (reportType === 'class_roster') {
+        const classID = document.getElementById('class_id')?.value || '';
+        if (classID) url += '&class_id=' + classID;
+    } else if (reportType !== 'dashboard' && reportType !== 'enrollment') {
+        const term = document.getElementById('term')?.value || '';
+        const year = document.getElementById('year')?.value || '';
+        if (term) url += '&term=' + term;
+        if (year) url += '&year=' + year;
+    }
+    
+    window.location.href = url;
+}
+</script>
+
+<style>
+@media print {
+    .btn, .form-select, .card-header, nav, .sidebar { display: none !important; }
+    .card { border: none; }
+}
+</style>
+
+<?php require_once 'includes/footer.php'; ?>

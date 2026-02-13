@@ -1,0 +1,55 @@
+# Files to Upload for Production Fix
+# Upload these files from your local c:\wamp64\www\LilayiParkSchool to server
+
+## Critical Files (Path Fixes):
+- attendance_form.php
+- attendance_list.php
+- attendance_view.php
+- classes_form.php
+- classes_list.php
+- classes_view.php
+- delete.php
+- examinations_delete.php
+- examinations_form.php
+- examinations_list.php
+- examinations_schedule.php
+- fees_form.php
+- fees_list.php
+- fees_view.php
+- grades_bulk.php
+- grades_form.php
+- grades_list.php
+- library_list.php
+- library_view.php
+- parents_form.php
+- parents_list.php
+- parents_view.php
+- payments_form.php
+- payments_list.php
+- payments_view.php
+- pupils_form.php
+- pupils_view.php
+- reports.php
+- report_cards.php
+- subjects_form.php
+- subjects_list.php
+- subjects_view.php
+- teachers_form.php
+- teachers_list.php
+- teachers_view.php
+- timetable_list.php
+- timetable_view.php
+- users_list.php
+- users_password.php
+- users_view.php
+
+## Includes:
+- includes/Auth.php
+- includes/PermissionHelper.php
+
+## Modules:
+- modules/payments/PaymentModel.php
+
+## Note:
+All these files had hard-coded /LilayiParkSchool/ paths changed to relative paths.
+This fixes the 500 error on production.
