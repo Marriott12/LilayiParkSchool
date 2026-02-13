@@ -29,24 +29,18 @@ $classModel = new ClassModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        error_log('=== POST REQUEST RECEIVED ===');
-        error_log('POST data keys: ' . implode(', ', array_keys($_POST)));
         // Validate CSRF token first
         if (!CSRF::requireToken()) {
             $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
-            error_log('CSRF validation failed: ' . $error);
         } else {
-            error_log('CSRF validation passed');
             // Pupil data
             $enroll_day = $_POST['enroll_day'] ?? '';
             $enroll_month = $_POST['enroll_month'] ?? '';
             $enroll_year = $_POST['enroll_year'] ?? '';
-            error_log('Enrollment date parts: day=' . $enroll_day . ', month=' . $enroll_month . ', year=' . $enroll_year);
             $enrollDate = '';
             if ($enroll_year && $enroll_month && $enroll_day) {
                 $enrollDate = sprintf('%04d-%02d-%02d', (int)$enroll_year, (int)$enroll_month, (int)$enroll_day);
             }
-            error_log('Enrollment date formatted: ' . $enrollDate);
 
             $data = [
                 'fName' => trim($_POST['fName'] ?? ''),
@@ -80,40 +74,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $formData = $data;
             // Validation
             if (!isset($error)) {
-                error_log('Starting validation...');
                 if (empty($data['fName'])) {
                     $error = 'Pupil first name is required';
-                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['lName'])) {
                     $error = 'Pupil last name is required';
-                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['gender'])) {
                     $error = 'Gender is required';
-                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['dob_day']) || empty($data['dob_month']) || empty($data['dob_year'])) {
                     $error = 'Date of birth is required';
-                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['homeArea'])) {
                     $error = 'Home area is required';
-                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['parent1'])) {
                     $error = 'Parent/guardian name is required';
-                    error_log('Validation error: ' . $error);
                 } elseif (empty($data['phone'])) {
                     $error = 'Parent/guardian phone is required';
-                    error_log('Validation error: ' . $error);
                 } elseif (empty($enroll_day) || empty($enroll_month) || empty($enroll_year)) {
                     $error = 'Enrollment date is required';
-                    error_log('Validation error: ' . $error . ' (day=' . var_export($enroll_day, true) . ', month=' . var_export($enroll_month, true) . ', year=' . var_export($enroll_year, true) . ')');
                 } elseif (empty($_POST['classID'] ?? '')) {
                     $error = 'Assigning a class is required';
-                    error_log('Validation error: ' . $error);
-                } else {
-                    error_log('All validations passed');
                 }
             }
             if (!isset($error)) {
-                error_log('Proceeding to duplicate check and DB operations...');
                 try {
                     // Check for duplicate pupil (same parent identifier, first name, last name, and date of birth)
                     $parentIdentifier = $data['phone'] ?: $data['parent1'];
@@ -162,7 +143,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                                 // Create pupil - create() returns lastInsertId or the primary key
                                 $newPupilID = $pupilModel->create($insertData);
-                                error_log('Pupil created with ID: ' . ($newPupilID ?: 'NULL/0'));
 
                                 if (!$newPupilID) {
                                     throw new Exception('Failed to create pupil record - no ID returned');
@@ -170,7 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                                 // If a class was selected, assign within the same transaction
                                 if (!empty($selectedClass)) {
-                                    error_log('Assigning pupil ' . $newPupilID . ' to class ' . $selectedClass);
                                     $ok = $classModel->assignPupil($selectedClass, $newPupilID);
                                     if (!$ok) {
                                         throw new Exception('Failed to assign pupil to class');
