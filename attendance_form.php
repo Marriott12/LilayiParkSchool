@@ -36,8 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
     } else {
         $data = [
-            'pupilID' => intval($_POST['pupilID'] ?? 0),
-            'classID' => intval($_POST['classID'] ?? 0),
+            'pupilID' => trim($_POST['pupilID'] ?? ''),
+            'classID' => trim($_POST['classID'] ?? ''),
             'attendanceDate' => $_POST['attendanceDate'] ?? date('Y-m-d'),
             'status' => $_POST['status'] ?? 'Present',
             'timeIn' => !empty($_POST['timeIn']) ? $_POST['timeIn'] : null,
@@ -47,9 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
         
         // Validation
-        if ($data['pupilID'] <= 0) {
+        if (empty($data['pupilID'])) {
             $error = 'Please select a pupil';
-        } elseif ($data['classID'] <= 0) {
+        } elseif (empty($data['classID'])) {
             $error = 'Please select a class';
         }
         
@@ -115,7 +115,7 @@ require_once 'includes/header.php';
                         <?php foreach ($classes as $class): ?>
                         <option value="<?= $class['classID'] ?>" 
                                 <?= $selectedClassID == $class['classID'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($class['className'] . ' - ' . $class['grade']) ?>
+                            <?= htmlspecialchars($class['className']) ?>
                         </option>
                         <?php endforeach; ?>
                     </select>
