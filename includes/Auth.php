@@ -18,16 +18,13 @@ class Auth {
      */
     public static function requireLogin() {
         if (!self::check()) {
-            error_log('Auth::requireLogin - User not logged in. Session user_id: ' . ($_SESSION['user_id'] ?? 'NOT SET'));
             // Safely determine current request URI (handles CLI or missing server vars)
             $redirectFrom = $_SERVER['REQUEST_URI'] ?? ($_SERVER['PHP_SELF'] ?? '/');
-            error_log('Redirecting to login from: ' . $redirectFrom);
             $_SESSION['redirect_after_login'] = $redirectFrom;
             Session::setFlash('warning', 'Please log in to access this page.');
             header('Location: ' . BASE_URL . '/login.php');
             exit;
         }
-        error_log('Auth::requireLogin - User is logged in: ' . $_SESSION['user_id']);
     }
     
     /**
@@ -166,8 +163,6 @@ class Auth {
         }
         
         try {
-            error_log("Login attempt for username: " . $username);
-            
             // Find user by username or email
             $sql = "SELECT * FROM Users WHERE (username = ? OR email = ?) AND isActive = 'Y'";
             $stmt = $db->prepare($sql);
@@ -175,19 +170,13 @@ class Auth {
             $user = $stmt->fetch();
             
             if (!$user) {
-                error_log("Login failed: User not found - " . $username);
                 return 'Invalid username or password.';
             }
-            
-            error_log("User found: " . $user['username'] . " (ID: " . $user['userID'] . ")");
             
             // Verify password
             if (!password_verify($password, $user['password'])) {
-                error_log("Login failed: Invalid password for user - " . $username);
                 return 'Invalid username or password.';
             }
-            
-            error_log("Password verified successfully for user: " . $username);
             
             // Load user roles
             $sql = "SELECT r.roleName 
@@ -227,16 +216,9 @@ class Auth {
             $_SESSION['parent_id'] = $parentID;
             $_SESSION['login_time'] = time();
             
-            error_log("Login successful for user: " . $username . " with roles: " . implode(', ', $roles));
-            error_log("Session data set. Session ID: " . session_id());
-            error_log("Session user_id: " . $_SESSION['user_id']);
-            
             // Force session write immediately
             session_write_close();
             session_start(); // Restart session for continued use
-            
-            error_log("Session written and restarted. Checking persistence...");
-            error_log("Session user_id after restart: " . ($_SESSION['user_id'] ?? 'NOT SET!'));
             
             // Update last login
             $sql = "UPDATE Users SET lastLogin = NOW() WHERE userID = ?";
@@ -246,7 +228,6 @@ class Auth {
             return true;
             
         } catch (PDOException $e) {
-            error_log("Login error: " . $e->getMessage());
             return 'An error occurred during login. Please try again.';
         }
     }
