@@ -166,14 +166,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 if ($db && $db->inTransaction()) {
                                     $db->rollBack();
                                 }
-                                error_log('Pupil creation error: ' . $ex->getMessage() . ' | File: ' . $ex->getFile() . ' | Line: ' . $ex->getLine());
                                 throw $ex;
                             }
                         }
                         CSRF::regenerateToken();
                     }
                 } catch (Exception $e) {
-                    error_log('Pupil form error: ' . $e->getMessage() . ' | File: ' . $e->getFile() . ' | Line: ' . $e->getLine());
                     $error = 'Database error: ' . $e->getMessage();
                 }
             }
