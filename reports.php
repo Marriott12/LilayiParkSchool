@@ -66,7 +66,7 @@ require_once 'includes/header.php';
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-graph-up"></i> Reports & Analytics</h2>
     <div>
-        <?php if (in_array($reportType, ['class_roster', 'payment_by_class'])): ?>
+        <?php if ($reportType !== 'dashboard'): ?>
         <button onclick="exportReport('pdf')" class="btn btn-sm me-2" style="background-color: #d9534f; color: white;">
             <i class="bi bi-file-pdf"></i> Export PDF
         </button>
@@ -590,7 +590,7 @@ function exportReport(format) {
     if (reportType === 'class_roster') {
         const classID = document.getElementById('class_id')?.value || '';
         if (classID) url += '&class_id=' + classID;
-    } else if (reportType === 'payment_by_class') {
+    } else if (reportType !== 'dashboard' && reportType !== 'enrollment') {
         const term = document.getElementById('term')?.value || '';
         const year = document.getElementById('year')?.value || '';
         if (term) url += '&term=' + term;

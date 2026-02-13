@@ -16,6 +16,22 @@ function handleReportExport($reportType, $format, $term = null, $year = null, $c
     $reportTitle = '';
     
     switch ($reportType) {
+        case 'fees':
+            $reportData = $reportsModel->getFeeCollectionReport($term, $year);
+            $reportTitle = 'Fee Collection Report';
+            if ($term) $reportTitle .= " - Term $term";
+            if ($year) $reportTitle .= " $year";
+            break;
+        case 'attendance':
+            $reportData = $reportsModel->getAttendanceReport($term, $year);
+            $reportTitle = 'Attendance Report';
+            if ($term) $reportTitle .= " - Term $term";
+            if ($year) $reportTitle .= " $year";
+            break;
+        case 'enrollment':
+            $reportData = $reportsModel->getClassEnrollmentReport();
+            $reportTitle = 'Class Enrollment Report';
+            break;
         case 'class_roster':
             $reportData = $reportsModel->getClassRosterReport($classID);
             $reportTitle = 'Class Roster Report';
@@ -31,13 +47,13 @@ function handleReportExport($reportType, $format, $term = null, $year = null, $c
     }
     
     if ($format === 'excel') {
-        exportToExcel($reportType, $reportData, $reportTitle);
+        exportToExcel($reportType, $reportData, $reportTitle, $term, $year);
     } elseif ($format === 'pdf') {
-        exportToPDF($reportType, $reportData, $reportTitle);
+        exportToPDF($reportType, $reportData, $reportTitle, $term, $year);
     }
 }
 
-function exportToExcel($reportType, $data, $title) {
+function exportToExcel($reportType, $data, $title, $term = null, $year = null) {
     // Set headers for Excel download
     header('Content-Type: application/vnd.ms-excel');
     header('Content-Disposition: attachment;filename="' . str_replace(' ', '_', $title) . '_' . date('Y-m-d') . '.xls"');
@@ -49,7 +65,113 @@ function exportToExcel($reportType, $data, $title) {
     echo '<h2>' . htmlspecialchars($title) . '</h2>';
     echo '<p>Generated: ' . date('Y-m-d H:i:s') . '</p>';
     
-    if ($reportType === 'class_roster') {
+    if ($reportType === 'fees') {
+        echo '<table border="1" style="border-collapse: collapse; width: 100%;">';
+        echo '<thead>';
+        echo '<tr>';
+        echo '<th>Class</th>';
+        echo '<th>Term</th>';
+        echo '<th>Year</th>';
+        echo '<th>Total Fee (ZMW)</th>';
+        echo '<th>Collected (ZMW)</th>';
+        echo '<th>Outstanding (ZMW)</th>';
+        echo '<th>Collection %</th>';
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody>';
+        
+        $totalFees = 0;
+        $totalCollected = 0;
+        $totalOutstanding = 0;
+        
+        foreach ($data as $row) {
+            $totalFees += $row['classFee'];
+            $totalCollected += $row['totalCollected'];
+            $totalOutstanding += $row['outstanding'];
+            $collectionRate = $row['classFee'] > 0 ? ($row['totalCollected'] / $row['classFee']) * 100 : 0;
+            
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($row['className']) . '</td>';
+            echo '<td>Term ' . $row['term'] . '</td>';
+            echo '<td>' . $row['year'] . '</td>';
+            echo '<td>K ' . number_format($row['classFee'], 2) . '</td>';
+            echo '<td>K ' . number_format($row['totalCollected'], 2) . '</td>';
+            echo '<td>K ' . number_format($row['outstanding'], 2) . '</td>';
+            echo '<td>' . number_format($collectionRate, 1) . '%</td>';
+            echo '</tr>';
+        }
+        
+        echo '<tr style="font-weight: bold; background-color: #f0f0f0;">';
+        echo '<td colspan="3">TOTAL</td>';
+        echo '<td>K ' . number_format($totalFees, 2) . '</td>';
+        echo '<td>K ' . number_format($totalCollected, 2) . '</td>';
+        echo '<td>K ' . number_format($totalOutstanding, 2) . '</td>';
+        echo '<td>' . ($totalFees > 0 ? number_format(($totalCollected / $totalFees) * 100, 1) : 0) . '%</td>';
+        echo '</tr>';
+        
+        echo '</tbody>';
+        echo '</table>';
+    } elseif ($reportType === 'attendance') {
+        echo '<table border="1" style="border-collapse: collapse; width: 100%;">';
+        echo '<thead>';
+        echo '<tr>';
+        echo '<th>Pupil ID</th>';
+        echo '<th>Name</th>';
+        echo '<th>Term</th>';
+        echo '<th>Year</th>';
+        echo '<th>Days Present</th>';
+        echo '<th>Days Absent</th>';
+        echo '<th>Total Days</th>';
+        echo '<th>Attendance Rate</th>';
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody>';
+        
+        foreach ($data as $row) {
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($row['pupilID']) . '</td>';
+            echo '<td>' . htmlspecialchars($row['fName'] . ' ' . $row['lName']) . '</td>';
+            echo '<td>Term ' . $row['term'] . '</td>';
+            echo '<td>' . $row['year'] . '</td>';
+            echo '<td>' . $row['daysPresent'] . '</td>';
+            echo '<td>' . $row['daysAbsent'] . '</td>';
+            echo '<td>' . $row['totalDays'] . '</td>';
+            echo '<td>' . $row['attendanceRate'] . '%</td>';
+            echo '</tr>';
+        }
+        
+        echo '</tbody>';
+        echo '</table>';
+    } elseif ($reportType === 'enrollment') {
+        echo '<table border="1" style="border-collapse: collapse; width: 100%;">';
+        echo '<thead>';
+        echo '<tr>';
+        echo '<th>Class Name</th>';
+        echo '<th>Class Teacher</th>';
+        echo '<th>Total Pupils</th>';
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody>';
+        
+        $totalPupils = 0;
+        
+        foreach ($data as $row) {
+            $totalPupils += $row['totalPupils'];
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($row['className']) . '</td>';
+            echo '<td>' . htmlspecialchars(($row['teacherFirstName'] ?? '') . ' ' . ($row['teacherLastName'] ?? 'Not Assigned')) . '</td>';
+            echo '<td>' . $row['totalPupils'] . '</td>';
+            echo '</tr>';
+        }
+        
+        echo '<tr style="font-weight: bold; background-color: #f0f0f0;">';
+        echo '<td colspan="2">TOTAL ENROLLMENT</td>';
+        echo '<td>' . $totalPupils . ' pupils across ' . count($data) . ' classes</td>';
+        echo '</tr>';
+        
+        echo '</tbody>';
+        echo '</table>';
+    } elseif ($reportType === 'class_roster') {
         // Group by class
         $groupedData = [];
         foreach ($data as $row) {
@@ -139,7 +261,7 @@ function exportToExcel($reportType, $data, $title) {
     exit;
 }
 
-function exportToPDF($reportType, $data, $title) {
+function exportToPDF($reportType, $data, $title, $term = null, $year = null) {
     // Simple PDF export using HTML to PDF conversion
     // For production, consider using a library like TCPDF or FPDF
     
