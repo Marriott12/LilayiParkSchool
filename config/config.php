@@ -107,14 +107,6 @@ define('PASSWORD_HASH_COST', 12);
 // Session timeout (30 minutes)
 define('SESSION_TIMEOUT', 1800);
 
-// Load environment variables if .env file exists
-if (file_exists(APP_ROOT . '/.env')) {
-    $env = parse_ini_file(APP_ROOT . '/.env');
-    foreach ($env as $key => $value) {
-        $_ENV[$key] = $value;
-    }
-}
-
 // RBAC Roles
 define('ROLE_ADMIN', 'admin');
 define('ROLE_TEACHER', 'teacher');
