@@ -23,6 +23,14 @@ $reportType = $_GET['type'] ?? 'dashboard';
 $term = $_GET['term'] ?? null;
 $year = $_GET['year'] ?? date('Y');
 $classID = $_GET['class_id'] ?? null;
+$exportFormat = $_GET['export'] ?? null;
+
+// Handle export requests
+if ($exportFormat === 'pdf' || $exportFormat === 'excel') {
+    require_once 'modules/reports/export_handler.php';
+    handleReportExport($reportType, $exportFormat, $term, $year, $classID);
+    exit;
+}
 
 // Fetch data based on report type
 $reportData = [];
@@ -39,6 +47,12 @@ switch ($reportType) {
     case 'enrollment':
         $reportData = $reportsModel->getClassEnrollmentReport();
         break;
+    case 'class_roster':
+        $reportData = $reportsModel->getClassRosterReport($classID);
+        break;
+    case 'payment_by_class':
+        $reportData = $reportsModel->getPaymentReportByClass($term, $year);
+        break;
 }
 
 // Get all classes for filters
@@ -51,9 +65,19 @@ require_once 'includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-graph-up"></i> Reports & Analytics</h2>
-    <button onclick="window.print()" class="btn btn-sm" style="background-color: #2d5016; color: white;">
-        <i class="bi bi-printer"></i> Print Report
-    </button>
+    <div>
+        <?php if (in_array($reportType, ['class_roster', 'payment_by_class'])): ?>
+        <button onclick="exportReport('pdf')" class="btn btn-sm me-2" style="background-color: #d9534f; color: white;">
+            <i class="bi bi-file-pdf"></i> Export PDF
+        </button>
+        <button onclick="exportReport('excel')" class="btn btn-sm me-2" style="background-color: #5cb85c; color: white;">
+            <i class="bi bi-file-excel"></i> Export Excel
+        </button>
+        <?php endif; ?>
+        <button onclick="window.print()" class="btn btn-sm" style="background-color: #2d5016; color: white;">
+            <i class="bi bi-printer"></i> Print Report
+        </button>
+    </div>
 </div>
 
 <!-- Report Type Selector -->
@@ -67,10 +91,31 @@ require_once 'includes/header.php';
                     <option value="fees" <?= $reportType === 'fees' ? 'selected' : '' ?>>Fee Collection</option>
                     <option value="attendance" <?= $reportType === 'attendance' ? 'selected' : '' ?>>Attendance Report</option>
                     <option value="enrollment" <?= $reportType === 'enrollment' ? 'selected' : '' ?>>Class Enrollment</option>
+                    <option value="class_roster" <?= $reportType === 'class_roster' ? 'selected' : '' ?>>Class Roster</option>
+                    <option value="payment_by_class" <?= $reportType === 'payment_by_class' ? 'selected' : '' ?>>Payment by Class</option>
                 </select>
             </div>
             
             <?php if ($reportType !== 'dashboard' && $reportType !== 'enrollment'): ?>
+            <?php if ($reportType === 'class_roster'): ?>
+            <div class="col-md-3">
+                <label class="form-label">Class</label>
+                <select class="form-select" name="class_id" id="class_id" onchange="applyFilters()">
+                    <option value="">All Classes</option>
+                    <?php foreach ($classes as $class): ?>
+                    <option value="<?= $class['classID'] ?>" <?= $classID == $class['classID'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($class['className']) ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button onclick="applyFilters()" class="btn w-100" style="background-color: #5cb85c; color: white;">
+                    <i class="bi bi-filter"></i> Apply Filters
+                </button>
+            </div>
+            <?php else: ?>
             <div class="col-md-3">
                 <label class="form-label">Term</label>
                 <select class="form-select" name="term" id="term" onchange="applyFilters()">
@@ -96,6 +141,7 @@ require_once 'includes/header.php';
                     <i class="bi bi-filter"></i> Apply Filters
                 </button>
             </div>
+            <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
@@ -388,6 +434,133 @@ require_once 'includes/header.php';
 </div>
 <?php endif; ?>
 
+<!-- Class Roster Report -->
+<?php if ($reportType === 'class_roster'): ?>
+<div class="card">
+    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+        <h5 class="mb-0"><i class="bi bi-list-ul"></i> Class Roster Report</h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($reportData)): ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="text-muted mt-2">No class roster data available</p>
+        </div>
+        <?php else: 
+            // Group by class
+            $groupedData = [];
+            foreach ($reportData as $row) {
+                $className = $row['className'];
+                if (!isset($groupedData[$className])) {
+                    $groupedData[$className] = [];
+                }
+                $groupedData[$className][] = $row;
+            }
+            
+            foreach ($groupedData as $className => $pupils):
+        ?>
+        <h6 class="mb-3" style="color: #2d5016; border-bottom: 2px solid #5cb85c; padding-bottom: 5px;">
+            <?= htmlspecialchars($className) ?> (<?= count($pupils) ?> pupils)
+        </h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-hover table-sm">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th>Pupil</th>
+                        <th>Gender</th>
+                        <th>Age</th>
+                        <th>Parent Contact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($pupils as $pupil): ?>
+                    <tr>
+                        <td><strong><?= htmlspecialchars($pupil['pupilName']) ?></strong></td>
+                        <td><?= htmlspecialchars($pupil['gender'] ?? 'N/A') ?></td>
+                        <td><?= $pupil['age'] ?? 'N/A' ?></td>
+                        <td><?= htmlspecialchars($pupil['parentContact'] ?? 'N/A') ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php 
+            endforeach;
+        endif; 
+        ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Payment by Class Report -->
+<?php if ($reportType === 'payment_by_class'): ?>
+<div class="card">
+    <div class="card-header" style="background: linear-gradient(135deg, #2d5016 0%, #5cb85c 100%); color: white;">
+        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Payment Report by Class <?= $term ? "- Term $term" : '' ?> <?= $year ?></h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($reportData)): ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="text-muted mt-2">No payment data available</p>
+        </div>
+        <?php else: 
+            // Group by class
+            $groupedData = [];
+            foreach ($reportData as $row) {
+                $className = $row['className'];
+                if (!isset($groupedData[$className])) {
+                    $groupedData[$className] = [
+                        'pupils' => [],
+                        'totalBalance' => 0
+                    ];
+                }
+                $groupedData[$className]['pupils'][] = $row;
+                $groupedData[$className]['totalBalance'] += $row['balance'];
+            }
+            
+            // Sort by total balance (highest first)
+            uasort($groupedData, function($a, $b) {
+                return $b['totalBalance'] <=> $a['totalBalance'];
+            });
+            
+            foreach ($groupedData as $className => $classInfo):
+        ?>
+        <h6 class="mb-3" style="color: #2d5016; border-bottom: 2px solid #5cb85c; padding-bottom: 5px;">
+            <?= htmlspecialchars($className) ?> - Total Balance: K <?= number_format($classInfo['totalBalance'], 2) ?>
+        </h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-hover table-sm">
+                <thead style="background-color: #f8f9fa;">
+                    <tr>
+                        <th>Pupil Name</th>
+                        <th>Class</th>
+                        <th>Total Paid</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($classInfo['pupils'] as $pupil): ?>
+                    <tr>
+                        <td><strong><?= htmlspecialchars($pupil['pupilName']) ?></strong></td>
+                        <td><?= htmlspecialchars($pupil['className']) ?></td>
+                        <td style="color: #5cb85c;"><strong>K <?= number_format($pupil['totalPaid'], 2) ?></strong></td>
+                        <td style="color: <?= $pupil['balance'] > 0 ? '#f0ad4e' : '#5cb85c' ?>;">
+                            <strong>K <?= number_format($pupil['balance'], 2) ?></strong>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php 
+            endforeach;
+        endif; 
+        ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
 function changeReportType(type) {
     window.location.href = 'reports.php?type=' + type;
@@ -395,12 +568,34 @@ function changeReportType(type) {
 
 function applyFilters() {
     const reportType = document.getElementById('reportType').value;
-    const term = document.getElementById('term')?.value || '';
-    const year = document.getElementById('year')?.value || '';
-    
     let url = 'reports.php?type=' + reportType;
-    if (term) url += '&term=' + term;
-    if (year) url += '&year=' + year;
+    
+    if (reportType === 'class_roster') {
+        const classID = document.getElementById('class_id')?.value || '';
+        if (classID) url += '&class_id=' + classID;
+    } else if (reportType !== 'dashboard' && reportType !== 'enrollment') {
+        const term = document.getElementById('term')?.value || '';
+        const year = document.getElementById('year')?.value || '';
+        if (term) url += '&term=' + term;
+        if (year) url += '&year=' + year;
+    }
+    
+    window.location.href = url;
+}
+
+function exportReport(format) {
+    const reportType = document.getElementById('reportType').value;
+    let url = 'reports.php?type=' + reportType + '&export=' + format;
+    
+    if (reportType === 'class_roster') {
+        const classID = document.getElementById('class_id')?.value || '';
+        if (classID) url += '&class_id=' + classID;
+    } else if (reportType === 'payment_by_class') {
+        const term = document.getElementById('term')?.value || '';
+        const year = document.getElementById('year')?.value || '';
+        if (term) url += '&term=' + term;
+        if (year) url += '&year=' + year;
+    }
     
     window.location.href = url;
 }

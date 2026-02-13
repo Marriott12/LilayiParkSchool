@@ -40,9 +40,9 @@ $configs = [
     [
         'name' => 'cPanel typical (localhost/username_dbname/username_dbuser)',
         'host' => 'localhost',
-        'db' => 'envithcy_lps',
-        'user' => 'envithcy_lps',
-        'pass' => 'LilayiParkSchool' // Will need to get from user
+        'db' => 'envithcy_lilayiparkschool',
+        'user' => 'envithcy_dbuser',
+        'pass' => '' // Will need to get from user
     ]
 ];
 

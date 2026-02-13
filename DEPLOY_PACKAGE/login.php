@@ -117,12 +117,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </form>
             
-            <!--<div class="text-center mt-4">
+            <div class="text-center mt-4">
                 <small class="text-muted">
                     Default credentials: <br>
                     <strong>admin / admin123</strong>
                 </small>
-            </div>-->
+            </div>
         </div>
     </div>
     

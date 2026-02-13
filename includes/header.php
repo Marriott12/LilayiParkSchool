@@ -43,7 +43,7 @@ if (!isset($rolesModel)) {
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_pupils')): ?>
                 <a href="<?php echo BASE_URL; ?>/pupils_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupils' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-mortarboard me-2"></i> Pupil/ Parent
+                    <i class="bi bi-mortarboard me-2"></i> Add Pupil
                 </a>
                 <?php endif; ?>
                 
@@ -66,27 +66,36 @@ if (!isset($rolesModel)) {
                 </a>
                 <?php endif; ?>
                 
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_attendance')): ?>
+                <a href="<?php echo BASE_URL; ?>/attendance_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'attendance' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-calendar-check me-2"></i> Class Register
+                </a>
+                <?php endif; ?>
+                
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_fees')): ?>
                 <hr class="my-2 border-light opacity-25">
+                <div class="mt-3 mb-2 px-3">
+                    <small class="text-white-50 text-uppercase fw-bold">Fees</small>
+                </div>
                 <a href="<?php echo BASE_URL; ?>/fees_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'fees' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-cash-coin me-2"></i> Fees
+                    <i class="bi bi-cash-coin me-2"></i> Fee Management
                 </a>
                 <?php endif; ?>
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_fees')): ?>
                 <a href="<?php echo BASE_URL; ?>/payments_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'payments' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-credit-card me-2"></i> Payments
+                    <i class="bi bi-credit-card me-2"></i> Fee Payments
                 </a>
                 <?php endif; ?>
                 
-                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_attendance')): ?>
-                <a href="<?php echo BASE_URL; ?>/attendance_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'attendance' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-calendar-check me-2"></i> Attendance
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_fees')): ?>
+                <a href="<?php echo BASE_URL; ?>/payments_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'payments' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-credit-card me-2"></i> Payment Report
                 </a>
                 <?php endif; ?>
                 
                 <!-- Academic Section -->
-                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_grades')): ?>
+                <!--<?php if ($rolesModel->userHasPermission(Auth::id(), 'view_grades')): ?>
                 <hr class="my-2 border-light opacity-25">
                 <div class="mt-3 mb-2 px-3">
                     <small class="text-white-50 text-uppercase fw-bold">Academic</small>
@@ -97,21 +106,41 @@ if (!isset($rolesModel)) {
                 <a href="<?php echo BASE_URL; ?>/report_cards.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'report_cards' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-file-earmark-text me-2"></i> Report Cards
                 </a>
-                <?php endif; ?>
+                <?php endif; ?>-->
                 
                 <!--<a href="<?php echo BASE_URL; ?>/subjects_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'subjects' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-book me-2"></i> Subjects
                 </a>-->
                 
-                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_classes')): ?>
+                <!--<?php if ($rolesModel->userHasPermission(Auth::id(), 'view_classes')): ?>
                 <a href="<?php echo BASE_URL; ?>/timetable_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'timetable' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-calendar3 me-2"></i> Timetable
                 </a>
-                <?php endif; ?>
+                <?php endif; ?>-->
                 
-                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_library')): ?>
+                <!--<?php if ($rolesModel->userHasPermission(Auth::id(), 'view_library')): ?>
                 <a href="<?php echo BASE_URL; ?>/library_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'library' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-book-half me-2"></i> Library
+                </a>
+                <?php endif; ?>-->
+                
+                <!-- Staff Management Section -->
+                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_teachers')): ?>
+                <hr class="my-2 border-light opacity-25">
+                <div class="mt-3 mb-2 px-3">
+                    <small class="text-white-50 text-uppercase fw-bold">Staff Management</small>
+                </div>
+                <a href="<?php echo BASE_URL; ?>/teachers_form.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'teachers_add' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-person-plus me-2"></i> Add Staff
+                </a>
+                <a href="<?php echo BASE_URL; ?>/classes_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'staff_allocate' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-diagram-3 me-2"></i> Allocate Class
+                </a>
+                <a href="<?php echo BASE_URL; ?>/teachers_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'teachers' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-person-workspace me-2"></i> Manage Staff
+                </a>
+                <a href="#" onclick="alert('This will be linked to the payroll system'); return false;" class="list-group-item list-group-item-action text-white border-0" style="background: transparent;">
+                    <i class="bi bi-cash-stack me-2"></i> Staff Payroll
                 </a>
                 <?php endif; ?>
                 
@@ -132,21 +161,21 @@ if (!isset($rolesModel)) {
                     <i class="bi bi-person-gear me-2"></i> User Management
                 </a>
 
-                <a href="<?php echo BASE_URL; ?>/teachers_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'teachers' ? 'active' : ''; ?>" style="background: transparent;">
+                <!--<a href="<?php echo BASE_URL; ?>/teachers_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'teachers' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-person-workspace me-2"></i> Teachers
                 </a>
                 
                 <a href="<?php echo BASE_URL; ?>/announcements_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'announcements' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-megaphone me-2"></i> Announcements
-                </a>
+                </a>-->
                 
                 <a href="<?php echo BASE_URL; ?>/settings.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'settings' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-gear me-2"></i> Settings
                 </a>
                 
-                <a href="<?php echo BASE_URL; ?>/holidays_list.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'holidays' ? 'active' : ''; ?>" style="background: transparent;">
+                <!--<a href="<?php echo BASE_URL; ?>/holidays_list.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'holidays' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-calendar-event me-2"></i> Holidays
-                </a>
+                </a>-->
                 <?php endif; ?>
             </div>
         </div>
