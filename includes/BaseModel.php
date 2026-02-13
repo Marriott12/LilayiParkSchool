@@ -82,7 +82,6 @@ class BaseModel {
             }
         } catch (Exception $e) {
             // If metadata query fails, continue with original data (best-effort)
-            error_log('BaseModel:create - failed to read table columns: ' . $e->getMessage());
         }
 
         if (empty($data)) {
