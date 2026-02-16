@@ -20,10 +20,6 @@ if (!$rolesModel->userHasPermission(Auth::id(), 'manage_pupils')) {
 require_once 'modules/pupils/PupilModel.php';
 require_once 'modules/users/UsersModel.php';
 require_once 'modules/classes/ClassModel.php';
-
-$pupilModel = new PupilModel();
-$usersModel = new UsersModel();
-// Ensure class model is available for assignment within request
 $classModel = new ClassModel();
 
 
@@ -619,40 +615,40 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<?php require_once 'includes/footer.php'; ?>
+
 <script>
 // Bootstrap modal confirmation for adding pupil to class
 (function(){
-        var isEdit = <?= $isEdit ? 'true' : 'false' ?>;
-        var form = document.getElementById('pupilForm');
-        var modalEl = document.getElementById('confirmAddModal');
-        var msgEl = document.getElementById('confirmAddMessage');
-        var yesBtn = document.getElementById('confirmAddYes');
-        if (!form || !modalEl || !msgEl || !yesBtn) return;
-        var bsModal = new bootstrap.Modal(modalEl);
+    var isEdit = <?= $isEdit ? 'true' : 'false' ?>;
+    var form = document.getElementById('pupilForm');
+    var modalEl = document.getElementById('confirmAddModal');
+    var msgEl = document.getElementById('confirmAddMessage');
+    var yesBtn = document.getElementById('confirmAddYes');
+    if (!form || !modalEl || !msgEl || !yesBtn) return;
+    var bsModal = new bootstrap.Modal(modalEl);
 
-        form.addEventListener('submit', function(e){
-                if (isEdit) return; // no confirmation on edit
-                var sel = document.querySelector('select[name="classID"]');
-                if (!sel || !sel.value) return; // let validation handle missing class
+    form.addEventListener('submit', function(e){
+        if (isEdit) return; // no confirmation on edit
+        var sel = document.querySelector('select[name="classID"]');
+        if (!sel || !sel.value) return; // let validation handle missing class
 
-                e.preventDefault();
-                var f = (document.querySelector('input[name="fName"]') || {}).value || '';
-                var l = (document.querySelector('input[name="lName"]') || {}).value || '';
-                var full = (f + ' ' + l).trim() || 'this pupil';
-                var className = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'the selected class';
-                msgEl.textContent = 'Are you sure you want to add ' + full + ' to ' + className + '?';
-                bsModal.show();
-        });
+        e.preventDefault();
+        var f = (document.querySelector('input[name="fName"]') || {}).value || '';
+        var l = (document.querySelector('input[name="lName"]') || {}).value || '';
+        var full = (f + ' ' + l).trim() || 'this pupil';
+        var className = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'the selected class';
+        msgEl.textContent = 'Are you sure you want to add ' + full + ' to ' + className + '?';
+        bsModal.show();
+    });
 
-        yesBtn.addEventListener('click', function(){
-                bsModal.hide();
-                // submit without triggering submit handlers
-                form.submit();
-        });
+    yesBtn.addEventListener('click', function(){
+        bsModal.hide();
+        // submit without triggering submit handlers
+        form.submit();
+    });
 })();
 </script>
-
-<?php require_once 'includes/footer.php'; ?>
 
 <?php if ($isEdit && !empty($pupil['pupilID']) && !empty($allClasses)): ?>
 <!-- Assign Class Modal -->
