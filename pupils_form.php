@@ -20,10 +20,6 @@ if (!$rolesModel->userHasPermission(Auth::id(), 'manage_pupils')) {
 require_once 'modules/pupils/PupilModel.php';
 require_once 'modules/users/UsersModel.php';
 require_once 'modules/classes/ClassModel.php';
-
-$pupilModel = new PupilModel();
-$usersModel = new UsersModel();
-// Ensure class model is available for assignment within request
 $classModel = new ClassModel();
 
 

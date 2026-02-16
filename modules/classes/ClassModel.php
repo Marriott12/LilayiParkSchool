@@ -28,7 +28,7 @@ class ClassModel extends BaseModel {
                        COUNT(DISTINCT pc.pupilID) as pupilCount
                 FROM {$this->table} c
                 LEFT JOIN Teacher t ON c.teacherID = t.teacherID
-                LEFT JOIN pupil_Class pc ON c.classID = pc.classID
+                LEFT JOIN Pupil_Class pc ON c.classID = pc.classID
                 GROUP BY c.classID
                 ORDER BY c.className";
         

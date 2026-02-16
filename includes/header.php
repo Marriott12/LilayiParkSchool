@@ -134,7 +134,7 @@ if (!isset($rolesModel)) {
                     <i class="bi bi-person-plus me-2"></i> Add Staff
                 </a>
                 <a href="<?php echo BASE_URL; ?>/classes_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'staff_allocate' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-diagram-3 me-2"></i> Allocate Class
+                    <i class="bi bi-diagram-3 me-2"></i> Staff Allocation
                 </a>
                 <a href="<?php echo BASE_URL; ?>/teachers_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'teachers' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-person-workspace me-2"></i> Manage Staff
