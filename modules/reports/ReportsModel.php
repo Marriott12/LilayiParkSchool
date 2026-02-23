@@ -169,7 +169,7 @@ class ReportsModel extends BaseModel {
                     p.gender,
                     p.dob,
                     TIMESTAMPDIFF(YEAR, p.dob, CURDATE()) as age,
-                    par.phoneNum as parentContact,
+                    par.phone as parentContact,
                     CONCAT(par.fName, ' ', par.lName) as parentName
                 FROM Class c
                 LEFT JOIN Pupil_Class pc ON c.classID = pc.classID

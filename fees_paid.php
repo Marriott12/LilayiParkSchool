@@ -63,11 +63,28 @@ usort($rows, function($a, $b) { return $b['balance'] <=> $a['balance']; });
 
 $pageTitle = 'Fees Paid Report';
 $currentPage = 'fees_paid';
+
+// Handle export requests BEFORE any output
+if (!empty($_GET['export'])) {
+    require_once 'modules/reports/export_handler.php';
+    $format = $_GET['export'] === 'pdf' ? 'pdf' : 'excel';
+    if ($format === 'pdf') {
+        exportToPDF('fees_paid', $rows, 'Fees Paid');
+    } else {
+        exportToExcel('fees_paid', $rows, 'Fees Paid');
+    }
+    exit;
+}
+
 require_once 'includes/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-file-earmark-spreadsheet"></i> Fees Paid</h2>
+    <div>
+        <a href="?export=pdf" class="btn btn-sm me-2" style="background-color: #d9534f; color: white;"><i class="bi bi-file-pdf"></i> Export PDF</a>
+        <a href="?export=excel" class="btn btn-sm" style="background-color: #5cb85c; color: white;"><i class="bi bi-file-excel"></i> Export Excel</a>
+    </div>
 </div>
 
 <div class="card">

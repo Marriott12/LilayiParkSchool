@@ -62,11 +62,29 @@ usort($rows, function($a, $b) { return $b['balance'] <=> $a['balance']; });
 
 $pageTitle = 'Outstanding Balances';
 $currentPage = 'fees_outstanding';
+
+// Handle export requests BEFORE any output
+if (!empty($_GET['export'])) {
+    require_once 'modules/reports/export_handler.php';
+    $format = $_GET['export'] === 'pdf' ? 'pdf' : 'excel';
+    if ($format === 'pdf') {
+        exportToPDF('fees_outstanding', $rows, 'Outstanding Balances');
+    } else {
+        exportToExcel('fees_outstanding', $rows, 'Outstanding Balances');
+    }
+    exit;
+}
+
 require_once 'includes/header.php';
 ?>
 
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-exclamation-circle"></i> Outstanding Balance</h2>
+    <div>
+        <a href="?export=pdf" class="btn btn-sm me-2" style="background-color: #d9534f; color: white;"><i class="bi bi-file-pdf"></i> Export PDF</a>
+        <a href="?export=excel" class="btn btn-sm" style="background-color: #5cb85c; color: white;"><i class="bi bi-file-excel"></i> Export Excel</a>
+    </div>
 </div>
 
 <div class="card">
