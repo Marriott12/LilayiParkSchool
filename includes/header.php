@@ -77,20 +77,17 @@ if (!isset($rolesModel)) {
                 <div class="mt-3 mb-2 px-3">
                     <small class="text-white-50 text-uppercase fw-bold">Fees</small>
                 </div>
-                <a href="<?php echo BASE_URL; ?>/fees_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'fees' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-cash-coin me-2"></i> Fee Management
+                <a href="<?php echo BASE_URL; ?>/payments_form.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'payments_add' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-plus-circle me-2"></i> Add Payment
                 </a>
-                <?php endif; ?>
-                
-                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_fees')): ?>
-                <a href="<?php echo BASE_URL; ?>/payments_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'payments' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-credit-card me-2"></i> Fee Payments
-                </a>
-                <?php endif; ?>
-                
-                <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_fees')): ?>
                 <a href="<?php echo BASE_URL; ?>/payments_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'payments' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-credit-card me-2"></i> Payment Report
+                </a>
+                <a href="<?php echo BASE_URL; ?>/fees_paid.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'fees_paid' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-file-earmark-spreadsheet me-2"></i> Fees Paid
+                </a>
+                <a href="<?php echo BASE_URL; ?>/fees_outstanding.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'fees_outstanding' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-exclamation-circle me-2"></i> Outstanding Balance
                 </a>
                 <?php endif; ?>
                 
@@ -156,6 +153,10 @@ if (!isset($rolesModel)) {
                 <div class="mt-3 mb-2 px-3">
                     <small class="text-white-50 text-uppercase fw-bold">System</small>
                 </div>
+                <a href="<?php echo BASE_URL; ?>/fees_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'fees' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-cash-coin me-2"></i> Fee Management
+                </a>
+                
                 
                 <a href="<?php echo BASE_URL; ?>/users_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'users' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-person-gear me-2"></i> User Management
@@ -172,7 +173,6 @@ if (!isset($rolesModel)) {
                 <a href="<?php echo BASE_URL; ?>/settings.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'settings' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-gear me-2"></i> Settings
                 </a>
-                
                 <!--<a href="<?php echo BASE_URL; ?>/holidays_list.php" class="list-group-item list-group-item-action text-white border-0 ps-5 small <?php echo ($currentPage ?? '') === 'holidays' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-calendar-event me-2"></i> Holidays
                 </a>-->

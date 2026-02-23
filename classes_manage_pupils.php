@@ -111,6 +111,33 @@ try {
             ]);
             break;
             
+        case 'bulkMove':
+            $pupilIDs = $_POST['pupilIDs'] ?? [];
+            $targetClass = $_POST['targetClassID'] ?? null;
+            if (!is_array($pupilIDs) || empty($pupilIDs)) {
+                echo json_encode(['success' => false, 'error' => 'No pupils selected']);
+                exit;
+            }
+            if (!$targetClass) {
+                echo json_encode(['success' => false, 'error' => 'Target class is required']);
+                exit;
+            }
+
+            // Verify target class exists
+            $target = $classModel->find($targetClass);
+            if (!$target) {
+                echo json_encode(['success' => false, 'error' => 'Target class not found']);
+                exit;
+            }
+
+            // Perform move
+            if ($classModel->movePupilsToClass($targetClass, $pupilIDs)) {
+                echo json_encode(['success' => true, 'message' => 'Pupil(s) moved successfully']);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Failed to move pupils']);
+            }
+            break;
+            
         case 'getAvailable':
             // Get pupils not in this class
             $availablePupils = $classModel->getAvailablePupils($classID);
