@@ -21,6 +21,8 @@ require_once 'modules/pupils/PupilModel.php';
 require_once 'modules/users/UsersModel.php';
 require_once 'modules/classes/ClassModel.php';
 $classModel = new ClassModel();
+// Ensure model instances are available
+$pupilModel = new PupilModel();
 
 
 // Handle form submission
@@ -123,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $classModel->assignPupil($selectedClass, $pupilID);
                             }
                             Session::setFlash('success', 'Pupil updated successfully');
-                            header('Location: pupils_list.php');
+                            header('Location: pupils_view.php?id=' . urlencode($pupilID));
                             exit;
                         } else {
                             // Create pupil and assign to class atomically using a transaction
@@ -155,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $db->commit();
 
                                 Session::setFlash('success', 'Pupil created successfully.');
-                                header('Location: pupils_list.php');
+                                header('Location: pupils_view.php?id=' . urlencode($newPupilID));
                                 exit;
                             } catch (Exception $ex) {
                                 // Rollback and rethrow to outer catch for user display

@@ -60,35 +60,73 @@ require_once 'includes/header.php';
     <?php foreach ($classes as $class): ?>
     <div class="col-md-6 col-lg-4 mb-4">
         <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title" style="color: #2d5016;">
-                    <i class="bi bi-building me-2"></i><?= htmlspecialchars($class['className']) ?>
-                </h5>
-                <hr>
-                <p class="card-text">
-                    <button type="button" class="btn btn-outline-success btn-sm" onclick="openAddPupilModal('<?= htmlspecialchars($class['classID']) ?>')">
-                        <i class="bi bi-plus-circle"></i> Add Pupil
-                    </button>
-                </p>
-            </div>
-            <div class="card-footer bg-white">
-                <div class="btn-group btn-group-sm w-100" role="group">
-                    <a href="classes_view.php?id=<?= $class['classID'] ?>" class="btn btn-outline-info btn-sm">
-                        <i class="bi bi-eye"></i> View
-                    </a>
-                    <?php if (PermissionHelper::canManage('classes')): ?>
-                    <a href="classes_form.php?id=<?= $class['classID'] ?>" class="btn btn-outline-warning btn-sm">
-                        <i class="bi bi-pencil"></i> Edit
-                    </a>
-                    <a href="delete.php?module=classes&id=<?= $class['classID'] ?>" 
-                       class="btn btn-outline-danger btn-sm" 
-                       onclick="return confirm('Are you sure you want to delete this class?');">
-                        <i class="bi bi-trash"></i> Delete
-                    </a>
-                    <?php endif; ?>
+                <div class="card-body">
+                    <h5 class="card-title" style="color: #2d5016;">
+                        <i class="bi bi-building me-2"></i><?= htmlspecialchars($class['className']) ?>
+                    </h5>
+                    <hr>
+                    <!-- Roster table with checkboxes -->
+                    <?php $roster = $classModel->getClassRoster($class['classID']); ?>
+                    <form class="mb-2" id="moveForm-<?= htmlspecialchars($class['classID']) ?>" onsubmit="return false;">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-2">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"><input type="checkbox" onchange="toggleSelectAll('<?= $class['classID'] ?>', this)"></th>
+                                        <th>Last Name</th>
+                                        <th>First Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (empty($roster)): ?>
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">No pupils in this class</td>
+                                    </tr>
+                                    <?php else: ?>
+                                        <?php foreach ($roster as $rp): ?>
+                                        <tr>
+                                            <td><input type="checkbox" class="pupil-checkbox-<?= $class['classID'] ?>" value="<?= htmlspecialchars($rp['pupilID']) ?>"></td>
+                                            <td><?= htmlspecialchars($rp['lName']) ?></td>
+                                            <td><?= htmlspecialchars($rp['fName']) ?></td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex gap-2 align-items-center">
+                            <select class="form-select form-select-sm w-auto" id="targetClass-<?= $class['classID'] ?>">
+                                <option value="">Select target class</option>
+                                <?php foreach ($classes as $optClass): if ($optClass['classID'] == $class['classID']) continue; ?>
+                                <option value="<?= htmlspecialchars($optClass['classID']) ?>"><?= htmlspecialchars($optClass['className']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button class="btn btn-sm btn-primary" onclick="moveSelected('<?= $class['classID'] ?>')">
+                                <i class="bi bi-arrow-right-square"></i> Move Selected
+                            </button>
+                            <div class="ms-auto text-muted"><small>Select pupils then choose a target class to move them.</small></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer bg-white">
+                    <div class="btn-group btn-group-sm w-100" role="group">
+                        <a href="classes_view.php?id=<?= $class['classID'] ?>" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                        <?php if (PermissionHelper::canManage('classes')): ?>
+                        <a href="classes_form.php?id=<?= $class['classID'] ?>" class="btn btn-outline-warning btn-sm">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                        <a href="delete.php?module=classes&id=<?= $class['classID'] ?>" 
+                           class="btn btn-outline-danger btn-sm" 
+                           onclick="return confirm('Are you sure you want to delete this class?');">
+                            <i class="bi bi-trash"></i> Delete
+                        </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
-        </div>
     </div>
     <?php endforeach; ?>
     <?php endif; ?>
@@ -317,5 +355,46 @@ function openClassModal(classID) {
         iframe.src = '';
         modalEl.removeEventListener('hidden.bs.modal', onHidden);
     });
+}
+</script>
+<script>
+// Move selected pupils from a class to another
+function toggleSelectAll(classID, checkbox) {
+    document.querySelectorAll('.pupil-checkbox-' + classID).forEach(cb => cb.checked = checkbox.checked);
+}
+
+function moveSelected(classID) {
+    const checkboxes = Array.from(document.querySelectorAll('.pupil-checkbox-' + classID + ':checked'));
+    if (checkboxes.length === 0) {
+        alert('No pupils selected');
+        return;
+    }
+    const target = document.getElementById('targetClass-' + classID).value;
+    if (!target) {
+        alert('Please select a target class');
+        return;
+    }
+    if (!confirm(`Move ${checkboxes.length} pupil(s) to the selected class?`)) return;
+
+    const formData = new FormData();
+    formData.append('action', 'bulkMove');
+    formData.append('classID', classID);
+    formData.append('targetClassID', target);
+    checkboxes.forEach(cb => formData.append('pupilIDs[]', cb.value));
+
+    fetch('classes_manage_pupils.php', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // reload page to reflect changes
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to move pupils'));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('An error occurred');
+        });
 }
 </script>

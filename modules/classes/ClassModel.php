@@ -49,10 +49,42 @@ class ClassModel extends BaseModel {
                 FROM Pupil p
                 INNER JOIN Pupil_Class pc ON p.pupilID = pc.pupilID
                 WHERE pc.classID = ?
-                ORDER BY p.fName, p.lName";
+                ORDER BY p.lName, p.fName";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$classID]);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Move pupils to a target class (ensure single-class membership)
+     * @param int $targetClassID
+     * @param array $pupilIDs
+     * @return bool
+     */
+    public function movePupilsToClass($targetClassID, array $pupilIDs) {
+        if (empty($pupilIDs)) return false;
+        // Use transaction to ensure integrity
+        try {
+            $this->db->beginTransaction();
+            // Remove any existing class assignments for these pupils
+            $placeholders = implode(',', array_fill(0, count($pupilIDs), '?'));
+            $sqlDel = "DELETE FROM Pupil_Class WHERE pupilID IN ({$placeholders})";
+            $stmtDel = $this->db->prepare($sqlDel);
+            $stmtDel->execute($pupilIDs);
+
+            // Insert new assignment for each pupil
+            $sqlIns = "INSERT INTO Pupil_Class (classID, pupilID, enrollmentDate) VALUES (?, ?, NOW())";
+            $stmtIns = $this->db->prepare($sqlIns);
+            foreach ($pupilIDs as $pupilID) {
+                $stmtIns->execute([$targetClassID, $pupilID]);
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return false;
+        }
     }
     
     /**

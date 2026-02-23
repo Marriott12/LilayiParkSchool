@@ -42,7 +42,7 @@ class PupilModel extends BaseModel {
         $sql = "SELECT p.* FROM {$this->table} p
                 INNER JOIN Pupil_Class pc ON p.pupilID = pc.pupilID
                 WHERE pc.classID = ?
-                ORDER BY p.fName, p.lName";
+                ORDER BY p.lName, p.fName";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$classID]);
         return $stmt->fetchAll();
