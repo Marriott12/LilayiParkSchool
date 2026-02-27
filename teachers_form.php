@@ -290,7 +290,7 @@ if ($isEdit && $teacher && !empty($teacher['userID'])) {
 $existingRoleIDs = array_column($existingUserRoles, 'roleID');
 
 $pageTitle = $isEdit ? 'Edit Teacher' : 'Add New Teacher';
-$currentPage = 'teachers';
+$currentPage = $isEdit ? 'teachers' : 'teachers_add';
 require_once 'includes/header.php';
 ?>
 

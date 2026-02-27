@@ -91,11 +91,23 @@ class ClassModel extends BaseModel {
      * Assign pupil to class
      */
     public function assignPupil($classID, $pupilID) {
-        $sql = "INSERT INTO Pupil_Class (classID, pupilID, enrollmentDate) 
-                VALUES (?, ?, NOW())
-                ON DUPLICATE KEY UPDATE enrollmentDate = NOW()";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute([$classID, $pupilID]);
+        // Ensure a pupil belongs to only one class: remove existing assignment(s) then insert the new one.
+        try {
+            $this->db->beginTransaction();
+            $stmtDel = $this->db->prepare('DELETE FROM Pupil_Class WHERE pupilID = ?');
+            $stmtDel->execute([$pupilID]);
+
+            $stmtIns = $this->db->prepare('INSERT INTO Pupil_Class (classID, pupilID, enrollmentDate) VALUES (?, ?, NOW())');
+            $ok = $stmtIns->execute([$classID, $pupilID]);
+
+            $this->db->commit();
+            return $ok;
+        } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return false;
+        }
     }
     
     /**

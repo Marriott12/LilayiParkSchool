@@ -82,6 +82,7 @@ catch (Throwable $e) {
                         <th>Pupil</th>
                         <th>Parent</th>
                         <th>Term</th>
+                        <th>Type</th>
                         <th>Amount (ZMW)</th>
                         <th>Method</th>
                         <th>Status</th>
@@ -110,9 +111,32 @@ catch (Throwable $e) {
                             </span>
                         </td>
                         <td>
+                            <?php
+                                // Determine payment type: tuition/fee vs service
+                                $type = 'Tuition';
+                                $remark = trim($payment['remark'] ?? '');
+                                if (empty($payment['feeID'])) {
+                                    // service payment inserted with feeID=null
+                                    if (stripos($remark, 'transport') !== false) {
+                                        $type = 'Transport';
+                                    } elseif (stripos($remark, 'meal') !== false || stripos($remark, 'lunch') !== false) {
+                                        $type = 'Meal';
+                                    } else {
+                                        $type = 'Service';
+                                    }
+                                }
+                            ?>
+                            <span class="badge" style="background-color: <?= $type === 'Tuition' ? '#f0ad4e' : ($type === 'Transport' ? '#0dcaf0' : ($type === 'Meal' ? '#ffb703' : '#6c757d')) ?>; color: #000;">
+                                <?= htmlspecialchars($type) ?>
+                            </span>
+                        </td>
+                        <td>
                             <strong style="color: #2d5016;">
                                 K <?= number_format($payment['pmtAmt'], 2) ?>
                             </strong>
+                            <?php if (!empty($remark)): ?>
+                                <div class="small text-muted"><?= htmlspecialchars($remark) ?></div>
+                            <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars($payment['paymentMode'] ?? 'Cash') ?></td>
                         <td>

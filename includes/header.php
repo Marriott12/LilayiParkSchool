@@ -42,8 +42,14 @@ if (!isset($rolesModel)) {
                 </a>
                 
                 <?php if ($rolesModel->userHasPermission(Auth::id(), 'view_pupils')): ?>
+                <a href="<?php echo BASE_URL; ?>/pupils_form.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupils_add' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-person-plus me-2"></i> Add Pupil
+                </a>
                 <a href="<?php echo BASE_URL; ?>/pupils_list.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupils' ? 'active' : ''; ?>" style="background: transparent;">
-                    <i class="bi bi-mortarboard me-2"></i> Add Pupil
+                    <i class="bi bi-mortarboard me-2"></i> Manage Pupil
+                </a>
+                <a href="<?php echo BASE_URL; ?>/pupil_transfer.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupil_transfer' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-arrow-right-circle me-2"></i> Pupil Transfer
                 </a>
                 <?php endif; ?>
                 
