@@ -92,6 +92,8 @@ class SettingsModel extends BaseModel {
             ['key' => 'current_year', 'value' => date('Y'), 'category' => 'academic'],
             ['key' => 'currency', 'value' => 'ZMW', 'category' => 'financial'],
             ['key' => 'late_fee_penalty', 'value' => '0', 'category' => 'financial'],
+            ['key' => 'transport_fee', 'value' => '0.00', 'category' => 'financial'],
+            ['key' => 'meal_fee', 'value' => '0.00', 'category' => 'financial'],
             ['key' => 'attendance_threshold', 'value' => '75', 'category' => 'academic'],
         ];
         

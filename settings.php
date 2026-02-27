@@ -38,6 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'grade_d_min' => 'Grade D minimum must be a number between 0 and 100',
             'passing_grade' => 'Passing grade must be a number between 0 and 100',
             'late_fee_penalty' => 'Late fee penalty must be a number',
+            'transport_fee' => 'Transport fee must be a number',
+            'meal_fee' => 'Meal fee must be a number',
             'library_fine_per_day' => 'Library fine per day must be a number',
             'library_max_books' => 'Library max books must be a positive integer',
             'library_loan_period' => 'Library loan period must be a positive integer',
@@ -93,6 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Financial Settings
                 ['key' => 'currency', 'value' => $_POST['currency'], 'category' => 'financial'],
                 ['key' => 'late_fee_penalty', 'value' => $_POST['late_fee_penalty'], 'category' => 'financial'],
+                ['key' => 'transport_fee', 'value' => $_POST['transport_fee'] ?? '0.00', 'category' => 'financial'],
+                ['key' => 'meal_fee', 'value' => $_POST['meal_fee'] ?? '0.00', 'category' => 'financial'],
                 
                 // Library Settings
                 ['key' => 'library_fine_per_day', 'value' => $_POST['library_fine_per_day'] ?? '0.50', 'category' => 'library'],
@@ -333,6 +337,19 @@ require_once 'includes/header.php';
                         <input type="number" class="form-control" name="late_fee_penalty" min="0" max="100" step="0.1"
                                value="<?= htmlspecialchars($settings['late_fee_penalty'] ?? '0') ?>">
                         <small class="text-muted">Penalty for late payment</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Transport Fee (K)</label>
+                        <input type="number" class="form-control" name="transport_fee" min="0" step="0.01"
+                               value="<?= htmlspecialchars($settings['transport_fee'] ?? '0.00') ?>">
+                        <small class="text-muted">Fee applied to pupils receiving transport service</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Meal Fee (K)</label>
+                        <input type="number" class="form-control" name="meal_fee" min="0" step="0.01"
+                               value="<?= htmlspecialchars($settings['meal_fee'] ?? '0.00') ?>">
+                        <small class="text-muted">Fee applied to pupils receiving school meals</small>
                     </div>
                 </div>
             </div>

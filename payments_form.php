@@ -62,19 +62,104 @@ if (isset($_GET['action']) && $_GET['action'] === 'getPupilDetails' && isset($_G
             $stmt->execute([$pupilClass['classID'], $currentYear]);
             $currentFee = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            // Get all payments made by this pupil
-            $stmt = $db->prepare("
-                SELECT SUM(pmtAmt) as totalPaid
-                FROM Payment
-                WHERE pupilID = ? AND classID = ?
-            ");
-            $stmt->execute([$pupilID, $pupilClass['classID']]);
-            $paymentsData = $stmt->fetch(PDO::FETCH_ASSOC);
-            $totalPaid = $paymentsData['totalPaid'] ?? 0;
-            
-            // Calculate balance
-            $totalFee = $currentFee['feeAmt'] ?? 0;
-            $balance = $totalFee - $totalPaid;
+                // Compute total fee across all terms for the academic year
+                    $stmtFeesSum = $db->prepare("SELECT SUM(feeAmt) as totalFee FROM Fees WHERE classID = ? AND year = ?");
+                    $stmtFeesSum->execute([$pupilClass['classID'], $currentYear]);
+                    $feeSumRow = $stmtFeesSum->fetch(PDO::FETCH_ASSOC);
+                    $totalFee = floatval($feeSumRow['totalFee'] ?? 0);
+
+                    // Load service fees and pupil service opt-ins
+                    require_once __DIR__ . '/modules/settings/SettingsModel.php';
+                    $settingsModel = new SettingsModel();
+                    $transportFeeSetting = (float)$settingsModel->getSetting('transport_fee', '0');
+                    $mealFeeSetting = (float)$settingsModel->getSetting('meal_fee', '0');
+
+                    // Check pupil's opt-ins
+                    $stmtPupil = $db->prepare('SELECT transport, lunch FROM Pupil WHERE pupilID = ? LIMIT 1');
+                    $stmtPupil->execute([$pupilID]);
+                    $pupilRow = $stmtPupil->fetch(PDO::FETCH_ASSOC);
+                    $transportOpt = isset($pupilRow['transport']) && $pupilRow['transport'] === 'Y';
+                    $lunchOpt = isset($pupilRow['lunch']) && $pupilRow['lunch'] === 'Y';
+
+                    // include service fees for the year (assume per-term charges)
+                    $termCountStmt = $db->prepare("SELECT COUNT(*) as cnt FROM Fees WHERE classID = ? AND year = ?");
+                    $termCountStmt->execute([$pupilClass['classID'], $currentYear]);
+                    $termCountRow = $termCountStmt->fetch(PDO::FETCH_ASSOC);
+                    $termCount = max(1, intval($termCountRow['cnt'] ?? 1));
+                    $servicePerTerm = ($transportOpt ? $transportFeeSetting : 0.0) + ($lunchOpt ? $mealFeeSetting : 0.0);
+                    $totalServiceForYear = $servicePerTerm * $termCount;
+
+                    // Get all payments made by this pupil for this class and year
+                    $stmt = $db->prepare("SELECT SUM(pmtAmt) as totalPaid FROM Payment WHERE pupilID = ? AND classID = ? AND academicYear = ?");
+                    $stmt->execute([$pupilID, $pupilClass['classID'], $currentYear]);
+                    $paymentsData = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $totalPaid = floatval($paymentsData['totalPaid'] ?? 0);
+
+                    // Calculate balance (for display)
+                    $balance = $totalFee - $totalPaid;
+
+                    // Per-term remaining (terms 1..3)
+                    $termRemaining = [];
+                    $currentYear = $currentFee['year'] ?? date('Y');
+                    for ($t = 1; $t <= 3; $t++) {
+                        // determine stored term label (some rows store 'Term 1' while others store numeric)
+                        $termLabel = $t;
+                        if (isset($currentFee['term']) && !is_numeric($currentFee['term'])) {
+                            $termLabel = 'Term ' . $t;
+                        }
+                        // fetch fee record for this specific term (fallback to currentFee if missing)
+                        $stmtFee = $db->prepare("SELECT feeID, feeAmt FROM Fees WHERE classID = ? AND year = ? AND term = ? LIMIT 1");
+                        $stmtFee->execute([$pupilClass['classID'], $currentYear, $termLabel]);
+                        $feeRow = $stmtFee->fetch(PDO::FETCH_ASSOC);
+                        $termFee = isset($feeRow['feeAmt']) ? floatval($feeRow['feeAmt']) : floatval($currentFee['feeAmt'] ?? 0);
+                        // include per-term service fees if applicable
+                        $termFee += $servicePerTerm;
+                        $feeIdForTerm = $feeRow['feeID'] ?? $currentFee['feeID'] ?? null;
+
+                        // Payments towards base fee (exclude service payments)
+                        $stmt = $db->prepare("SELECT SUM(pmtAmt) as termPaid FROM Payment WHERE pupilID = ? AND classID = ? AND (term = ? OR term = ?) AND academicYear = ? AND (feeID IS NOT NULL AND feeID != '')");
+                        $stmt->execute([$pupilID, $pupilClass['classID'], $t, 'Term ' . $t, $currentYear]);
+                        $r = $stmt->fetch(PDO::FETCH_ASSOC);
+                        $termPaid = (float)($r['termPaid'] ?? 0);
+                        $remaining = max(0, $termFee - $termPaid);
+
+                        // Payments towards services for this term
+                        $stmtSvcT = $db->prepare("SELECT SUM(pmtAmt) as transportPaid FROM Payment WHERE pupilID = ? AND classID = ? AND academicYear = ? AND term = ? AND remark LIKE '%Transport%'");
+                        $stmtSvcT->execute([$pupilID, $pupilClass['classID'], $currentYear, $t]);
+                        $svcTPaidRow = $stmtSvcT->fetch(PDO::FETCH_ASSOC);
+                        $transportPaid = (float)($svcTPaidRow['transportPaid'] ?? 0);
+                        $stmtSvcM = $db->prepare("SELECT SUM(pmtAmt) as mealPaid FROM Payment WHERE pupilID = ? AND classID = ? AND academicYear = ? AND term = ? AND remark LIKE '%Meal%'");
+                        $stmtSvcM->execute([$pupilID, $pupilClass['classID'], $currentYear, $t]);
+                        $svcMPaidRow = $stmtSvcM->fetch(PDO::FETCH_ASSOC);
+                        $mealPaid = (float)($svcMPaidRow['mealPaid'] ?? 0);
+
+                        $transportRemaining = max(0, ($transportOpt ? $transportFeeSetting : 0) - $transportPaid);
+                        $mealRemaining = max(0, ($lunchOpt ? $mealFeeSetting : 0) - $mealPaid);
+
+                        $termRemaining[$t] = [
+                            'paid' => $termPaid,
+                            'remaining' => $remaining,
+                            'fee' => $termFee,
+                            'feeID' => $feeIdForTerm,
+                            'services' => [
+                                'transport' => $transportRemaining,
+                                'meal' => $mealRemaining
+                            ]
+                        ];
+                    }
+
+                    // Compute outstanding from previous years (if any)
+                    $stmtPrevFees = $db->prepare("SELECT SUM(feeAmt) as prevFees FROM Fees WHERE classID = ? AND year < ?");
+                    $stmtPrevFees->execute([$pupilClass['classID'], $currentYear]);
+                    $prevFeesRow = $stmtPrevFees->fetch(PDO::FETCH_ASSOC);
+                    $totalPrevFees = floatval($prevFeesRow['prevFees'] ?? 0);
+
+                    $stmtPrevPaid = $db->prepare("SELECT SUM(pmtAmt) as prevPaid FROM Payment WHERE pupilID = ? AND classID = ? AND academicYear < ?");
+                    $stmtPrevPaid->execute([$pupilID, $pupilClass['classID'], $currentYear]);
+                    $prevPaidRow = $stmtPrevPaid->fetch(PDO::FETCH_ASSOC);
+                    $totalPrevPaid = floatval($prevPaidRow['prevPaid'] ?? 0);
+
+                    $previousOutstanding = max(0, $totalPrevFees - $totalPrevPaid);
             
             // Get previous payments
             $stmt = $db->prepare("
@@ -96,7 +181,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'getPupilDetails' && isset($_G
                 'balance' => $balance,
                 'currentTerm' => $currentFee['term'] ?? 'N/A',
                 'currentYear' => $currentFee['year'] ?? date('Y'),
-                'previousPayments' => $previousPayments
+                'previousPayments' => $previousPayments,
+                'termRemaining' => $termRemaining,
+                'previousOutstanding' => $previousOutstanding
             ]);
         } else {
             echo json_encode(['success' => false, 'error' => 'Pupil not enrolled in any class. Please assign the pupil to a class first.']);
@@ -190,27 +277,252 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Calculate new balance after this payment
                 $newBalance = $currentBalance - $pmtAmt;
                 
-                $data = [
-                    'pupilID' => $pupilID,
-                    'feeID' => $feeID,
-                    'classID' => $classID,
-                    'pmtAmt' => $pmtAmt,
-                    'balance' => $newBalance,
-                    'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
-                    'paymentMode' => trim($_POST['paymentMode'] ?? 'Cash'),
-                    'remark' => trim($_POST['remark'] ?? ''),
-                    'term' => $currentFee['term'] ?? null,
-                    'academicYear' => $currentYear
-                ];
-                
-                // Log payment data for debugging
-                error_log("Attempting to create payment: " . json_encode($data));
-                
-                $result = $paymentModel->create($data);
-                
-                if (!$result) {
-                    throw new Exception("Failed to create payment record. Please check the logs.");
-                }
+                // Multi-term payment handling continues below
+                    // Determine per-term fee and handle multiple-term payments
+                    $stmt = $db->prepare("SELECT feeID, feeAmt, term FROM Fees WHERE classID = ? AND year = ? ORDER BY term DESC LIMIT 1");
+                    $currentYear = date('Y');
+                    $stmt->execute([$classID, $currentYear]);
+                    $currentFee = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if (!$currentFee) {
+                        throw new Exception("No fee record found for this class and year. Please create a fee record first.");
+                    }
+
+                    // Load service fees and pupil service opt-ins (transport / meal)
+                    require_once __DIR__ . '/modules/settings/SettingsModel.php';
+                    $settingsModel = new SettingsModel();
+                    $transportFeeSetting = (float)$settingsModel->getSetting('transport_fee', '0');
+                    $mealFeeSetting = (float)$settingsModel->getSetting('meal_fee', '0');
+                    $stmtPupilOpt = $db->prepare('SELECT transport, lunch FROM Pupil WHERE pupilID = ? LIMIT 1');
+                    $stmtPupilOpt->execute([$pupilID]);
+                    $pupilOptRow = $stmtPupilOpt->fetch(PDO::FETCH_ASSOC);
+                    $transportOpt = isset($pupilOptRow['transport']) && $pupilOptRow['transport'] === 'Y';
+                    $lunchOpt = isset($pupilOptRow['lunch']) && $pupilOptRow['lunch'] === 'Y';
+
+                    $perTermFee = (float)($currentFee['feeAmt'] ?? 0);
+                    $servicePerTerm = ($transportOpt ? $transportFeeSetting : 0.0) + ($lunchOpt ? $mealFeeSetting : 0.0);
+                    // include service fee per term in per-term fee calculations
+                    $perTermFee += $servicePerTerm;
+                    $feeID = $currentFee['feeID'] ?? null;
+
+                    // Terms selected by user (array of term numbers). If none provided, default to current term.
+                    $selectedTerms = $_POST['terms'] ?? [];
+                    // Normalize and filter to allowed term numbers (1-3)
+                    $selectedTerms = array_map('intval', $selectedTerms);
+                    $selectedTerms = array_values(array_filter($selectedTerms, function($v){ return in_array($v, [1,2,3]); }));
+                    if (empty($selectedTerms)) {
+                        $selectedTerms = [ (int)($currentFee['term'] ?? 1) ];
+                    }
+                    // Make unique
+                    $selectedTerms = array_values(array_unique($selectedTerms));
+
+                    // Determine terms to include: include all terms up to the highest selected term
+                    $maxSelectedTerm = max($selectedTerms);
+                    $termsToProcess = range(1, $maxSelectedTerm);
+
+                    // Compute previous years' outstanding, to be included in totalNeeded
+                    $stmtPrevFees = $db->prepare("SELECT SUM(feeAmt) as prevFees FROM Fees WHERE classID = ? AND year < ?");
+                    $stmtPrevFees->execute([$classID, $currentYear]);
+                    $prevFeesRow = $stmtPrevFees->fetch(PDO::FETCH_ASSOC);
+                    $totalPrevFees = floatval($prevFeesRow['prevFees'] ?? 0);
+
+                    $stmtPrevPaid = $db->prepare("SELECT SUM(pmtAmt) as prevPaid FROM Payment WHERE pupilID = ? AND classID = ? AND academicYear < ?");
+                    $stmtPrevPaid->execute([$pupilID, $classID, $currentYear]);
+                    $prevPaidRow = $stmtPrevPaid->fetch(PDO::FETCH_ASSOC);
+                    $totalPrevPaid = floatval($prevPaidRow['prevPaid'] ?? 0);
+
+                    $previousOutstanding = max(0, $totalPrevFees - $totalPrevPaid);
+
+                    // For each term up to maxSelectedTerm compute already paid amount and remaining using that term's fee
+                    $termRemaining = [];
+                    $totalNeeded = $previousOutstanding; // start with previous years' outstanding
+                    foreach ($termsToProcess as $termNumber) {
+                        // determine stored term label (some rows store 'Term 1' while others store numeric)
+                        $termLabel = $termNumber;
+                        if (isset($currentFee['term']) && !is_numeric($currentFee['term'])) {
+                            $termLabel = 'Term ' . $termNumber;
+                        }
+                        // fetch fee for this specific term (fallback to currentFee)
+                        $stmtFeeTerm = $db->prepare("SELECT feeID, feeAmt FROM Fees WHERE classID = ? AND year = ? AND term = ? LIMIT 1");
+                        $stmtFeeTerm->execute([$classID, $currentYear, $termLabel]);
+                        $feeRowTerm = $stmtFeeTerm->fetch(PDO::FETCH_ASSOC);
+                        $termFee = isset($feeRowTerm['feeAmt']) ? floatval($feeRowTerm['feeAmt']) : floatval($currentFee['feeAmt']);
+                        $termFeeID = $feeRowTerm['feeID'] ?? $feeID;
+
+                        // Payments towards base fee (exclude service payments)
+                        $stmt = $db->prepare("SELECT SUM(pmtAmt) as termPaid FROM Payment WHERE pupilID = ? AND classID = ? AND (term = ? OR term = ?) AND academicYear = ? AND (feeID IS NOT NULL AND feeID != '')");
+                        $stmt->execute([$pupilID, $classID, $termNumber, 'Term ' . $termNumber, $currentYear]);
+                        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                        $termPaid = (float)($row['termPaid'] ?? 0);
+                        $remaining = max(0, $termFee - $termPaid);
+
+                        // Compute service remaining for this term
+                        $stmtSvcT = $db->prepare("SELECT SUM(pmtAmt) as transportPaid FROM Payment WHERE pupilID = ? AND classID = ? AND academicYear = ? AND term = ? AND remark LIKE '%Transport%'");
+                        $stmtSvcT->execute([$pupilID, $classID, $currentYear, $termNumber]);
+                        $svcTPaidRow = $stmtSvcT->fetch(PDO::FETCH_ASSOC);
+                        $transportPaid = (float)($svcTPaidRow['transportPaid'] ?? 0);
+                        $stmtSvcM = $db->prepare("SELECT SUM(pmtAmt) as mealPaid FROM Payment WHERE pupilID = ? AND classID = ? AND academicYear = ? AND term = ? AND remark LIKE '%Meal%'");
+                        $stmtSvcM->execute([$pupilID, $classID, $currentYear, $termNumber]);
+                        $svcMPaidRow = $stmtSvcM->fetch(PDO::FETCH_ASSOC);
+                        $mealPaid = (float)($svcMPaidRow['mealPaid'] ?? 0);
+
+                        $transportRemaining = max(0, ($transportOpt ? $transportFeeSetting : 0) - $transportPaid);
+                        $mealRemaining = max(0, ($lunchOpt ? $mealFeeSetting : 0) - $mealPaid);
+
+                        $termRemaining[$termNumber] = [
+                            'paid' => $termPaid,
+                            'remaining' => $remaining,
+                            'fee' => $termFee,
+                            'feeID' => $termFeeID,
+                            'services' => [
+                                'transport' => $transportRemaining,
+                                'meal' => $mealRemaining
+                            ]
+                        ];
+
+                        $totalNeeded += $remaining + $transportRemaining + $mealRemaining;
+                    }
+
+                    // Prevent overpayment across selected terms + previous outstanding
+                    if ($pmtAmt > $totalNeeded) {
+                        throw new Exception('Amount exceeds required total for the selected terms (including previous outstanding). Reduce the amount or uncheck some terms.');
+                    }
+
+                    // If all requested terms (and previous outstanding) require nothing, inform user
+                    $fullyPaidTerms = array_filter($termRemaining, function($t){ return $t['remaining'] <= 0; });
+                    if ($totalNeeded <= 0) {
+                        throw new Exception('Selected terms and previous outstanding are already fully paid. Nothing to do.');
+                    }
+
+                    // Allocate the payment amount: first clear previous years' unpaid fees (oldest first), then current-year terms up to maxSelectedTerm
+                    $amountToAllocate = $pmtAmt;
+                    $createdPayments = [];
+
+                    // Allocate to previous years' fee rows (oldest first)
+                    if ($previousOutstanding > 0 && $amountToAllocate > 0) {
+                        $stmtPrevFeeRows = $db->prepare("SELECT feeID, feeAmt, term, year FROM Fees WHERE classID = ? AND year < ? ORDER BY year ASC, term ASC");
+                        $stmtPrevFeeRows->execute([$classID, $currentYear]);
+                        $prevFeeRows = $stmtPrevFeeRows->fetchAll(PDO::FETCH_ASSOC);
+                        foreach ($prevFeeRows as $feeRow) {
+                            if ($amountToAllocate <= 0) break;
+                            $yr = $feeRow['year'];
+                            $fid = $feeRow['feeID'];
+                            $feeAmtRow = floatval($feeRow['feeAmt']);
+                            // total paid for this fee row
+                            $stmtPaidForFee = $db->prepare('SELECT SUM(pmtAmt) as paid FROM Payment WHERE pupilID = ? AND feeID = ? AND academicYear = ?');
+                            $stmtPaidForFee->execute([$pupilID, $fid, $yr]);
+                            $paidRow = $stmtPaidForFee->fetch(PDO::FETCH_ASSOC);
+                            $paidForFee = floatval($paidRow['paid'] ?? 0);
+                            $remainingForFee = max(0, $feeAmtRow - $paidForFee);
+                            if ($remainingForFee <= 0) continue;
+                            $allocPrev = min($remainingForFee, $amountToAllocate);
+                            // create payment record for this previous fee row
+                            $stmtInsertPrev = $db->prepare('INSERT INTO Payment (pupilID, feeID, classID, pmtAmt, balance, paymentDate, paymentMode, remark, term, academicYear) VALUES (:pupilID, :feeID, :classID, :pmtAmt, :balance, :paymentDate, :paymentMode, :remark, :term, :academicYear)');
+                            $stmtInsertPrev->execute([
+                                ':pupilID'=>$pupilID,
+                                ':feeID'=>$fid,
+                                ':classID'=>$classID,
+                                ':pmtAmt'=>$allocPrev,
+                                ':balance'=>$feeAmtRow - ($paidForFee + $allocPrev),
+                                ':paymentDate'=>$paymentDate,
+                                ':paymentMode'=>$paymentMode,
+                                ':remark'=>$remark,
+                                ':term'=>$feeRow['term'],
+                                ':academicYear'=>$yr
+                            ]);
+                            $createdPayments[] = $db->lastInsertId();
+                            $amountToAllocate -= $allocPrev;
+                        }
+                    }
+
+                    // Allocate payments starting from earliest term up to maxSelectedTerm
+                    foreach ($termsToProcess as $termNumber) {
+                        if ($amountToAllocate <= 0) break;
+                        $remaining = $termRemaining[$termNumber]['remaining'] ?? 0;
+                        if ($remaining <= 0) continue;
+                        $pmtForTerm = min($remaining, $amountToAllocate);
+
+                        // use the term-specific feeID if available
+                        $feeIdForTerm = $termRemaining[$termNumber]['feeID'] ?? $feeID;
+                        $perTermForThis = $termRemaining[$termNumber]['fee'] ?? $perTermFee;
+
+                        $data = [
+                            'pupilID' => $pupilID,
+                            'feeID' => $feeIdForTerm,
+                            'classID' => $classID,
+                            'pmtAmt' => $pmtForTerm,
+                            'balance' => $perTermForThis - (($termRemaining[$termNumber]['paid'] ?? 0) + $pmtForTerm),
+                            'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
+                            'paymentMode' => trim($_POST['paymentMode'] ?? 'Cash'),
+                            'remark' => trim($_POST['remark'] ?? ''),
+                            'term' => $termNumber,
+                            'academicYear' => $currentYear
+                        ];
+
+                        error_log("Attempting to create payment for term {$termNumber}: " . json_encode($data));
+                        $result = $paymentModel->create($data);
+                        if (!$result) {
+                            throw new Exception("Failed to create payment record for term {$termNumber}.");
+                        }
+                        $createdPayments[] = $result;
+                        $amountToAllocate -= $pmtForTerm;
+
+                            // After allocating base term fee, allocate service fees (transport then meal) for this term
+                            $svc = $termRemaining[$termNumber]['services'] ?? ['transport' => 0, 'meal' => 0];
+
+                            // Transport
+                            if ($amountToAllocate > 0 && ($svc['transport'] ?? 0) > 0) {
+                                $allocTransport = min($svc['transport'], $amountToAllocate);
+                                $svcData = [
+                                    'pupilID' => $pupilID,
+                                    'feeID' => null,
+                                    'classID' => $classID,
+                                    'pmtAmt' => $allocTransport,
+                                    'balance' => ($svc['transport'] - $allocTransport),
+                                    'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
+                                    'paymentMode' => trim($_POST['paymentMode'] ?? 'Cash'),
+                                    'remark' => 'Transport fee',
+                                    'term' => $termNumber,
+                                    'academicYear' => $currentYear
+                                ];
+                                $r2 = $paymentModel->create($svcData);
+                                if (!$r2) {
+                                    throw new Exception("Failed to create transport service payment for term {$termNumber}.");
+                                }
+                                $createdPayments[] = $r2;
+                                $amountToAllocate -= $allocTransport;
+                                // update remaining for reporting
+                                $termRemaining[$termNumber]['services']['transport'] -= $allocTransport;
+                            }
+
+                            // Meal
+                            if ($amountToAllocate > 0 && ($svc['meal'] ?? 0) > 0) {
+                                $allocMeal = min($svc['meal'], $amountToAllocate);
+                                $svcData = [
+                                    'pupilID' => $pupilID,
+                                    'feeID' => null,
+                                    'classID' => $classID,
+                                    'pmtAmt' => $allocMeal,
+                                    'balance' => ($svc['meal'] - $allocMeal),
+                                    'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
+                                    'paymentMode' => trim($_POST['paymentMode'] ?? 'Cash'),
+                                    'remark' => 'Meal fee',
+                                    'term' => $termNumber,
+                                    'academicYear' => $currentYear
+                                ];
+                                $r3 = $paymentModel->create($svcData);
+                                if (!$r3) {
+                                    throw new Exception("Failed to create meal service payment for term {$termNumber}.");
+                                }
+                                $createdPayments[] = $r3;
+                                $amountToAllocate -= $allocMeal;
+                                $termRemaining[$termNumber]['services']['meal'] -= $allocMeal;
+                            }
+                    }
+
+                    if ($amountToAllocate > 0) {
+                        throw new Exception('Payment amount could not be fully allocated to the selected terms.');
+                    }
                 
                 error_log("Payment created successfully with ID: " . $result);
                 Session::setFlash('success', 'Payment recorded successfully');
@@ -227,7 +539,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'Record New Payment';
-$currentPage = 'payments';
+$currentPage = 'payments_add';
 require_once 'includes/header.php';
 ?>
 
@@ -291,6 +603,25 @@ require_once 'includes/header.php';
                             <?php endforeach; ?>
                         </select>
                         <input type="hidden" name="classID" id="classID" value="">
+                        <div class="mt-3">
+                            <label class="form-label">Terms to Pay</label>
+                            <div class="d-flex gap-3" id="termsCheckboxes">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="1" id="term1" name="terms[]">
+                                            <label class="form-check-label" for="term1">Term 1 <small class="text-muted" id="term1Info"></small></label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="2" id="term2" name="terms[]">
+                                            <label class="form-check-label" for="term2">Term 2 <small class="text-muted" id="term2Info"></small></label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="3" id="term3" name="terms[]">
+                                            <label class="form-check-label" for="term3">Term 3 <small class="text-muted" id="term3Info"></small></label>
+                                        </div>
+                            </div>
+                            <div class="form-text">Select one or more terms for which payment is being made.</div>
+                            <div id="paymentSummary" class="mt-2"></div>
+                        </div>
                     </div>
                     
                     <div id="pupilDetails" style="display: none;">
@@ -332,6 +663,18 @@ require_once 'includes/header.php';
                                 <small class="text-muted">Current Balance</small>
                                 <h4 class="mb-0 text-warning">K <span id="currentBalance">0.00</span></h4>
                             </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12 text-end">
+                            <small class="text-muted">Unpaid Total (all terms):</small>
+                            <strong class="ms-2">K <span id="unpaidTotal">0.00</span></strong>
+                        </div>
+                    </div>
+                    <div class="row mt-1">
+                        <div class="col-12 text-end">
+                            <small class="text-muted">Selected Terms Outstanding:</small>
+                            <strong class="ms-2">K <span id="selectedOutstanding">0.00</span></strong>
                         </div>
                     </div>
                 </div>
@@ -418,6 +761,7 @@ require_once 'includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const currencyFormatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const pupilSelect = document.getElementById('pupilSelect');
     const pupilDetails = document.getElementById('pupilDetails');
     const feeSummary = document.getElementById('feeSummary');
@@ -494,10 +838,105 @@ document.addEventListener('DOMContentLoaded', function() {
                     pupilDetails.style.display = 'block';
                     
                     // Update fee summary
-                    if (totalFeeEl) totalFeeEl.textContent = parseFloat(data.totalFee).toFixed(2);
-                    if (totalPaidEl) totalPaidEl.textContent = parseFloat(data.totalPaid).toFixed(2);
-                    if (currentBalanceEl) currentBalanceEl.textContent = parseFloat(data.balance).toFixed(2);
+                    if (totalFeeEl) totalFeeEl.textContent = currencyFormatter.format(parseFloat(data.totalFee));
+                    if (totalPaidEl) totalPaidEl.textContent = currencyFormatter.format(parseFloat(data.totalPaid));
+                    if (currentBalanceEl) currentBalanceEl.textContent = currencyFormatter.format(parseFloat(data.balance));
                     feeSummary.style.display = 'block';
+
+                    // Terms checkbox logic
+                    const termCheckboxes = document.querySelectorAll('#termsCheckboxes input[type="checkbox"]');
+                    termCheckboxes.forEach(cb => { cb.checked = false; cb.disabled = false; });
+                    // Show per-term remaining info and disable fully-paid terms
+                    const termRemaining = data.termRemaining || {};
+                    for (const t of [1,2,3]) {
+                        const info = document.getElementById('term' + t + 'Info');
+                        const cb = document.getElementById('term' + t);
+                        const lbl = document.querySelector('label[for="term' + t + '"]');
+                        const remObj = termRemaining[t] || {remaining: 0, paid: 0, fee: 0};
+                        const feeFmt = currencyFormatter.format(parseFloat(remObj.fee || 0));
+                        const remFmt = currencyFormatter.format(parseFloat(remObj.remaining || 0));
+                        if (info) info.textContent = remObj.remaining > 0 ? `(Fee: K ${feeFmt}, Remaining: K ${remFmt})` : `(Fee: K ${feeFmt}) (Fully paid)`;
+                        if (cb) {
+                            if (remObj.remaining <= 0) {
+                                cb.checked = false;
+                                cb.disabled = true;
+                                if (lbl) {
+                                    lbl.classList.add('text-muted');
+                                    lbl.classList.add('text-decoration-line-through');
+                                }
+                            } else {
+                                if (lbl) {
+                                    lbl.classList.remove('text-muted');
+                                    lbl.classList.remove('text-decoration-line-through');
+                                }
+                            }
+                        }
+                    }
+
+                    // Show unpaid total across all terms
+                    const unpaidTotalEl = document.getElementById('unpaidTotal');
+                    let unpaidTotal = 0;
+                    for (const t of [1,2,3]) {
+                        const remObj = termRemaining[t] || {remaining:0};
+                        unpaidTotal += parseFloat(remObj.remaining || 0);
+                    }
+                    if (unpaidTotalEl) unpaidTotalEl.textContent = currencyFormatter.format(unpaidTotal);
+
+                    // Check current term by default if it's not fully paid
+                    if (data.currentTerm) {
+                        const ct = parseInt(data.currentTerm, 10);
+                        const curCb = document.getElementById('term' + ct);
+                        if (curCb && !curCb.disabled) curCb.checked = true;
+                    }
+
+                    function computeRequiredTotal(){
+                        // If any term selected, include all terms up to the highest selected term
+                        let selected = [];
+                        termCheckboxes.forEach(cb => { if (cb.checked) selected.push(parseInt(cb.value,10)); });
+                        if (selected.length === 0) return 0;
+                        const maxTerm = Math.max(...selected);
+                        let total = 0;
+                        for (let t = 1; t <= maxTerm; t++) {
+                            const remObj = termRemaining[t] || {};
+                            const rem = (typeof remObj.remaining !== 'undefined' && remObj.remaining !== null)
+                                ? parseFloat(remObj.remaining)
+                                : parseFloat(remObj.fee || 0);
+                            total += rem;
+                        }
+                        // Include outstanding from previous years if present
+                        const prevOut = parseFloat(data.previousOutstanding || 0);
+                        total += prevOut;
+                        return total;
+                    }
+
+                    function updateAmountFromTerms(){
+                        const required = computeRequiredTotal();
+                        if (pmtAmtInput) pmtAmtInput.value = required.toFixed(2);
+                        updatePaymentSummary(required, parseFloat(pmtAmtInput.value || 0));
+                        // visually format input display is left to native input; formatted fields updated separately
+                        // update selected terms outstanding in fee summary (formatted)
+                        const selectedOutstandingEl = document.getElementById('selectedOutstanding');
+                        if (selectedOutstandingEl) selectedOutstandingEl.textContent = currencyFormatter.format(required);
+                    }
+                    
+                    function updatePaymentSummary(required, entered){
+                        const summary = document.getElementById('paymentSummary');
+                        if (!summary) return;
+                        const diff = entered - required;
+                        let color = 'text-secondary';
+                        if (entered < required) color = 'text-warning';
+                        else if (entered === required) color = 'text-success';
+                        else color = 'text-danger';
+                        summary.setAttribute('data-required', required.toFixed(2));
+                        summary.innerHTML = `<small class="${color}">Required total: K ${currencyFormatter.format(required)} &nbsp;|&nbsp; Entered: K ${currencyFormatter.format(entered)} &nbsp;|&nbsp; Difference: K ${currencyFormatter.format(diff)}</small>`;
+                    }
+                    termCheckboxes.forEach(cb => cb.addEventListener('change', updateAmountFromTerms));
+                    // Update summary when amount manually changed
+                    if (pmtAmtInput) pmtAmtInput.addEventListener('input', function(){
+                        const required = computeRequiredTotal();
+                        updatePaymentSummary(required, parseFloat(this.value || 0));
+                    });
+                    updateAmountFromTerms();
                     
                     // Update previous payments
                     const tbody = document.getElementById('previousPaymentsBody');
@@ -505,15 +944,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         tbody.innerHTML = '';
                         data.previousPayments.forEach(payment => {
                             const row = `
-                                <tr>
-                                    <td>${payment.payID}</td>
-                                    <td>${payment.paymentDate}</td>
-                                    <td>K ${parseFloat(payment.pmtAmt).toFixed(2)}</td>
-                                    <td>${payment.paymentMode || 'Cash'}</td>
-                                    <td>K ${parseFloat(payment.balance).toFixed(2)}</td>
-                                    <td>${payment.remark || '-'}</td>
-                                </tr>
-                            `;
+                                    <tr>
+                                        <td>${payment.payID}</td>
+                                        <td>${payment.paymentDate}</td>
+                                        <td>K ${currencyFormatter.format(parseFloat(payment.pmtAmt))}</td>
+                                        <td>${payment.paymentMode || 'Cash'}</td>
+                                        <td>K ${currencyFormatter.format(parseFloat(payment.balance))}</td>
+                                        <td>${payment.remark || '-'}</td>
+                                    </tr>
+                                `;
                             tbody.innerHTML += row;
                         });
                         previousPaymentsCard.style.display = 'block';
@@ -540,23 +979,81 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add form submission validation
     const paymentForm = document.getElementById('paymentForm');
     if (paymentForm) {
+        // Allocation confirmation flow
+        let allocationConfirmed = false;
         paymentForm.addEventListener('submit', function(e) {
+            if (allocationConfirmed) return true; // allow actual submit
+
             const classIDInput = document.querySelector('input[name="classID"]');
             const pupilIDInput = document.getElementById('pupilSelect');
-            
-            console.log('Form submitting...');
-            console.log('Pupil ID:', pupilIDInput ? pupilIDInput.value : 'NOT FOUND');
-            console.log('Class ID input element:', classIDInput);
-            console.log('Class ID value:', classIDInput ? classIDInput.value : 'NOT FOUND');
             
             if (!classIDInput || !classIDInput.value) {
                 e.preventDefault();
                 alert('Error: Class information is missing. Please select a pupil and wait for their details to load before submitting.');
-                console.error('Form submission blocked: classID is empty or not found');
                 return false;
             }
-            
-            console.log('Form validation passed, submitting...');
+
+            const entered = parseFloat(document.getElementById('pmtAmt').value || 0);
+            if (!currentData) {
+                e.preventDefault();
+                alert('Pupil details not loaded. Please wait and try again.');
+                return false;
+            }
+
+            // build allocation breakdown (previous outstanding then terms up to highest selected)
+            const termCheckboxesNow = Array.from(document.querySelectorAll('#termsCheckboxes input[type="checkbox"]'));
+            const selected = termCheckboxesNow.filter(cb => cb.checked).map(cb => parseInt(cb.value,10));
+            const maxTerm = selected.length ? Math.max(...selected) : parseInt(currentData.currentTerm || '1', 10);
+
+            const allocations = [];
+            let remainingToAllocate = entered;
+
+            const prevOut = parseFloat(currentData.previousOutstanding || 0);
+            if (prevOut > 0) {
+                const allocPrev = Math.min(prevOut, remainingToAllocate);
+                allocations.push({target: 'Previous outstanding', fee: prevOut, paid: 0, remaining: prevOut, allocated: allocPrev});
+                remainingToAllocate -= allocPrev;
+            }
+
+            for (let t = 1; t <= maxTerm; t++) {
+                const tr = (currentData.termRemaining && currentData.termRemaining[t]) ? currentData.termRemaining[t] : {fee:0, paid:0, remaining:0};
+                const rem = parseFloat(tr.remaining || 0);
+                const fee = parseFloat(tr.fee || 0);
+                const paid = parseFloat(tr.paid || 0);
+                const alloc = Math.min(rem, Math.max(0, remainingToAllocate));
+                allocations.push({target: 'Term ' + t, fee: fee, paid: paid, remaining: rem, allocated: alloc});
+                remainingToAllocate -= alloc;
+            }
+
+            // prepare modal content
+            const tbody = document.getElementById('allocationBody');
+            tbody.innerHTML = '';
+            let totalAllocated = 0;
+            allocations.forEach(row => {
+                totalAllocated += parseFloat(row.allocated || 0);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${row.target}</td><td>K ${currencyFormatter.format(row.fee)}</td><td>K ${currencyFormatter.format(row.paid)}</td><td>K ${currencyFormatter.format(row.remaining)}</td><td>K ${currencyFormatter.format(row.allocated || 0)}</td>`;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('allocationTotal').textContent = currencyFormatter.format(totalAllocated);
+            document.getElementById('allocationUnallocated').textContent = currencyFormatter.format(Math.max(0, remainingToAllocate));
+
+            // show modal
+            const allocationModal = new bootstrap.Modal(document.getElementById('allocationModal'));
+            allocationModal.show();
+
+            // intercept confirm button
+            const confirmBtn = document.getElementById('confirmAllocationBtn');
+            const onConfirm = function() {
+                allocationConfirmed = true;
+                allocationModal.hide();
+                confirmBtn.removeEventListener('click', onConfirm);
+                paymentForm.submit();
+            };
+            confirmBtn.addEventListener('click', onConfirm);
+
+            e.preventDefault();
+            return false;
         });
     }
 });

@@ -187,6 +187,14 @@ require_once 'includes/PermissionHelper.php';
                             <?php endif; ?>
                         </p>
                     </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small mb-1">Transport</label>
+                        <p class="mb-0 fw-semibold"><?php echo (isset($pupil['transport']) && $pupil['transport'] === 'Y') ? 'Yes' : 'No'; ?></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small mb-1">Meals (Lunch)</label>
+                        <p class="mb-0 fw-semibold"><?php echo (isset($pupil['lunch']) && $pupil['lunch'] === 'Y') ? 'Yes' : 'No'; ?></p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -222,28 +230,25 @@ require_once 'includes/PermissionHelper.php';
                         }
                     }
 
-                    // Get payments for this pupil. If we found a feeID, filter payments to that feeID so
-                    // the relation between pupil and payment is determined by class -> Fees(feeID).
-                    if ($feeID) {
-                        $stmt = $db->prepare(
-                            "SELECT payID, pupilID, feeID, classID, pmtAmt, balance, paymentDate, paymentMode, remark, createdAt, updatedAt, term, academicYear
-                             FROM Payment WHERE pupilID = ? AND feeID = ? ORDER BY paymentDate DESC"
-                        );
-                        $stmt->execute([$pupilID, $feeID]);
-                    } else {
-                        // Fallback: if no fee row exists for the pupil's class/year, show all payments for pupil
-                        $stmt = $db->prepare(
-                            "SELECT payID, pupilID, feeID, classID, pmtAmt, balance, paymentDate, paymentMode, remark, createdAt, updatedAt, term, academicYear
+                    // Compute total paid towards the current year's fee for this class (use classID + academicYear when available)
+                    $totalPaidCurrent = 0.00;
+                    if ($classID) {
+                        $stmt = $db->prepare("SELECT COALESCE(SUM(pmtAmt),0) as totalPaidCurrent FROM Payment WHERE pupilID = ? AND classID = ? AND (academicYear = ? OR YEAR(paymentDate) = ?) ");
+                        $stmt->execute([$pupilID, $classID, $currentYear ?? date('Y'), $currentYear ?? date('Y')]);
+                        $rowPaid = $stmt->fetch(PDO::FETCH_ASSOC);
+                        $totalPaidCurrent = $rowPaid['totalPaidCurrent'] ?? 0;
+                    }
+
+                    // For history, always show all payments for the pupil (not filtered by feeID)
+                    $stmt = $db->prepare(
+                        "SELECT payID, pupilID, feeID, classID, pmtAmt, balance, paymentDate, paymentMode, remark, createdAt, updatedAt, term, academicYear
                              FROM Payment WHERE pupilID = ? ORDER BY paymentDate DESC"
-                        );
-                        $stmt->execute([$pupilID]);
-                    }
+                    );
+                    $stmt->execute([$pupilID]);
                     $payments = $stmt->fetchAll();
-                    // Calculate totals and running balance (starting from total fee)
-                    $totalPaid = 0;
-                    foreach ($payments as $pay) {
-                        $totalPaid += floatval($pay['pmtAmt'] ?? 0);
-                    }
+
+                    // Calculate totals for display: Total Paid (current year) and outstanding for current fee
+                    $totalPaid = (float)$totalPaidCurrent;
                     $outstanding = $totalFee - $totalPaid;
                     ?>
                     <div class="row mb-3">

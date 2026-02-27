@@ -188,7 +188,7 @@ $classModel = new ClassModel();
 $allClasses = $classModel->getAllWithDetails();
 
 $pageTitle = $isEdit ? 'Edit Pupil' : 'Add New Pupil';
-$currentPage = 'pupils';
+$currentPage = $isEdit ? 'pupils' : 'pupils_add';
 require_once 'includes/header.php';
 ?>
 
