@@ -26,7 +26,20 @@ class PupilModel extends BaseModel {
      * Get all pupils (supports optional limit/offset)
      */
     public function getAllWithParents($limit = null, $offset = null) {
-        $sql = "SELECT p.* FROM {$this->table} p ORDER BY p.fName, p.lName";
+        // If a transferred flag exists, exclude transferred pupils by default
+        $hasTransferred = false;
+        try {
+            $colStmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'transferred'");
+            $hasTransferred = (bool)$colStmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            $hasTransferred = false;
+        }
+
+        if ($hasTransferred) {
+            $sql = "SELECT p.* FROM {$this->table} p WHERE COALESCE(p.transferred,0) = 0 ORDER BY p.fName, p.lName";
+        } else {
+            $sql = "SELECT p.* FROM {$this->table} p ORDER BY p.fName, p.lName";
+        }
         if ($limit !== null) {
             $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
         }

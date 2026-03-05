@@ -19,6 +19,11 @@ if (!$rolesModel->userHasPermission(Auth::id(), 'view_pupils')) {
 require_once 'modules/pupils/PupilModel.php';
 require_once 'modules/payments/PaymentModel.php';
 require_once 'modules/fees/FeesModel.php';
+require_once 'modules/settings/SettingsModel.php';
+
+$settingsModel = new SettingsModel();
+$currentTerm = $settingsModel->getCurrentTerm();
+$currentYear = $settingsModel->getCurrentYear();
 
 $pupilID = $_GET['id'] ?? null;
 if (empty($pupilID)) {
@@ -218,12 +223,20 @@ require_once 'includes/PermissionHelper.php';
                     $totalFee = 0;
                     $feeID = null;
 
-                    // If pupil has a class, load the applicable Fees row (by class and current year)
+                    // If pupil has a class, load the applicable Fees row for the current term/year
                     if ($classID) {
-                        $currentYear = date('Y');
-                        $stmt = $db->prepare("SELECT feeID, feeAmt, term, year FROM Fees WHERE classID = ? AND year = ? ORDER BY term DESC LIMIT 1");
-                        $stmt->execute([$classID, $currentYear]);
-                        $feeRow = $stmt->fetch();
+                        // Prefer FeesModel helper to get the current fee for a class
+                        $feeRow = null;
+                        try {
+                            $feeRow = $feesModel->getCurrentFeeForClass($classID);
+                        } catch (Exception $e) {
+                            // fallback to direct query if helper fails
+                            $currentYear = date('Y');
+                            $stmt = $db->prepare("SELECT feeID, feeAmt, term, year FROM Fees WHERE classID = ? AND year = ? ORDER BY term DESC LIMIT 1");
+                            $stmt->execute([$classID, $currentYear]);
+                            $feeRow = $stmt->fetch();
+                        }
+
                         if ($feeRow) {
                             $feeID = $feeRow['feeID'] ?? null;
                             $totalFee = $feeRow['feeAmt'] ?? 0;
@@ -233,10 +246,18 @@ require_once 'includes/PermissionHelper.php';
                     // Compute total paid towards the current year's fee for this class (use classID + academicYear when available)
                     $totalPaidCurrent = 0.00;
                     if ($classID) {
-                        $stmt = $db->prepare("SELECT COALESCE(SUM(pmtAmt),0) as totalPaidCurrent FROM Payment WHERE pupilID = ? AND classID = ? AND (academicYear = ? OR YEAR(paymentDate) = ?) ");
-                        $stmt->execute([$pupilID, $classID, $currentYear ?? date('Y'), $currentYear ?? date('Y')]);
-                        $rowPaid = $stmt->fetch(PDO::FETCH_ASSOC);
-                        $totalPaidCurrent = $rowPaid['totalPaidCurrent'] ?? 0;
+                        // Sum payments for the pupil for the current academic year and term when available
+                        if (isset($currentTerm) && isset($currentYear)) {
+                            $stmt = $db->prepare("SELECT COALESCE(SUM(pmtAmt),0) as totalPaidCurrent FROM Payment WHERE pupilID = ? AND classID = ? AND academicYear = ? AND term = ?");
+                            $stmt->execute([$pupilID, $classID, $currentYear, $currentTerm]);
+                            $rowPaid = $stmt->fetch(PDO::FETCH_ASSOC);
+                            $totalPaidCurrent = $rowPaid['totalPaidCurrent'] ?? 0;
+                        } else {
+                            $stmt = $db->prepare("SELECT COALESCE(SUM(pmtAmt),0) as totalPaidCurrent FROM Payment WHERE pupilID = ? AND classID = ? AND (academicYear = ? OR YEAR(paymentDate) = ?) ");
+                            $stmt->execute([$pupilID, $classID, date('Y'), date('Y')]);
+                            $rowPaid = $stmt->fetch(PDO::FETCH_ASSOC);
+                            $totalPaidCurrent = $rowPaid['totalPaidCurrent'] ?? 0;
+                        }
                     }
 
                     // For history, always show all payments for the pupil (not filtered by feeID)
@@ -292,12 +313,17 @@ require_once 'includes/PermissionHelper.php';
                                         $runningBalance = $balanceAfter;
                                 ?>
                                     <tr>
-                                        <td><?= htmlspecialchars(date('M d, Y', strtotime($pay['paymentDate'] ?? '')) ) ?></td>
-                                        <td><?= htmlspecialchars($pay['paymentMode'] ?? 'Cash') ?></td>
-                                        <td><?= number_format($amt, 2) ?></td>
-                                        <td><?= number_format($balanceAfter, 2) ?></td>
-                                        <td><?= htmlspecialchars($pay['remark'] ?? '') ?></td>
-                                    </tr>
+                                            <td><?= htmlspecialchars(date('M d, Y', strtotime($pay['paymentDate'] ?? '')) ) ?></td>
+                                            <td><?= htmlspecialchars($pay['paymentMode'] ?? 'Cash') ?></td>
+                                            <td><?= number_format($amt, 2) ?></td>
+                                            <td><?= number_format($balanceAfter, 2) ?></td>
+                                            <td><?= htmlspecialchars($pay['remark'] ?? '') ?></td>
+                                            <td>
+                                                <?php if (Auth::hasRole('admin')): ?>
+                                                    <a href="payments_form.php?id=<?= urlencode($pay['payID']) ?>&pupil=<?= urlencode($pupilID) ?>" class="btn btn-sm btn-outline-primary">Edit</a>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
                                 <?php endforeach; endif; ?>
                             </tbody>
                         </table>

@@ -27,10 +27,20 @@ $pupilModel = new PupilModel();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Debug: log that POST was received
+    try {
+        $debugPath = __DIR__ . '/logs/pupils_form_debug.log';
+        file_put_contents($debugPath, date('[Y-m-d H:i:s]') . " POST received from " . ($_SERVER['REMOTE_ADDR'] ?? 'CLI') . "\n", FILE_APPEND);
+    } catch (Exception $e) {
+        // ignore logging failures
+    }
         // Validate CSRF token first
         if (!CSRF::requireToken()) {
             $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+            // Log CSRF failure for debugging
+            try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " CSRF failed: " . ($GLOBALS['csrf_error'] ?? '') . "\n", FILE_APPEND); } catch (Exception $e) {}
         } else {
+            try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " CSRF passed\n", FILE_APPEND); } catch (Exception $e) {}
             // Pupil data
             $enroll_day = $_POST['enroll_day'] ?? '';
             $enroll_month = $_POST['enroll_month'] ?? '';
@@ -94,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if (!isset($error)) {
                 try {
+                    try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " Entering DB create/update path; isEdit=" . ($isEdit ? '1' : '0') . "\n", FILE_APPEND); } catch (Exception $e) {}
                     // Check for duplicate pupil (same parent identifier, first name, last name, and date of birth)
                     $parentIdentifier = $data['phone'] ?: $data['parent1'];
                     $existingPupil = $pupilModel->findByParentAndDetails($parentIdentifier, $data['fName'], $data['lName'], $data['DoB']);
@@ -118,6 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $updateData = $data;
                             $removeKeys = ['dob_day','dob_month','dob_year','enroll_day','enroll_month','enroll_year'];
                             foreach ($removeKeys as $rk) { if (isset($updateData[$rk])) { unset($updateData[$rk]); } }
+                            
                             $pupilModel->update($pupilID, $updateData);
                             // Assign to class if provided
                             $selectedClass = $_POST['classID'] ?? '';
@@ -139,37 +151,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $removeKeys = ['dob_day','dob_month','dob_year','enroll_day','enroll_month','enroll_year'];
                                 foreach ($removeKeys as $rk) { if (isset($insertData[$rk])) { unset($insertData[$rk]); } }
 
+                                
+
+                                // Log the data we're about to insert
+                                try {
+                                    file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " Insert data: " . json_encode($insertData, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND);
+                                } catch (Exception $e) {}
+
                                 // Create pupil - create() returns lastInsertId or the primary key
-                                $newPupilID = $pupilModel->create($insertData);
+                                try {
+                                    $newPupilID = $pupilModel->create($insertData);
+                                } catch (Exception $ce) {
+                                    try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " Create exception: " . $ce->getMessage() . "\n", FILE_APPEND); } catch (Exception $e) {}
+                                    throw $ce;
+                                }
 
                                 if (!$newPupilID) {
+                                    try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " Create returned falsy ID\n", FILE_APPEND); } catch (Exception $e) {}
                                     throw new Exception('Failed to create pupil record - no ID returned');
                                 }
 
                                 // If a class was selected, assign within the same transaction
                                 if (!empty($selectedClass)) {
+                                    // Log selected class and whether it exists
+                                    try {
+                                        $stmtC = $db->prepare('SELECT COUNT(*) FROM Class WHERE classID = ?');
+                                        $stmtC->execute([$selectedClass]);
+                                        $classExists = (bool)$stmtC->fetchColumn();
+                                        file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " Assigning to class: {$selectedClass} exists=" . ($classExists ? '1' : '0') . "\n", FILE_APPEND);
+                                    } catch (Exception $e) { try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " Assign class check failed: " . $e->getMessage() . "\n", FILE_APPEND); } catch (Exception $ee) {} }
+
                                     $ok = $classModel->assignPupil($selectedClass, $newPupilID);
                                     if (!$ok) {
+                                        try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " assignPupil returned false for class {$selectedClass}\n", FILE_APPEND); } catch (Exception $e) {}
                                         throw new Exception('Failed to assign pupil to class');
                                     }
                                 }
 
                                 $db->commit();
 
+                                try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " Created pupil with ID: " . $newPupilID . "\n", FILE_APPEND); } catch (Exception $e) {}
+
                                 Session::setFlash('success', 'Pupil created successfully.');
                                 header('Location: pupils_view.php?id=' . urlencode($newPupilID));
                                 exit;
                             } catch (Exception $ex) {
-                                // Rollback and rethrow to outer catch for user display
+                                // Rollback and log the exception, then rethrow to outer catch for user display
                                 if ($db && $db->inTransaction()) {
                                     $db->rollBack();
                                 }
+                                try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " DB transaction exception: " . $ex->getMessage() . "\n", FILE_APPEND); } catch (Exception $e) {}
                                 throw $ex;
                             }
                         }
                         CSRF::regenerateToken();
                     }
                 } catch (Exception $e) {
+                    // Log the exception for debugging
+                    try { file_put_contents(__DIR__ . '/logs/pupils_form_debug.log', date('[Y-m-d H:i:s]') . " Outer exception: " . $e->getMessage() . "\n", FILE_APPEND); } catch (Exception $ee) {}
                     $error = 'Database error: ' . $e->getMessage();
                 }
             }
@@ -627,11 +666,14 @@ require_once 'includes/header.php';
     var modalEl = document.getElementById('confirmAddModal');
     var msgEl = document.getElementById('confirmAddMessage');
     var yesBtn = document.getElementById('confirmAddYes');
+    // Flag to bypass confirmation when submitting programmatically
+    var _bypassConfirm = false;
     if (!form || !modalEl || !msgEl || !yesBtn) return;
     var bsModal = new bootstrap.Modal(modalEl);
 
     form.addEventListener('submit', function(e){
         if (isEdit) return; // no confirmation on edit
+        if (_bypassConfirm) { _bypassConfirm = false; return; }
         var sel = document.querySelector('select[name="classID"]');
         if (!sel || !sel.value) return; // let validation handle missing class
 
@@ -646,7 +688,8 @@ require_once 'includes/header.php';
 
     yesBtn.addEventListener('click', function(){
         bsModal.hide();
-        // submit without triggering submit handlers
+        // set bypass flag so the programmatic submit isn't intercepted
+        _bypassConfirm = true;
         form.submit();
     });
 })();

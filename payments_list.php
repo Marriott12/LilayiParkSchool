@@ -148,7 +148,7 @@ catch (Throwable $e) {
                                     <i class="bi bi-receipt"></i> View
                                 </a>
                                 <?php if (PermissionHelper::canManage('fees')): ?>
-                                <a href="payments_form.php?id=<?= $payment['payID'] ?>" class="btn btn-outline-warning btn-sm">
+                                <a href="payments_form.php?id=<?= $payment['payID'] ?>&pupil=<?= htmlspecialchars($payment['pupilID'] ?? '') ?>" class="btn btn-outline-warning btn-sm">
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
                                 <a href="delete.php?module=payments&id=<?= $payment['payID'] ?>" 

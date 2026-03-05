@@ -92,18 +92,28 @@ class ClassModel extends BaseModel {
      */
     public function assignPupil($classID, $pupilID) {
         // Ensure a pupil belongs to only one class: remove existing assignment(s) then insert the new one.
+        $started = false;
         try {
-            $this->db->beginTransaction();
+            // If an outer transaction is already active, don't start/commit here (use outer transaction)
+            if (!$this->db->inTransaction()) {
+                $this->db->beginTransaction();
+                $started = true;
+            }
+
             $stmtDel = $this->db->prepare('DELETE FROM Pupil_Class WHERE pupilID = ?');
             $stmtDel->execute([$pupilID]);
 
             $stmtIns = $this->db->prepare('INSERT INTO Pupil_Class (classID, pupilID, enrollmentDate) VALUES (?, ?, NOW())');
             $ok = $stmtIns->execute([$classID, $pupilID]);
 
-            $this->db->commit();
+            if ($started) {
+                $this->db->commit();
+            }
+
             return $ok;
         } catch (Exception $e) {
-            if ($this->db->inTransaction()) {
+            // Only roll back if we started the transaction here; otherwise let the caller handle rollback
+            if ($started && $this->db->inTransaction()) {
                 $this->db->rollBack();
             }
             return false;

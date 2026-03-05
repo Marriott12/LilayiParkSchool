@@ -19,6 +19,22 @@ $paymentModel = new PaymentModel();
 $pupilModel = new PupilModel();
 $feesModel = new FeesModel();
 
+// Edit mode: load existing payment when ?id= is provided
+$editPayment = null;
+$editMode = false;
+$editPayID = null;
+if (!empty($_GET['id'])) {
+    $editPayID = $_GET['id'];
+    try {
+        $editPayment = $paymentModel->getPaymentWithDetails($editPayID);
+        if ($editPayment) {
+            $editMode = true;
+        }
+    } catch (Exception $e) {
+        error_log('Failed to load payment for edit: ' . $e->getMessage());
+    }
+}
+
 // Get pupils with their current class from Pupil_Class junction table
 $db = Database::getInstance()->getConnection();
 $stmt = $db->prepare("
@@ -198,11 +214,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Log all POST data for debugging
     error_log('=== PAYMENT FORM SUBMISSION ===' . PHP_EOL . print_r($_POST, true));
     
-    // Validate CSRF token first
-    if (!CSRF::requireToken()) {
-        $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
-        error_log('PAYMENT FORM ERROR: CSRF validation failed - ' . $error);
-    } else {
+        // Validate CSRF token first
+        if (!CSRF::requireToken()) {
+            $error = $GLOBALS['csrf_error'] ?? 'Security validation failed. Please try again.';
+            error_log('PAYMENT FORM ERROR: CSRF validation failed - ' . $error);
+        } else {
+            // If this is an edit of a single payment (payID present), perform an update and redirect
+            if (!empty($_POST['payID'])) {
+                $payID = $_POST['payID'];
+                $updateData = [
+                    'pupilID' => trim($_POST['pupilID'] ?? ''),
+                    'classID' => trim($_POST['classID'] ?? ''),
+                    'pmtAmt' => floatval($_POST['pmtAmt'] ?? 0),
+                    'paymentDate' => $_POST['paymentDate'] ?? date('Y-m-d'),
+                    'paymentMode' => trim($_POST['paymentMode'] ?? 'Cash'),
+                    'remark' => trim($_POST['remark'] ?? ''),
+                    'term' => intval((is_array($_POST['terms'] ?? null) ? ($_POST['terms'][0] ?? ($_POST['term'] ?? 0)) : ($_POST['terms'] ?? $_POST['term'] ?? 0))),
+                    'academicYear' => $_POST['academicYear'] ?? date('Y')
+                ];
+
+                try {
+                    $res = $paymentModel->update($payID, $updateData);
+                    CSRF::regenerateToken();
+                    // Redirect back to pupil view if present
+                    $redirectPupil = $_POST['pupilID'] ?? $_GET['pupil'] ?? null;
+                    if ($redirectPupil) {
+                        header('Location: pupils_view.php?id=' . urlencode($redirectPupil));
+                        exit;
+                    }
+                    header('Location: payments_list.php');
+                    exit;
+                } catch (Exception $e) {
+                    error_log('Payment update error: ' . $e->getMessage());
+                    $error = 'Failed to update payment: ' . $e->getMessage();
+                }
+            }
         $pupilID = trim($_POST['pupilID'] ?? '');
         $classID = trim($_POST['classID'] ?? '');
         $pmtAmt = floatval($_POST['pmtAmt'] ?? 0);
@@ -528,6 +574,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Session::setFlash('success', 'Payment recorded successfully');
                 
                 CSRF::regenerateToken();
+                // If a pupil context was provided (either via GET or POST), redirect back to that pupil's view
+                $redirectPupil = null;
+                if (!empty($_GET['pupil'])) {
+                    $redirectPupil = $_GET['pupil'];
+                } elseif (!empty($_POST['pupilID'])) {
+                    $redirectPupil = $_POST['pupilID'];
+                }
+
+                if ($redirectPupil) {
+                    header('Location: pupils_view.php?id=' . urlencode($redirectPupil));
+                    exit;
+                }
+
                 header('Location: payments_list.php');
                 exit;
             } catch (Exception $e) {
@@ -585,6 +644,10 @@ require_once 'includes/header.php';
         
         <form method="POST" action="" id="paymentForm">
             <?= CSRF::field() ?>
+            <?php if ($editMode): ?>
+                <input type="hidden" name="payID" value="<?= htmlspecialchars($editPayID) ?>">
+                <input type="hidden" name="academicYear" value="<?= htmlspecialchars($editPayment['academicYear'] ?? date('Y')) ?>">
+            <?php endif; ?>
             
             <!-- Pupil Selection -->
             <div class="card mb-4" style="border-left: 4px solid #2d5016;">
@@ -594,10 +657,11 @@ require_once 'includes/header.php';
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label">Select Pupil <span class="text-danger">*</span></label>
+                        <?php $selectedPupil = $editPayment['pupilID'] ?? ($_GET['pupil'] ?? null); ?>
                         <select class="form-select" name="pupilID" id="pupilSelect" required>
                             <option value="">-- Select Pupil --</option>
                             <?php foreach ($pupils as $pupil): ?>
-                            <option value="<?= $pupil['pupilID'] ?>" data-classid="<?= $pupil['classID'] ?>">
+                            <option value="<?= $pupil['pupilID'] ?>" data-classid="<?= $pupil['classID'] ?>" <?= ($selectedPupil && $selectedPupil == $pupil['pupilID']) ? 'selected' : '' ?> >
                                 <?= htmlspecialchars($pupil['fName'] . ' ' . $pupil['lName'] . ' - ' . $pupil['className']) ?>
                             </option>
                             <?php endforeach; ?>
@@ -607,15 +671,15 @@ require_once 'includes/header.php';
                             <label class="form-label">Terms to Pay</label>
                             <div class="d-flex gap-3" id="termsCheckboxes">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" value="1" id="term1" name="terms[]">
+                                            <input class="form-check-input" type="checkbox" value="1" id="term1" name="terms[]" <?= ($editMode && isset($editPayment['term']) && intval($editPayment['term']) === 1) ? 'checked' : '' ?>>
                                             <label class="form-check-label" for="term1">Term 1 <small class="text-muted" id="term1Info"></small></label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" value="2" id="term2" name="terms[]">
+                                            <input class="form-check-input" type="checkbox" value="2" id="term2" name="terms[]" <?= ($editMode && isset($editPayment['term']) && intval($editPayment['term']) === 2) ? 'checked' : '' ?>>
                                             <label class="form-check-label" for="term2">Term 2 <small class="text-muted" id="term2Info"></small></label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" value="3" id="term3" name="terms[]">
+                                            <input class="form-check-input" type="checkbox" value="3" id="term3" name="terms[]" <?= ($editMode && isset($editPayment['term']) && intval($editPayment['term']) === 3) ? 'checked' : '' ?>>
                                             <label class="form-check-label" for="term3">Term 3 <small class="text-muted" id="term3Info"></small></label>
                                         </div>
                             </div>
@@ -690,13 +754,13 @@ require_once 'includes/header.php';
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Amount Paid (K) <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" name="pmtAmt" id="pmtAmt"
-                                   placeholder="0.00" required>
+                                   placeholder="0.00" required value="<?= htmlspecialchars($editPayment['pmtAmt'] ?? '') ?>">
                         </div>
                         
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Payment Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" name="paymentDate" 
-                                   value="<?= date('Y-m-d') ?>" required>
+                                   value="<?= htmlspecialchars($editPayment['paymentDate'] ?? date('Y-m-d')) ?>" required>
                         </div>
                     </div>
                     
@@ -704,9 +768,9 @@ require_once 'includes/header.php';
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Mode of Payment <span class="text-danger">*</span></label>
                             <select class="form-select" name="paymentMode" required>
-                                <option value="Cash" selected>Cash</option>
-                                <option value="Bank Transfer">Bank Transfer</option>
-                                <option value="Mobile Money">Mobile Money</option>
+                                <option value="Cash" <?= (!isset($editPayment['paymentMode']) || $editPayment['paymentMode'] === 'Cash') ? 'selected' : '' ?>>Cash</option>
+                                <option value="Bank Transfer" <?= (isset($editPayment['paymentMode']) && $editPayment['paymentMode'] === 'Bank Transfer') ? 'selected' : '' ?>>Bank Transfer</option>
+                                <option value="Mobile Money" <?= (isset($editPayment['paymentMode']) && $editPayment['paymentMode'] === 'Mobile Money') ? 'selected' : '' ?>>Mobile Money</option>
                             </select>
                         </div>
                     </div>
@@ -714,7 +778,7 @@ require_once 'includes/header.php';
                     <div class="mb-3">
                         <label class="form-label">Receipt/Reference Number</label>
                         <input type="text" class="form-control" name="remark" 
-                               placeholder="Payment reference or remarks">
+                               placeholder="Payment reference or remarks" value="<?= htmlspecialchars($editPayment['remark'] ?? '') ?>">
                     </div>
                 </div>
             </div>
@@ -1060,3 +1124,11 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <?php require_once 'includes/footer.php'; ?>
+<?php if (!empty($selectedPupil)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    const sel = document.getElementById('pupilSelect');
+    if (sel) sel.dispatchEvent(new Event('change'));
+});
+</script>
+<?php endif; ?>

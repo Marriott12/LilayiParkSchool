@@ -151,6 +151,9 @@ if (!isset($rolesModel)) {
                 <a href="<?php echo BASE_URL; ?>/reports.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'reports' ? 'active' : ''; ?>" style="background: transparent;">
                     <i class="bi bi-bar-chart me-2"></i> Reports
                 </a>
+                <a href="<?php echo BASE_URL; ?>/pupil_transfer_report.php" class="list-group-item list-group-item-action text-white border-0 <?php echo ($currentPage ?? '') === 'pupil_transfers' ? 'active' : ''; ?>" style="background: transparent;">
+                    <i class="bi bi-file-earmark-text me-2"></i> Pupil Transfers
+                </a>
                 <?php endif; ?>
                 
                 <!-- System & Management -->

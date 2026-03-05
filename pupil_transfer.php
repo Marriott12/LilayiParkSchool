@@ -2,6 +2,9 @@
 require_once 'includes/bootstrap.php';
 require_once 'includes/Auth.php';
 
+// Enable output buffering so we can redirect after includes that send output
+if (!ob_get_level()) ob_start();
+
 Auth::requireLogin();
 
 require_once 'modules/roles/RolesModel.php';
@@ -65,7 +68,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'getBalance' && isset($_GET['p
 
 $pageTitle = 'Pupil Transfer';
 $currentPage = 'pupil_transfer';
-require_once 'includes/header.php';
 
 // Handle submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -88,9 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Please select a pupil';
         } elseif (empty($transferDate)) {
             $error = 'Please provide a transfer date';
-        } elseif (empty($newSchool)) {
+        } /*elseif (empty($newSchool)) {
             $error = 'Please provide the receiving school name';
-        }
+        }*/
 
         if (!isset($error)) {
             try {
@@ -123,17 +125,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Validate posted balance if present -- prefer server value
                 $postedBalance = isset($_POST['balance']) ? (float)str_replace(',', '', $_POST['balance']) : null;
                 if ($postedBalance !== null) {
-                    // Allow tiny rounding diffs (1 cent)
+                    // Allow tiny rounding diffs (1 cent). If larger mismatch, prefer server value but warn.
                     if (abs($postedBalance - $serverOutstanding) > 0.01) {
-                        $error = 'Outstanding balance mismatch. Please reload the pupil details and try again.';
+                        error_log(sprintf('Pupil transfer: posted balance (%s) differs from server (%s) for pupil %s. Overriding with server value.', number_format($postedBalance,2), number_format($serverOutstanding,2), $pupilID));
+                        Session::setFlash('warning', 'Outstanding balance was adjusted to the current server value (K ' . number_format($serverOutstanding, 2) . ').');
+                        // Do not treat as fatal error; continue using $serverOutstanding as authoritative
                     }
                 }
 
                 if (!isset($error)) {
-                    // Ensure Pupil_Transfer table exists with canonical schema (including future-paid columns)
+                    // Ensure Pupil_Transfer table exists with canonical schema (including pupil snapshot fields)
                     $createSql = "CREATE TABLE IF NOT EXISTS Pupil_Transfer (
                         transferID INT AUTO_INCREMENT PRIMARY KEY,
                         pupilID VARCHAR(10) NOT NULL,
+                        fName VARCHAR(150) DEFAULT NULL,
+                        lName VARCHAR(150) DEFAULT NULL,
                         fromClassID VARCHAR(10) DEFAULT NULL,
                         toSchool VARCHAR(150) DEFAULT NULL,
                         toClassID VARCHAR(10) DEFAULT NULL,
@@ -144,15 +150,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         futurePaidAmount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                         futurePaidTerm VARCHAR(50) DEFAULT NULL,
                         futurePaidDetails JSON DEFAULT NULL,
+                        DoB DATE DEFAULT NULL,
+                        gender VARCHAR(2) DEFAULT NULL,
+                        enrollDate DATE DEFAULT NULL,
+                        parentEmail VARCHAR(150) DEFAULT NULL,
+                        phone VARCHAR(50) DEFAULT NULL,
                         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
                     $db->exec($createSql);
 
+                    // Ensure any missing columns (from older deployments) are added
+                    $colsToEnsure = [
+                        "fName" => "VARCHAR(150) DEFAULT NULL",
+                        "lName" => "VARCHAR(150) DEFAULT NULL",
+                        "futurePaidAmount" => "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+                        "futurePaidTerm" => "VARCHAR(50) DEFAULT NULL",
+                        "futurePaidDetails" => "JSON DEFAULT NULL",
+                        "DoB" => "DATE DEFAULT NULL",
+                        "gender" => "VARCHAR(2) DEFAULT NULL",
+                        "enrollDate" => "DATE DEFAULT NULL",
+                        "parentEmail" => "VARCHAR(150) DEFAULT NULL",
+                        "phone" => "VARCHAR(50) DEFAULT NULL"
+                    ];
+
+                    foreach ($colsToEnsure as $col => $definition) {
+                        try {
+                            $check = $db->prepare("SHOW COLUMNS FROM Pupil_Transfer LIKE ?");
+                            $check->execute([$col]);
+                            $found = $check->fetch(PDO::FETCH_ASSOC);
+                            if (!$found) {
+                                $db->exec("ALTER TABLE Pupil_Transfer ADD COLUMN {$col} {$definition}");
+                            }
+                        } catch (Exception $e) {
+                            // Non-fatal: log and continue
+                            error_log('Could not ensure column ' . $col . ' on Pupil_Transfer: ' . $e->getMessage());
+                        }
+                    }
+
+                    // If Pupil_Transfer had a foreign key to Pupil, drop it so we can delete the pupil record
+                    try {
+                        $fkStmt = $db->prepare("SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Pupil_Transfer' AND REFERENCED_TABLE_NAME = 'Pupil'");
+                        $fkStmt->execute();
+                        $fks = $fkStmt->fetchAll(PDO::FETCH_ASSOC);
+                        foreach ($fks as $f) {
+                            if (!empty($f['CONSTRAINT_NAME'])) {
+                                $constraint = $f['CONSTRAINT_NAME'];
+                                try {
+                                    $db->exec("ALTER TABLE Pupil_Transfer DROP FOREIGN KEY `" . $constraint . "`");
+                                } catch (Exception $inner) {
+                                    error_log('Failed to drop FK ' . $constraint . ' on Pupil_Transfer: ' . $inner->getMessage());
+                                }
+                            }
+                        }
+                    } catch (Exception $e) {
+                        // ignore
+                    }
+
                     // Insert transfer record and optionally remove class assignment within a transaction
                     // Compute future-paid metadata (amount paid beyond current year's fee)
                     $futurePaid = 0.00;
                     $futurePayments = [];
+                    // Fetch pupil snapshot fields to store in transfer record
+                    $pupilSnapshot = null;
+                    try {
+                        $stmtP = $db->prepare('SELECT fName, lName, DoB, gender, enrollDate, parentEmail, phone FROM Pupil WHERE pupilID = ? LIMIT 1');
+                        $stmtP->execute([$pupilID]);
+                        $pupilSnapshot = $stmtP->fetch(PDO::FETCH_ASSOC);
+                    } catch (Exception $e) {
+                        $pupilSnapshot = null;
+                    }
                     if ($fromClassID) {
                         $stmt = $db->prepare("SELECT COALESCE(SUM(pmtAmt),0) as totalPaid FROM Payment WHERE pupilID = ? AND classID = ?");
                         $stmt->execute([$pupilID, $fromClassID]);
@@ -167,8 +234,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     $db->beginTransaction();
-                    $ins = $db->prepare('INSERT INTO Pupil_Transfer (pupilID, fromClassID, toSchool, toClassID, transferDate, reason, notes, outstanding, futurePaidAmount, futurePaidTerm, futurePaidDetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-                    $ins->execute([$pupilID, $fromClassID, $newSchool, null, $transferDate, $reason, $notes, $serverOutstanding, $futurePaid, null, json_encode($futurePayments)]);
+
+                    // Build insert using only columns that actually exist to avoid unknown-column errors
+                    $desired = [
+                        'fName' => $pupilSnapshot['fName'] ?? null,
+                        'lName' => $pupilSnapshot['lName'] ?? null,
+                        'pupilID' => $pupilID,
+                        'fromClassID' => $fromClassID,
+                        'toSchool' => $newSchool,
+                        'toClassID' => null,
+                        'transferDate' => $transferDate,
+                        'reason' => $reason,
+                        'notes' => $notes,
+                        'outstanding' => $serverOutstanding,
+                        'futurePaidAmount' => $futurePaid,
+                        'futurePaidTerm' => null,
+                        'futurePaidDetails' => json_encode($futurePayments),
+                        'DoB' => $pupilSnapshot['DoB'] ?? null,
+                        'gender' => $pupilSnapshot['gender'] ?? null,
+                        'enrollDate' => $pupilSnapshot['enrollDate'] ?? null,
+                        'parentEmail' => $pupilSnapshot['parentEmail'] ?? null,
+                        'phone' => $pupilSnapshot['phone'] ?? null
+                    ];
+
+                    $existingCols = [];
+                    try {
+                        $colStmt = $db->query('SHOW COLUMNS FROM Pupil_Transfer');
+                        $cols = $colStmt->fetchAll(PDO::FETCH_ASSOC);
+                        foreach ($cols as $c) $existingCols[] = $c['Field'];
+                    } catch (Exception $e) {
+                        // If we cannot fetch columns, fall back to desired keys (riskier)
+                        $existingCols = array_keys($desired);
+                    }
+
+                    $insertData = [];
+                    foreach ($desired as $k => $v) {
+                        if (in_array($k, $existingCols, true)) {
+                            $insertData[$k] = $v;
+                        }
+                    }
+
+                    if (empty($insertData)) {
+                        throw new Exception('No valid columns available to insert Pupil_Transfer record.');
+                    }
+
+                    $fields = array_keys($insertData);
+                    $placeholders = implode(',', array_fill(0, count($fields), '?'));
+                    $sql = 'INSERT INTO Pupil_Transfer (' . implode(',', $fields) . ') VALUES (' . $placeholders . ')';
+                    $ins = $db->prepare($sql);
+                    $ins->execute(array_values($insertData));
 
                     // Remove pupil from class so they are no longer assigned
                     if ($fromClassID) {
@@ -176,10 +290,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $del->execute([$pupilID]);
                     }
 
+                    // Mark pupil as transferred (soft-delete) instead of deleting to preserve referential integrity
+                    try {
+                        // Ensure transferred columns exist on Pupil
+                        try {
+                            $check = $db->query("SHOW COLUMNS FROM Pupil LIKE 'transferred'");
+                            $found = $check->fetch(PDO::FETCH_ASSOC);
+                            if (!$found) {
+                                $db->exec("ALTER TABLE Pupil ADD COLUMN transferred TINYINT(1) NOT NULL DEFAULT 0, ADD COLUMN transferredAt DATETIME DEFAULT NULL");
+                            }
+                        } catch (Exception $ex) {
+                            // ignore if unable to alter
+                        }
+
+                        $upd = $db->prepare('UPDATE Pupil SET transferred = 1, transferredAt = NOW() WHERE pupilID = ?');
+                        $upd->execute([$pupilID]);
+                    } catch (Exception $e) {
+                        error_log('Failed to mark pupil as transferred for ' . $pupilID . ': ' . $e->getMessage());
+                    }
+
                     $db->commit();
 
                     Session::setFlash('success', 'Pupil transfer recorded successfully.');
-                    header('Location: pupils_view.php?id=' . urlencode($pupilID));
+                    // Redirect to transfer report (pupil may be archived)
+                    header('Location: pupil_transfer_report.php');
                     exit;
                 }
             } catch (Exception $e) {
@@ -222,6 +356,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['pupilID'])) {
 }
 
 $allPupils = $pupilModel->getAllWithParents();
+
+// Include header here so any redirects above have already run
+require_once 'includes/header.php';
 ?>
 
 <div class="mb-4">
@@ -290,8 +427,8 @@ $allPupils = $pupilModel->getAllWithParents();
             </div>
 
             <div class="col-12">
-                <label class="form-label">Receiving School <span class="text-danger">*</span></label>
-                <input type="text" name="newSchool" class="form-control" value="<?= htmlspecialchars($_POST['newSchool'] ?? '') ?>" required>
+                <label class="form-label">Receiving School</label>
+                <input type="text" name="newSchool" class="form-control" value="<?= htmlspecialchars($_POST['newSchool'] ?? '') ?>">
             </div>
 
             <div class="col-md-6">
@@ -379,3 +516,4 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 <?php require_once 'includes/footer.php'; ?>
+<?php if (ob_get_level()) { ob_end_flush(); } ?>

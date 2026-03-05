@@ -60,6 +60,61 @@ foreach ($pupils as $p) {
 
 usort($rows, function($a, $b) { return $b['balance'] <=> $a['balance']; });
 
+// Also include any transfers with outstanding balances (show class names when available)
+try {
+    $db = Database::getInstance()->getConnection();
+    // Determine if snapshot name columns exist to avoid SQL errors
+    $hasFName = false;
+    $hasLName = false;
+    try {
+        $colsStmt = $db->query('SHOW COLUMNS FROM Pupil_Transfer');
+        $cols = $colsStmt->fetchAll(PDO::FETCH_COLUMN, 0);
+        $hasFName = in_array('fName', $cols, true);
+        $hasLName = in_array('lName', $cols, true);
+    } catch (Exception $e) {
+        // ignore and fall back to live Pupil names
+    }
+
+    if ($hasFName && $hasLName) {
+        $nameSelect = 'COALESCE(pt.fName, p.fName) AS fName, COALESCE(pt.lName, p.lName) AS lName';
+    } else {
+        $nameSelect = 'p.fName AS fName, p.lName AS lName';
+    }
+
+    $sql = 'SELECT pt.*, ' . $nameSelect . ', c.className AS fromClassName '
+         . 'FROM Pupil_Transfer pt '
+         . 'LEFT JOIN Pupil p ON pt.pupilID = p.pupilID '
+         . 'LEFT JOIN `Class` c ON pt.fromClassID = c.classID '
+         . 'WHERE pt.outstanding > 0';
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    $transfers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($transfers as $t) {
+        // Avoid duplicates if pupil also appears in active list
+        $exists = false;
+        foreach ($rows as $r) { if ($r['pupilID'] === $t['pupilID']) { $exists = true; break; } }
+        if ($exists) continue;
+
+        $fromClass = $t['fromClassName'] ?? ($t['fromClassID'] ?? 'Unknown');
+        $transferInfo = 'Transferred on ' . (!empty($t['transferDate']) ? date('d-m-Y', strtotime($t['transferDate'])) : 'N/A');
+        if (!empty($t['toSchool'])) $transferInfo .= ' to ' . $t['toSchool'];
+
+        $rows[] = [
+            'pupilID' => $t['pupilID'],
+            'fName' => $t['fName'] ?? '',
+            'lName' => $t['lName'] ?? '',
+            'className' => 'Transferred from ' . $fromClass . ' — ' . $transferInfo,
+            'amountPaid' => 0,
+            'balance' => (float)($t['outstanding'] ?? 0)
+        ];
+    }
+    // Re-sort after adding transfers
+    usort($rows, function($a, $b) { return $b['balance'] <=> $a['balance']; });
+} catch (Exception $e) {
+    error_log('Failed to load Pupil_Transfer rows for outstanding report: ' . $e->getMessage());
+}
+
 $pageTitle = 'Outstanding Balances';
 $currentPage = 'fees_outstanding';
 
